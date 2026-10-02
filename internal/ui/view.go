@@ -519,7 +519,17 @@ func (m Model) footer(w int) string {
 			hint = "1-9 link  l f n g o first  ↵ pane  z drawer  ? help"
 		}
 	}
-	return fit(" "+hint, w)
+	return footerLine(" "+hint, m.opt.Version, w)
+}
+
+// footerLine right-aligns the dim version after the key help. The help
+// takes priority: the version is dropped when both do not fit with a
+// two-column gap.
+func footerLine(help, version string, w int) string {
+	if version == "" || ansi.StringWidth(help)+2+ansi.StringWidth(version) > w {
+		return fit(help, w)
+	}
+	return spread(help, dim.Render(version), w)
 }
 
 // spread puts left and right on one line of width w, right-aligning right and
