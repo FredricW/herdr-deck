@@ -369,10 +369,16 @@ func devGroup(t deck.Thread) group {
 		}
 	}
 	if len(t.DevServers) == 0 {
-		if state.text != "" {
+		// While the command starts, "not started" is old news; a
+		// problem (invalid manifest, no worktree) still shows.
+		if state.text == "starting…" && (t.DevNote == "" || strings.HasPrefix(t.DevNote, "not started") || strings.HasPrefix(t.DevNote, "the state file")) {
 			return group{items: []item{state}}
 		}
-		return words(t.DevNote, dim)
+		g := words(t.DevNote, dim)
+		if state.text != "" {
+			g.items = append(g.items, span("·", dim), state)
+		}
+		return g
 	}
 	g := group{sep: "   "}
 	for _, s := range t.DevServers {

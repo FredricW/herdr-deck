@@ -7,6 +7,7 @@ import (
 	"strings"
 	"sync/atomic"
 	"testing"
+	"time"
 
 	"github.com/FredricW/herdr-deck/internal/deck"
 )
@@ -37,7 +38,7 @@ func upReader(t *testing.T, up ...int) (*Reader, *fakeStarter) {
 		Prober: Prober{Dial: fakeDial(new(atomic.Int32), up...)},
 		Logs:   filepath.Join(t.TempDir(), "state", "herdr-deck", "logs"),
 		Start:  f.start,
-		Alive:  func(pid int) bool { return f.alive[pid] },
+		Alive:  func(pid int, _ time.Time) bool { return f.alive[pid] },
 	}, f
 }
 

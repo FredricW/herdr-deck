@@ -9,6 +9,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"slices"
+	"strconv"
 	"strings"
 	"syscall"
 	"time"
@@ -44,9 +45,10 @@ func startDetached(c Command) (int, error) {
 }
 
 // processAlive tells whether pid still runs as the leader of its own
-// process group, as startDetached leaves it; a pid reused by another
-// process seldom is. A child of this process that exited is reaped here.
-func processAlive(pid int) bool {
+// process group, as startDetached leaves it, and (when started is known)
+// began then: a pid reused by another process, e.g. after a reboot, is not
+// taken for it. A child of this process that exited is reaped here.
+func processAlive(pid int, started time.Time) bool {
 	if pid <= 0 {
 		return false
 	}
@@ -57,6 +59,50 @@ func processAlive(pid int) bool {
 	if err := syscall.Kill(pid, 0); err != nil && !errors.Is(err, syscall.EPERM) {
 		return false
 	}
-	pgid, err := syscall.Getpgid(pid)
-	return err == nil && pgid == pid
+	if pgid, err := syscall.Getpgid(pid); err != nil || pgid != pid {
+		return false
+	}
+	if started.IsZero() {
+		return true
+	}
+	// ps's etime is POSIX, unlike the start time; without ps, trust the pid.
+	out, err := exec.Command("ps", "-o", "etime=", "-p", strconv.Itoa(pid)).Output()
+	if err != nil {
+		return true
+	}
+	elapsed, ok := parseEtime(strings.TrimSpace(string(out)))
+	if !ok {
+		return true
+	}
+	began := time.Now().Add(-elapsed)
+	return began.Sub(started).Abs() <= startSlack
+}
+
+// startSlack is how far ps's idea of a process's start may be from the
+// time the deck recorded: etime has whole seconds, and the clock may move.
+const startSlack = 10 * time.Second
+
+// parseEtime reads ps's elapsed time, [[dd-]hh:]mm:ss.
+func parseEtime(s string) (time.Duration, bool) {
+	var days int
+	if d, rest, ok := strings.Cut(s, "-"); ok {
+		n, err := strconv.Atoi(d)
+		if err != nil {
+			return 0, false
+		}
+		days, s = n, rest
+	}
+	parts := strings.Split(s, ":")
+	if len(parts) < 2 || len(parts) > 3 {
+		return 0, false
+	}
+	secs := 0
+	for _, p := range parts {
+		n, err := strconv.Atoi(p)
+		if err != nil {
+			return 0, false
+		}
+		secs = secs*60 + n
+	}
+	return time.Duration(days)*24*time.Hour + time.Duration(secs)*time.Second, true
 }

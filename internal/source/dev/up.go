@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/FredricW/herdr-deck/internal/deck"
 )
@@ -58,7 +59,7 @@ func (r *Reader) Up(ctx context.Context, slug string, t deck.Thread) (string, er
 		return fmt.Sprintf("%s's dev servers already answer (%s); not starting %q", t.ID, strings.Join(running, " "), m.Up), nil
 	}
 	log, pidFile := r.upFiles(slug, t.ID)
-	if pid, ok := readPID(pidFile); ok && r.alive(pid) {
+	if pid, started, ok := readPID(pidFile); ok && r.alive(pid, started) {
 		return fmt.Sprintf("%s's up command still runs (pid %d); its log is in the drawer", t.ID, pid), nil
 	}
 
@@ -74,11 +75,15 @@ func (r *Reader) Up(ctx context.Context, slug string, t deck.Thread) (string, er
 	if start == nil {
 		start = startDetached
 	}
+	started := time.Now()
 	pid, err := start(Command{Line: line, Dir: t.Worktree, Log: log})
 	if err != nil {
 		return "", err
 	}
-	if err := os.WriteFile(pidFile, []byte(strconv.Itoa(pid)+"\n"), 0o644); err != nil {
+	// The start time tells this process from a later one given the same
+	// pid, e.g. after a reboot.
+	record := fmt.Sprintf("%d %d\n", pid, started.Unix())
+	if err := os.WriteFile(pidFile, []byte(record), 0o644); err != nil {
 		return "", fmt.Errorf("started %q as pid %d, but could not record it: %w", line, pid, err)
 	}
 	return fmt.Sprintf("started %q for %s; its log is in the drawer", line, t.ID), nil
@@ -90,11 +95,11 @@ func (r *Reader) applyUp(slug string, t *deck.Thread) {
 		return
 	}
 	log, pidFile := r.upFiles(slug, t.ID)
-	pid, ok := readPID(pidFile)
+	pid, started, ok := readPID(pidFile)
 	if !ok {
 		return
 	}
-	t.DevUp = &deck.DevUp{Log: log, Alive: r.alive(pid)}
+	t.DevUp = &deck.DevUp{Log: log, Alive: r.alive(pid, started)}
 }
 
 // upFiles are the log and pid files of a thread's `up` command:
@@ -104,20 +109,34 @@ func (r *Reader) upFiles(slug, thread string) (log, pid string) {
 	return base + ".log", base + ".pid"
 }
 
-func (r *Reader) alive(pid int) bool {
+func (r *Reader) alive(pid int, started time.Time) bool {
 	if r.Alive != nil {
-		return r.Alive(pid)
+		return r.Alive(pid, started)
 	}
-	return processAlive(pid)
+	return processAlive(pid, started)
 }
 
-func readPID(path string) (int, bool) {
+// readPID reads a pid file: "<pid> <unix start time>". The start time is
+// zero when the file has none.
+func readPID(path string) (pid int, started time.Time, ok bool) {
 	b, err := os.ReadFile(path)
 	if err != nil {
-		return 0, false
+		return 0, time.Time{}, false
 	}
-	pid, err := strconv.Atoi(strings.TrimSpace(string(b)))
-	return pid, err == nil && pid > 0
+	f := strings.Fields(string(b))
+	if len(f) == 0 {
+		return 0, time.Time{}, false
+	}
+	pid, err = strconv.Atoi(f[0])
+	if err != nil || pid <= 0 {
+		return 0, time.Time{}, false
+	}
+	if len(f) > 1 {
+		if sec, err := strconv.ParseInt(f[1], 10, 64); err == nil {
+			started = time.Unix(sec, 0)
+		}
+	}
+	return pid, started, true
 }
 
 // safeName keeps a slug or thread id usable as part of a file name.

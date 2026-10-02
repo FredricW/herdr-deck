@@ -2,10 +2,13 @@
 
 package dev
 
-import "errors"
+import (
+	"errors"
+	"time"
+)
 
 func startDetached(Command) (int, error) {
 	return 0, errors.New("starting dev servers needs a Unix system")
 }
 
-func processAlive(int) bool { return false }
+func processAlive(int, time.Time) bool { return false }

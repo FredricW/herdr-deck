@@ -215,6 +215,15 @@ func starting(alive bool) deck.Snapshot {
 	return s
 }
 
+func TestDevUpKeepsProblemNote(t *testing.T) {
+	s := starting(false)
+	s.Threads[1].DevNote = "worktree not found"
+	m, _ := newModel(t, s, 80, 40)
+	if sc := screen(m); !strings.Contains(sc, "worktree not found · up exited · see the log") {
+		t.Errorf("Dev line hides the problem:\n%s", sc)
+	}
+}
+
 func TestDevUp(t *testing.T) {
 	m, o := newModel(t, calm(), 80, 28)
 	m, _ = press(m, keys("u")...)

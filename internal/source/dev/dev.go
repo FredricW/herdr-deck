@@ -10,6 +10,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/FredricW/herdr-deck/internal/deck"
 )
@@ -24,7 +25,7 @@ type Reader struct {
 	// for real. Alive tells whether a pid still runs; nil asks the system.
 	// Tests replace both, so no dev server is ever started.
 	Start func(Command) (int, error)
-	Alive func(pid int) bool
+	Alive func(pid int, started time.Time) bool
 
 	upMu sync.Mutex // one Up at a time, so a key pressed twice starts once
 }
