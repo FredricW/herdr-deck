@@ -26,6 +26,6 @@ func start(cmd *exec.Cmd) error {
 	if err := cmd.Start(); err != nil {
 		return err
 	}
-	go cmd.Wait() // reap the child; its exit status does not matter
+	go func() { _ = cmd.Wait() }() // reap the child; its exit status does not matter
 	return nil
 }

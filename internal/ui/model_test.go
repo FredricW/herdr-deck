@@ -256,7 +256,7 @@ func TestDigitsAndLetterKeysOpenLinks(t *testing.T) {
 		t.Errorf("g opened %q", got)
 	}
 	// Templates page: one localhost link, from its thread.
-	m, _ = press(m, keys("ko")...)
+	press(m, keys("ko")...)
 	if got := o.urls[len(o.urls)-1]; got != "http://localhost:5181" {
 		t.Errorf("o opened %q", got)
 	}
@@ -626,7 +626,7 @@ func TestClickAfterGrowingUsesDrawnOffset(t *testing.T) {
 	m, _ = press(m, tea.KeyPressMsg{Code: tea.KeyPgDown})
 	m, _ = press(m, tea.WindowSizeMsg{Width: 80, Height: 60})
 	x, y := find(t, m, "1 ABC-1246")
-	m, _ = press(m, click(x, y))
+	press(m, click(x, y))
 	if len(o.urls) != 1 || !strings.HasSuffix(o.urls[0], "ABC-1246") {
 		t.Fatalf("click on link 1 after growing opened %q", o.urls)
 	}
@@ -645,7 +645,7 @@ func TestFocusPane(t *testing.T) {
 	if r, _ := m.selected(); r.kind != rowInbox {
 		t.Fatalf("j did not reach the inbox row: %+v", r)
 	}
-	m, _ = press(m, enter)
+	press(m, enter)
 	if len(o.panes) != 1 || o.panes[0] != "w30:p2" {
 		t.Fatalf("enter on the inbox row focused %q", o.panes)
 	}

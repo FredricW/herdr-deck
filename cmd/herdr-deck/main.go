@@ -39,8 +39,13 @@ func run(args []string) error {
 	slugFlag := fs.String("project", "", "project slug (default: $"+project.EnvProject+", else the project folder containing the working directory)")
 	linear := fs.String("linear-workspace", os.Getenv(deck.EnvLinearWorkspace), "Linear workspace slug that bare issue IDs link into (default: $"+deck.EnvLinearWorkspace+")")
 	demo := fs.Bool("fake", false, "show built-in sample data instead of the project")
+	showVersion := fs.Bool("version", false, "print the version and commit, then exit")
 	if err := fs.Parse(args); err != nil {
 		return err
+	}
+	if *showVersion {
+		fmt.Println(versionString())
+		return nil
 	}
 
 	opt := ui.Options{OpenURL: launch.URL, OpenEditor: launch.Editor}

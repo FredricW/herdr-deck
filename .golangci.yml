@@ -1,0 +1,28 @@
+version: "2"
+
+linters:
+  # standard: errcheck, govet, ineffassign, staticcheck, unused.
+  default: standard
+  enable:
+    - bodyclose
+    - errorlint
+    - misspell
+    - nilerr
+    - unconvert
+    - usestdlibvars
+  settings:
+    errorlint:
+      # Wrapping one error and printing another ("%w: %v") is deliberate.
+      errorf: false
+  exclusions:
+    presets:
+      # Unchecked Close, Flush, os.Remove(All), fmt.Print* and the like.
+      - std-error-handling
+    rules:
+      # Test helpers write to pipes and sockets they own.
+      - path: _test\.go
+        linters: [errcheck]
+
+formatters:
+  enable:
+    - gofmt
