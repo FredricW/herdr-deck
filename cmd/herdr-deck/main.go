@@ -53,6 +53,7 @@ func run(args []string) error {
 	editorTerm := fs.Bool("editor-terminal", false, "the editor is a terminal program: open it in a new herdr pane (default: $"+config.EnvEditorTerminal+", else [editor] terminal)")
 	fs.StringVar(&fl.DiffTool, "diff-tool", "", "command that shows a worktree's diff: {path}, {base}, optional {file} (default: $"+config.EnvDiffTool+", else [diff] command, else hunk or git diff)")
 	diffTerm := fs.Bool("diff-terminal", false, "the diff tool is a terminal program (default: $"+config.EnvDiffTerminal+", else [diff] terminal)")
+	reuseTabs := fs.Bool("reuse-browser-tabs", true, "open a web link in a browser tab that already shows it, on macOS (default: $"+config.EnvReuseTabs+", else reuse_browser_tabs in the config file, else true)")
 	demo := fs.Bool("fake", false, "show built-in sample data instead of the project")
 	showVersion := fs.Bool("version", false, "print the version and commit, then exit")
 	if err := fs.Parse(args); err != nil {
@@ -69,6 +70,8 @@ func run(args []string) error {
 			fl.EditorTerminal = editorTerm
 		case "diff-terminal":
 			fl.DiffTerminal = diffTerm
+		case "reuse-browser-tabs":
+			fl.ReuseTabs = reuseTabs
 		}
 	})
 	cfg, err := config.Resolve(fl, os.Getenv, exec.LookPath)
@@ -84,7 +87,7 @@ func run(args []string) error {
 		}
 	}
 	opt := ui.Options{
-		OpenURL: launch.URL,
+		OpenURL: launch.Browser{Reuse: cfg.ReuseTabs}.OpenURL,
 		OpenEditor: func(path string) error {
 			return runner.Run(cfg.Editor, launch.EditorArgv(cfg.Editor, path), path)
 		},
