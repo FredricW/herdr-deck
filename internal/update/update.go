@@ -147,8 +147,10 @@ type Status struct {
 	Remote  Remote
 	// Current is the running version (GitHub) or commit (linked).
 	Current string
-	// Newer says the source has something newer than the running deck.
+	// Newer says the source has something newer than the installed deck.
 	Newer bool
+	// Deck is the installed deck's version and commit.
+	Deck Running
 }
 
 // Label is the newer version for display: a tag, or a short commit.
@@ -187,8 +189,14 @@ func (s Status) Summary() string {
 type Updater struct {
 	Exec Exec
 	// Herdr is the herdr command; "herdr" when empty.
-	Herdr   string
+	Herdr string
+	// Running is the deck running this code.
 	Running Running
+	// IsInstalled says whether the running binary is bin, the installed
+	// plugin's. When it is not (`herdr-deck update` typed in a shell may
+	// run another build), the installed binary is asked for its version.
+	// Nil means it always is.
+	IsInstalled func(bin string) bool
 	// Out gets one line per step of an update.
 	Out io.Writer
 }
@@ -289,18 +297,21 @@ func (u Updater) Latest(ctx context.Context, in Install) (Remote, error) {
 	return Remote{}, fmt.Errorf("cannot update a %q install", in.Kind)
 }
 
-// Compare decides whether r is newer than the running deck.
+// Compare decides whether r is newer than the installed deck.
 func (u Updater) Compare(ctx context.Context, in Install, r Remote) Status {
-	st := Status{Install: in, Remote: r}
+	st := Status{Install: in, Remote: r, Deck: u.installed(ctx, in)}
 	switch in.Kind {
 	case GitHub:
-		st.Current = u.Running.Version
+		st.Current = st.Deck.Version
 		if _, ok := parseVersion(st.Current); !ok {
 			st.Current = in.Version
 		}
 		st.Newer = newer(r.Tag, st.Current)
 	case Local:
-		st.Current = u.commit(ctx, in)
+		st.Current = st.Deck.Commit
+		if st.Current == "" {
+			st.Current = u.head(ctx, in.Root)
+		}
 		st.Newer = r.Head != "" && r.Head != st.Current && !u.isAncestor(ctx, in.Root, r.Head, st.Current)
 	}
 	return st
@@ -319,12 +330,45 @@ func (u Updater) Check(ctx context.Context) (Status, error) {
 	return u.Compare(ctx, in, r), nil
 }
 
-// commit is the running deck's commit, else the checkout's HEAD.
-func (u Updater) commit(ctx context.Context, in Install) string {
-	if u.Running.Commit != "" {
-		return u.Running.Commit
+// installed is the installed deck's version and commit: the running one's
+// when it is the installed binary, else what the installed binary's
+// --version says. A missing or broken binary gives neither.
+func (u Updater) installed(ctx context.Context, in Install) Running {
+	bin := filepath.Join(in.Root, Binary)
+	if u.IsInstalled == nil || u.IsInstalled(bin) {
+		return u.Running
 	}
-	return u.head(ctx, in.Root)
+	out, err := u.Exec.Output(ctx, in.Root, bin, "--version")
+	if err != nil {
+		return Running{}
+	}
+	d := parseVersionLine(string(out))
+	if d.Commit != "" && in.Kind == Local {
+		// --version prints 12 characters; the comparisons want them all.
+		full, err := u.Exec.Output(ctx, in.Root, "git", "rev-parse", "--verify", "--quiet", d.Commit+"^{commit}")
+		d.Commit = ""
+		if err == nil {
+			d.Commit = strings.TrimSpace(string(full))
+		}
+	}
+	return d
+}
+
+// parseVersionLine reads --version's "herdr-deck <version> (<commit>)".
+func parseVersionLine(s string) Running {
+	f := strings.Fields(s)
+	if len(f) < 2 || f[0] != "herdr-deck" {
+		return Running{}
+	}
+	var d Running
+	if f[1] != "(devel)" {
+		d.Version = f[1]
+	}
+	if len(f) > 2 {
+		rev := strings.TrimSuffix(strings.Trim(f[2], "()"), "-dirty")
+		d.Commit = rev
+	}
+	return d
 }
 
 func (u Updater) head(ctx context.Context, root string) string {
@@ -389,7 +433,7 @@ func (u Updater) applyLocal(ctx context.Context, st Status) error {
 	}
 	head := u.head(ctx, root)
 	bin := filepath.Join(root, Binary)
-	if head != "" && head == u.Running.Commit {
+	if head != "" && head == st.Deck.Commit {
 		if _, err := os.Stat(bin); err == nil {
 			u.say("herdr-deck %s is up to date with origin/%s.", short(head), st.Remote.Branch)
 			return nil

@@ -287,8 +287,9 @@ secrets there; a later settings page will edit it.
   pass `$HERDR_DECK_CONFIG` on to decks they open when it is set; the deck
   finds the default path itself.
 - `update_check` (the header's update hint) and `auto_restart` (re-exec
-  when the binary is replaced), both on by default. New keys are new optional fields, so an older deck only reports a newer
-  file's keys as unknown.
+  when the binary is replaced), both on by default. New keys are new
+  optional fields, so an older deck only reports a newer file's keys as
+  unknown.
 
 ## Updates
 
@@ -296,12 +297,15 @@ Option A of the research doc: herdr builds from source, no release binaries.
 
 - `herdr-deck update [--check]` (`internal/update`) reads `herdr plugin list
   --plugin herdr-deck --json`. A GitHub install compares the newest `vX.Y.Z`
-  tag (`git ls-remote --tags`) with the running version and runs `herdr
+  tag (`git ls-remote --tags`) with the installed version and runs `herdr
   plugin install <repo> --ref <tag> --yes`. A linked checkout compares
   origin's default branch (`git ls-remote --symref origin HEAD`) with the
-  running commit; it pulls (`--ff-only`) only on that branch with no tracked
+  installed commit; it pulls (`--ff-only`) only on that branch with no tracked
   changes, then builds to a temp file in `bin/` and renames it over
-  `bin/herdr-deck`. `--check` only reports.
+  `bin/herdr-deck`. `--check` only reports. "Installed" is the running
+  binary when it is the plugin's `bin/herdr-deck`, else what that binary's
+  `--version` says (the command may be typed in a shell running another
+  build).
 - The header hint (`↑ <tag or commit>`) comes from `update.Checker`: one
   cache file shared by all decks (`$XDG_CACHE_HOME/herdr-deck/update.json`,
   else `~/.cache/herdr-deck/`), so the remote is asked at most once an

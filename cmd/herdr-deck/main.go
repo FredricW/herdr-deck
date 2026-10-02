@@ -252,6 +252,13 @@ func runUpdate(args []string) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Minute)
 	defer cancel()
 	u := newUpdater(os.Stdout)
+	// Typed in a shell, this may be another build than the plugin's.
+	self, selfErr := os.Executable()
+	u.IsInstalled = func(bin string) bool {
+		a, aerr := os.Stat(self)
+		b, berr := os.Stat(bin)
+		return selfErr == nil && aerr == nil && berr == nil && os.SameFile(a, b)
+	}
 	st, err := u.Check(ctx)
 	if errors.Is(err, update.ErrNotInstalled) {
 		return fmt.Errorf("%w; install it with `herdr plugin install FredricW/herdr-deck`, or update a `go install` with `go install github.com/FredricW/herdr-deck/cmd/herdr-deck@latest`", err)

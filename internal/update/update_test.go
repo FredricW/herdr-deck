@@ -458,3 +458,88 @@ func TestSummary(t *testing.T) {
 		}
 	}
 }
+
+func notInstalled(string) bool { return false }
+
+func TestOtherBinaryAsksTheInstalledOne(t *testing.T) {
+	// `herdr-deck update` typed in a shell runs a newer build from PATH;
+	// the installed plugin is still 0.1.0.
+	fe := &fakeExec{out: map[string]string{
+		listCmd: githubList,
+		tagsCmd: tags,
+		"/plugins/github/herdr-deck-0123|" + filepath.Join("/plugins/github/herdr-deck-0123", "bin", "herdr-deck") + " --version": "herdr-deck 0.1.0 (aaaaaaaaaaaa)\n",
+	}}
+	u := Updater{Exec: fe, Running: Running{Version: "0.10.0"}, IsInstalled: notInstalled, Out: &bytes.Buffer{}}
+	st, err := u.Check(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if st.Current != "0.1.0" || !st.Newer {
+		t.Errorf("Check = current %q newer %v; want the installed 0.1.0, newer", st.Current, st.Newer)
+	}
+
+	// No installed binary to ask: the manifest's version.
+	delete(fe.out, "/plugins/github/herdr-deck-0123|"+filepath.Join("/plugins/github/herdr-deck-0123", "bin", "herdr-deck")+" --version")
+	if st, _ = u.Check(context.Background()); st.Current != "0.1.0" || !st.Newer {
+		t.Errorf("without a binary: current %q newer %v; want 0.1.0, newer", st.Current, st.Newer)
+	}
+}
+
+func TestOtherBinaryLinkedCheckout(t *testing.T) {
+	root := t.TempDir()
+	bin := filepath.Join(root, "bin", "herdr-deck")
+	if err := os.MkdirAll(filepath.Dir(bin), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(bin, []byte("old deck"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	fe := localExec(root)
+	fe.out[root+"|"+bin+" --version"] = "herdr-deck v0.1.0 (" + oldCommit[:12] + "-dirty)\n"
+	fe.out[root+"|git rev-parse --verify --quiet "+oldCommit[:12]+"^{commit}"] = oldCommit + "\n"
+	// The build on PATH is at origin's head; the installed one is behind.
+	u := Updater{Exec: fe, Running: Running{Commit: newCommit}, IsInstalled: notInstalled, Out: &bytes.Buffer{}}
+	st, err := u.Check(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if st.Current != oldCommit || !st.Newer {
+		t.Fatalf("Check = current %q newer %v; want the installed %q, newer", st.Current, st.Newer, oldCommit)
+	}
+	if err := u.Apply(context.Background(), st); err != nil {
+		t.Fatal(err)
+	}
+	if !fe.ran("run "+root+"|git pull") || !fe.ran("run "+root+"|go build") {
+		t.Errorf("calls = %q, want a pull and a build", fe.calls)
+	}
+
+	// Installed binary already at HEAD: no rebuild, so no deck restarts.
+	fe = localExec(root)
+	fe.out[root+"|"+bin+" --version"] = "herdr-deck v0.1.0 (" + newCommit[:12] + ")\n"
+	fe.out[root+"|git rev-parse --verify --quiet "+newCommit[:12]+"^{commit}"] = newCommit + "\n"
+	u = Updater{Exec: fe, Running: Running{Commit: oldCommit}, IsInstalled: notInstalled, Out: &bytes.Buffer{}}
+	st, _ = u.Check(context.Background())
+	if err := u.Apply(context.Background(), st); err != nil {
+		t.Fatal(err)
+	}
+	if st.Newer || fe.ran("run ") {
+		t.Errorf("up-to-date install: newer %v, calls %q; want no pull or build", st.Newer, fe.calls)
+	}
+}
+
+func TestParseVersionLine(t *testing.T) {
+	tests := []struct {
+		in   string
+		want Running
+	}{
+		{"herdr-deck 0.1.0 (abcdef123456)\n", Running{Version: "0.1.0", Commit: "abcdef123456"}},
+		{"herdr-deck v0.1.0-2-gabc-dirty (abcdef123456-dirty)", Running{Version: "v0.1.0-2-gabc-dirty", Commit: "abcdef123456"}},
+		{"herdr-deck (devel)", Running{}},
+		{"something else 1.0", Running{}},
+	}
+	for _, tt := range tests {
+		if got := parseVersionLine(tt.in); got != tt.want {
+			t.Errorf("parseVersionLine(%q) = %+v, want %+v", tt.in, got, tt.want)
+		}
+	}
+}
