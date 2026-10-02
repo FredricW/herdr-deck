@@ -104,6 +104,7 @@ A compact list on top and a detail drawer below; mockups of every state at
  ▸◐ Users page                 Building overv…  L4
   ◐ Templates page             Writing tests    L F    ●●●
   ◇ Document select for sum…   #2320 review     L F3   ●○
+
   + Backlog (6)
 ─ Users page · t-0002 ──────────────────────────────────────
  Status  working · Building overview · ~60% · 4m
@@ -115,7 +116,8 @@ A compact list on top and a detail drawer below; mockups of every state at
 
 - **List.** One row per piece of work: a task joined with the threads it
   names, or a thread no task names. Rows are grouped under their TASKS.md
-  list. Columns at 80: work, thread, status, PR, links (`L4` = four Linear
+  list, with a blank line between two groups (folded ones too); the cursor
+  and the mouse skip it. Columns at 80: work, thread, status, PR, links (`L4` = four Linear
   links), dev (one dot per dev.json port). At 60 the thread and PR columns
   fold into status.
 - **Needs you on top.** Threads waiting on you and unhandled inbox items move
@@ -328,7 +330,8 @@ marked parallel.
    a deck that is not focused instead of closing it, and closes only a
    focused deck.
 8. **Polish / later.** Done: the config file (see Configuration), with a
-   configurable editor and diff tool. Still to do: Linear issue status next
+   configurable editor and diff tool, and a blank line between the list's
+   groups. Still to do: Linear issue status next
    to IDs (GraphQL; key from env or `op`), `u` to start dev servers, link
    handlers, multi-project view.
 

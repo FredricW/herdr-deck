@@ -143,7 +143,7 @@ func (m *Model) SetSnapshot(snap deck.Snapshot) {
 			}
 		}
 		if !found {
-			m.cursor = clamp(m.cursor, 0, len(m.rows)-1)
+			m.cursor = m.offGap(clamp(m.cursor, 0, len(m.rows)-1), 1)
 		}
 	}
 	// On another row, the drawer starts over: a report or a scroll
@@ -171,11 +171,20 @@ func (m Model) homeRow() int {
 		}
 	}
 	for i, r := range m.rows {
-		if r.kind != rowHeading {
+		if r.kind == rowWork || r.kind == rowInbox {
 			return i
 		}
 	}
 	return 0
+}
+
+// offGap moves i off a gap in direction dir (1 or -1). A gap always sits
+// between two groups, so the next row that way is a heading or a row.
+func (m Model) offGap(i, dir int) int {
+	for i >= 0 && i < len(m.rows) && m.rows[i].kind == rowGap {
+		i += dir
+	}
+	return i
 }
 
 // Snapshot returns the data the model shows.
@@ -318,7 +327,11 @@ func (m *Model) move(delta int) {
 	if len(m.rows) == 0 {
 		return
 	}
-	m.cursor = clamp(m.cursor+delta, 0, len(m.rows)-1)
+	dir := 1
+	if delta < 0 {
+		dir = -1
+	}
+	m.cursor = m.offGap(clamp(m.cursor+delta, 0, len(m.rows)-1), dir)
 	m.moved = true
 	m.setMode(modeRow)
 	m.ensureVisible()
@@ -582,7 +595,7 @@ func (m *Model) handleClick(mouse tea.Mouse) (tea.Model, tea.Cmd) {
 		m.toggleMode(modeSources)
 	case mouse.Y >= l.listTop && mouse.Y < l.listTop+l.listH:
 		i := m.listOff + mouse.Y - l.listTop
-		if i >= len(m.rows) {
+		if i >= len(m.rows) || m.rows[i].kind == rowGap {
 			break
 		}
 		m.cursor, m.moved = i, true

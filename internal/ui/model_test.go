@@ -391,6 +391,65 @@ func TestFolding(t *testing.T) {
 	}
 }
 
+// A blank line separates two groups, never ends the list, and the cursor,
+// the wheel and clicks all step over it.
+func TestGapsBetweenGroups(t *testing.T) {
+	m, _ := newModel(t, calm(), 80, 28)
+	lines := strings.Split(screen(m), "\n")
+	for _, heading := range []string{"On hold until Monday", "+ Backlog (3)"} {
+		_, y := find(t, m, heading)
+		if strings.TrimSpace(lines[y-1]) != "" {
+			t.Errorf("no blank line above %q:\n%s", heading, screen(m))
+		}
+	}
+	if m.rows[0].kind == rowGap || m.rows[len(m.rows)-1].kind == rowGap {
+		t.Errorf("a gap starts or ends the list")
+	}
+
+	m, _ = press(m, keys("jj")...)
+	if got := selectedTitle(m); got != "Document select for summary" {
+		t.Fatalf("on %q, want the last row of In progress", got)
+	}
+	m, _ = press(m, keys("j")...)
+	if got := selectedTitle(m); got != "On hold until Monday 2026-10-05" {
+		t.Fatalf("j over the gap: on %q", got)
+	}
+	m, _ = press(m, keys("k")...)
+	if got := selectedTitle(m); got != "Document select for summary" {
+		t.Fatalf("k over the gap: on %q", got)
+	}
+	m, _ = press(m, tea.MouseWheelMsg{X: 5, Y: 5, Button: tea.MouseWheelDown})
+	if got := selectedTitle(m); got != "On hold until Monday 2026-10-05" {
+		t.Fatalf("wheel over the gap: on %q", got)
+	}
+
+	// A click on the gap does nothing; the rows below it still hit.
+	_, y := find(t, m, "+ Backlog")
+	m, _ = press(m, click(5, y-1))
+	if got := selectedTitle(m); got != "On hold until Monday 2026-10-05" || strings.Contains(screen(m), "Settings page") {
+		t.Fatalf("click on the gap: on %q", got)
+	}
+	x, y := find(t, m, "Subscriptions list")
+	m, _ = press(m, click(x, y))
+	if got := selectedTitle(m); got != "Subscriptions list" {
+		t.Fatalf("click below a gap selected %q", got)
+	}
+}
+
+// Scrolled, a click still maps to the row drawn under it, gaps included.
+func TestClickInScrolledListWithGaps(t *testing.T) {
+	m, _ := newModel(t, calm(), 60, 14)
+	m, _ = press(m, keys("jjjjjj")...)
+	if m.listOff == 0 {
+		t.Fatalf("list did not scroll:\n%s", screen(m))
+	}
+	x, y := find(t, m, "Subscriptions list")
+	m, _ = press(m, click(x, y))
+	if got := selectedTitle(m); got != "Subscriptions list" {
+		t.Fatalf("click in a scrolled list selected %q:\n%s", got, screen(m))
+	}
+}
+
 func TestThreadsNoTaskNames(t *testing.T) {
 	s := calm()
 	s.Threads = append(s.Threads,

@@ -28,6 +28,7 @@ long reports) and hidden.
 │ ▸◐ Users page                    t-0002  Building overview          L4         │
 │  ◐ Templates page                t-0003  Writing tests              L F    ●●● │
 │  ◇ Document select for summary   t-0004  review required     #2320  L F3   ●○  │
+│                                                                                │
 │  On hold until Monday 2026-10-05                                               │
 │  ○ Subscriptions list            t-0001  idle                       L N        │
 │                                                                                │
@@ -39,7 +40,6 @@ long reports) and hidden.
 │ Linear   1 ABC-1246   2 ABC-1256   3 ABC-1257   4 ABC-1250                     │
 │ Branch   hp/admin-rebuild/t-0002-members-admin-users                           │
 │ Dev      no servers running (dev.json: frontend, api, pg)                      │
-│                                                                                │
 │                                                                                │
 │                                                                                │
 │                                                                                │
@@ -63,6 +63,7 @@ long reports) and hidden.
 │ ▸◐ Users page                 Building overv…  L4          │
 │  ◐ Templates page             Writing tests    L F    ●●●  │
 │  ◇ Document select for sum…   #2320 review     L F3   ●○   │
+│                                                            │
 │  On hold until Monday 2026-10-05                           │
 │  ○ Subscriptions list         idle             L N         │
 │                                                            │
@@ -73,7 +74,6 @@ long reports) and hidden.
 │ Linear  1 ABC-1246  2 ABC-1256  3 ABC-1257  4 ABC-1250     │
 │ Pane    w1Z:p1 · Members /admin/users                      │
 │ Dev     none running                                       │
-│                                                            │
 │                                                            │
 │                                                            │
 │                                                            │
@@ -111,9 +111,11 @@ long reports) and hidden.
 │  Needs you                                                                     │
 │ ▸● Users page                    t-0002  needs you · 3m             L4         │
 │  ✉ inbox: t-0002 is now Waiting on you                                   3m    │
+│                                                                                │
 │  In progress                                                                   │
 │  ◐ Templates page                t-0003  Writing tests              L F    ●●● │
 │  ◇ Document select for summary   t-0004  review required     #2320  L F3   ●○  │
+│                                                                                │
 │  On hold until Monday 2026-10-05                                               │
 │  ○ Subscriptions list            t-0001  idle                       L N        │
 │─ Users page ───────────────────────────────────────────────────────────────────│
@@ -124,8 +126,6 @@ long reports) and hidden.
 │ Linear   1 ABC-1246   2 ABC-1256   3 ABC-1257   4 ABC-1250                     │
 │ Report   threads/t-0002.md · changed 14:22                                     │
 │ Branch   hp/admin-rebuild/t-0002-members-admin-users                           │
-│                                                                                │
-│                                                                                │
 │                                                                                │
 │                                                                                │
 │                                                                                │
@@ -146,9 +146,11 @@ long reports) and hidden.
 │  Needs you                                                 │
 │ ▸● Users page                 needs you · 3m   L4          │
 │  ✉ inbox: t-0002 is now Waiting on you                  3m │
+│                                                            │
 │  In progress                                               │
 │  ◐ Templates page             Writing tests    L F    ●●●  │
 │  ◇ Document select for sum…   #2320 review     L F3   ●○   │
+│                                                            │
 │  On hold until Monday 2026-10-05                           │
 │  ○ Subscriptions list         idle             L N         │
 │─ Users page · t-0002 ──────────────────────────────────────│
@@ -157,8 +159,6 @@ long reports) and hidden.
 │         → Say whether to start ABC-1257 and ABC-1250       │
 │ Linear  1 ABC-1246  2 ABC-1256  3 ABC-1257  4 ABC-1250     │
 │ Report  threads/t-0002.md · changed 14:22                  │
-│                                                            │
-│                                                            │
 │                                                            │
 │                                                            │
 │                                                            │
@@ -192,9 +192,11 @@ long reports) and hidden.
 │  ● Users page                    t-0002  needs you · 9m             L4         │
 │  ✉ inbox: t-0002 is now Waiting on you                                   9m    │
 │ ▸✉ inbox: t-0004 is now Ready for review                                 2m    │
+│                                                                                │
 │  In progress                                                                   │
 │  ◐ Templates page                t-0003  Writing tests              L F    ●●● │
 │  ◇ Document select for summary   t-0004  review required     #2320  L F3   ●○  │
+│                                                                                │
 │  On hold until Monday 2026-10-05                                               │
 │  ○ Subscriptions list            t-0001  idle                       L N        │
 │─ Inbox item ───────────────────────────────────────────────────────────────────│
@@ -204,8 +206,6 @@ long reports) and hidden.
 │          PR #2320 opened.                                                      │
 │ GitHub   1 PR #2320 · review required · 2 comments · checks ✓                  │
 │ File     inbox/20261002T143012Z-thread-state-t-0004-7.md                       │
-│                                                                                │
-│                                                                                │
 │                                                                                │
 │                                                                                │
 │                                                                                │
@@ -227,9 +227,11 @@ long reports) and hidden.
 │  ● Users page                 needs you · 9m   L4          │
 │  ✉ inbox: t-0002 is now Waiting on you                  9m │
 │ ▸✉ inbox: t-0004 is now Ready for review                2m │
+│                                                            │
 │  In progress                                               │
 │  ◐ Templates page             Writing tests    L F    ●●●  │
 │  ◇ Document select for sum…   #2320 review     L F3   ●○   │
+│                                                            │
 │  On hold until Monday 2026-10-05                           │
 │  ○ Subscriptions list         idle             L N         │
 │─ Inbox item · 14:30 ───────────────────────────────────────│
@@ -237,8 +239,6 @@ long reports) and hidden.
 │ Summary  t-0004 "Summary select documents" is now          │
 │          Ready for review: PR #2320 opened.                │
 │ GitHub   1 PR #2320 · review required · 2c · ✓             │
-│                                                            │
-│                                                            │
 │                                                            │
 │                                                            │
 │                                                            │
@@ -272,6 +272,7 @@ digit. A second `l` opens the first one.
 │ ▸◐ Users page                    t-0002  Building overview          L4         │
 │  ◐ Templates page                t-0003  Writing tests              L F    ●●● │
 │  ◇ Document select for summary   t-0004  review required     #2320  L F3   ●○  │
+│                                                                                │
 │  On hold until Monday 2026-10-05                                               │
 │  ○ Subscriptions list            t-0001  idle                       L N        │
 │                                                                                │
@@ -283,7 +284,6 @@ digit. A second `l` opens the first one.
 │▶Linear   1 ABC-1246   2 ABC-1256   3 ABC-1257   4 ABC-1250   a all             │
 │ Branch   hp/admin-rebuild/t-0002-members-admin-users                           │
 │ Dev      no servers running (dev.json: frontend, api, pg)                      │
-│                                                                                │
 │                                                                                │
 │                                                                                │
 │                                                                                │
@@ -307,6 +307,7 @@ digit. A second `l` opens the first one.
 │  ◐ Users page                 Building overv…  L4          │
 │  ◐ Templates page             Writing tests    L F    ●●●  │
 │ ▸◇ Document select for sum…   #2320 review     L F3   ●○   │
+│                                                            │
 │  On hold until Monday 2026-10-05                           │
 │  ○ Subscriptions list         idle             L N         │
 │                                                            │
@@ -317,7 +318,6 @@ digit. A second `l` opens the first one.
 │         d desktop app  a all                               │
 │ GitHub  5 PR #2320                                         │
 │ Dev     6 :5174 frontend ●   :8002 api ○                   │
-│                                                            │
 │                                                            │
 │                                                            │
 │                                                            │
@@ -426,6 +426,7 @@ digit. A second `l` opens the first one.
 │ ▸◐ Users page                    t-0002  Building overview          L4         │
 │  ◐ Templates page                t-0003  Writing tests              L F    ●~  │
 │  ◇ Document select for summary   t-0004  ?                   #2320  L F3   ○~  │
+│                                                                                │
 │  On hold until Monday 2026-10-05                                               │
 │  ○ Subscriptions list            t-0001  idle                       L N        │
 │                                                                                │
@@ -434,7 +435,6 @@ digit. A second `l` opens the first one.
 │ ! herdr socket   not found: ↵ cannot focus panes, status from files only       │
 │ ! dev.json       not in webshop: ports from the workspace port token (~)       │
 │ ✓ PROJECT.md, TASKS.md, inbox/, thread list --json                  read 14:41 │
-│                                                                                │
 │                                                                                │
 │                                                                                │
 │                                                                                │
@@ -461,6 +461,7 @@ digit. A second `l` opens the first one.
 │ ▸◐ Users page                 Building overv…  L4          │
 │  ◐ Templates page             Writing tests    L F    ●~   │
 │  ◇ Document select for sum…   #2320 ?          L F3   ○~   │
+│                                                            │
 │  On hold until Monday 2026-10-05                           │
 │  ○ Subscriptions list         idle             L N         │
 │                                                            │
@@ -469,7 +470,6 @@ digit. A second `l` opens the first one.
 │ ! herdr socket  missing: no pane focus                     │
 │ ! dev.json      missing: port token used (~)               │
 │ ✓ project files, thread list                    read 14:41 │
-│                                                            │
 │                                                            │
 │                                                            │
 │                                                            │

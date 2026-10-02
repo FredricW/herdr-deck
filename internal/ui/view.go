@@ -235,6 +235,9 @@ type cell struct {
 }
 
 func (m Model) rowLine(r row, sel bool, w int, asOf string) string {
+	if r.kind == rowGap {
+		return ""
+	}
 	mark := " "
 	if sel {
 		mark = "▸"
