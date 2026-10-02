@@ -95,6 +95,45 @@
           },
           "workspace_id": "w2A"
         }
+      ],
+      "workspaces": [
+        {
+          "active_tab_id": "w23:t1",
+          "agent_status": "idle",
+          "focused": true,
+          "label": "Herdr Deck",
+          "number": 1,
+          "pane_count": 3,
+          "tab_count": 1,
+          "workspace_id": "w23",
+          "worktree": {
+            "checkout_path": "/home/dev/src/herdr-deck",
+            "is_linked_worktree": false,
+            "repo_key": "/home/dev/src/herdr-deck/.git",
+            "repo_name": "herdr-deck",
+            "repo_root": "/home/dev/src/herdr-deck"
+          }
+        },
+        {
+          "active_tab_id": "w2A:t1",
+          "agent_status": "working",
+          "focused": false,
+          "label": "M5 herdr live state",
+          "number": 2,
+          "pane_count": 1,
+          "tab_count": 1,
+          "tokens": {
+            "port": "14437"
+          },
+          "workspace_id": "w2A",
+          "worktree": {
+            "checkout_path": "/home/dev/worktrees/herdr-deck/hp-herdr-deck-t-0006-m5-herdr-live-state",
+            "is_linked_worktree": true,
+            "repo_key": "/home/dev/src/herdr-deck/.git",
+            "repo_name": "herdr-deck",
+            "repo_root": "/home/dev/src/herdr-deck"
+          }
+        }
       ]
     }
   }

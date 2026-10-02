@@ -158,6 +158,9 @@ func TestGolden(t *testing.T) {
 		{name: "report", snap: fakeSnap(), keys: keys("r")},
 		{name: "help", snap: calm(), keys: keys("?")},
 		{name: "drawer-hidden", snap: calm(), keys: keys("zz")},
+		{name: "dev", snap: calm(), keys: keys("jj")},
+		{name: "dev-fallback", snap: calm(), keys: keys("jjjj")},
+		{name: "sources-notes", snap: calm(), keys: keys("!")},
 	}
 	for _, c := range cases {
 		for _, w := range []int{80, 60} {
@@ -256,6 +259,35 @@ func TestDigitsAndLetterKeysOpenLinks(t *testing.T) {
 	m, _ = press(m, keys("ko")...)
 	if got := o.urls[len(o.urls)-1]; got != "http://localhost:5181" {
 		t.Errorf("o opened %q", got)
+	}
+}
+
+func TestLocalhostKeyOpensFirstRunning(t *testing.T) {
+	snap := calm()
+	// Document select: API docs is down; make Frontend down too, and add a
+	// running link after them.
+	th := &snap.Threads[3]
+	th.Links[1].Down = true
+	th.Links = append(th.Links, deck.Link{Kind: deck.LinkLocalhost, Label: "Storybook", URL: "http://localhost:6006"})
+	m, o := newModel(t, snap, 80, 28)
+	m, _ = press(m, keys("jjo")...)
+	if len(o.urls) != 1 || o.urls[0] != "http://localhost:6006" || m.choosing != noKind {
+		t.Fatalf("o opened %q (choosing %v), want the running Storybook link", o.urls, m.choosing)
+	}
+
+	// The fallback port does not listen: o says so and opens nothing, but
+	// its digit still opens it.
+	m, _ = press(m, keys("jjo")...)
+	if len(o.urls) != 1 || !strings.Contains(m.Status(), "no dev server on this row is running") {
+		t.Errorf("o with every server down: opened %q, status %q", o.urls, m.Status())
+	}
+	m, _ = press(m, keys("3")...)
+	if got := o.urls[len(o.urls)-1]; got != "http://localhost:14437" {
+		t.Errorf("3 opened %q", got)
+	}
+	m, _ = press(m, keys("ko")...)
+	if !strings.HasPrefix(m.Status(), "no localhost link") {
+		t.Errorf("o without localhost links: status %q", m.Status())
 	}
 }
 

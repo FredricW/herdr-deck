@@ -6,7 +6,7 @@
   ◐ Templates page              Writing tests    L F    ●●●
   ◇ Document select for summa…  #2320 review     L F3   ●○
   On hold until Monday 2026-10-05
-  ○ Subscriptions list          idle             L N
+  ○ Subscriptions list          idle             L N    ~○
   + Backlog (3)
 
 
@@ -19,10 +19,10 @@
  j k        move; the drawer follows
  space      fold or unfold the list under the cursor
  1-9        open the drawer's numbered link
- l f n g o  open the first Linear, Figma, Notion, PR or
-            localhost link; with several, pick one: a digit,
-            a all, d Figma desktop app, the letter again the
-            first, esc cancels
- ↵          focus the thread's herdr pane
+ l f n g    open the first Linear, Figma, Notion or PR link;
+            with several, pick one: a digit, a all, d Figma
+            desktop app, the letter again the first, esc
+            cancels
+ o          open the first localhost link whose dev server
 ────────────────────────────────────────────────────────────
  esc back  pgup pgdn scroll  z drawer  ? help  q quit

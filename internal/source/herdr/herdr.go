@@ -53,9 +53,22 @@ type Pane struct {
 	Tokens      map[string]string `json:"tokens"`       // e.g. hp_project, hp_group, hp_sub
 }
 
+// Workspace is one herdr workspace as session.snapshot describes it.
+type Workspace struct {
+	ID       string            `json:"workspace_id"`
+	Tokens   map[string]string `json:"tokens"`   // e.g. port, set by a worktree plugin
+	Worktree *Checkout         `json:"worktree"` // the git checkout the workspace was opened on, if any
+}
+
+// Checkout is the git checkout a workspace was opened on.
+type Checkout struct {
+	Path string `json:"checkout_path"`
+}
+
 // State is the part of herdr's live session the deck uses.
 type State struct {
-	Panes []Pane `json:"panes"`
+	Panes      []Pane      `json:"panes"`
+	Workspaces []Workspace `json:"workspaces"`
 }
 
 // ErrNoSocket says nothing listens on the socket path: herdr is not running,

@@ -21,6 +21,10 @@ type Snapshot struct {
 	// Herdr is set when herdr's live state was read, so a thread without a
 	// Pane has no pane open.
 	Herdr bool
+	// Notes are things worth knowing about the sources that are not
+	// missing data, such as a repo without a dev-server manifest. The
+	// Sources view lists them; they do not count as missing.
+	Notes []string
 }
 
 // Project identifies a herdr-projects project.
@@ -79,6 +83,7 @@ type Thread struct {
 	PaneID     string // the pane herdr-projects recorded for the thread
 	Pane       *Pane  // the thread's live herdr pane; nil when not known
 	Worktree   string
+	Repo       string // the repository the worktree belongs to (its main checkout)
 	Branch     string
 	Activity   string       // e.g. "Writing tests"
 	PR         *PullRequest // nil when the thread has no pull request
@@ -86,6 +91,11 @@ type Thread struct {
 	Report     string       // the thread's report (threads/t-NNNN.md), or ""
 	Links      []Link
 	DevServers []DevServer
+	// DevNote says why DevServers is empty, e.g. "no .herdr-deck/dev.json".
+	DevNote string
+	// PortToken is the herdr workspace token `port` of the thread's
+	// worktree, or 0: the dev-server port used when the manifest gives none.
+	PortToken int
 }
 
 // Pane is a thread's herdr pane as herdr shows it now.
@@ -110,7 +120,10 @@ type PullRequest struct {
 type DevServer struct {
 	Name    string
 	Port    int
-	Running bool
+	Running bool // something listens on 127.0.0.1:Port
+	// Fallback is set when the port is herdr's workspace token, not the
+	// manifest's: a guess at where the worktree's server listens.
+	Fallback bool
 }
 
 // InboxItem is one unhandled item in the project's inbox.
@@ -177,6 +190,8 @@ type Link struct {
 	Kind  LinkKind
 	Label string
 	URL   string
+	// Down is set on a localhost link whose dev server does not listen.
+	Down bool
 }
 
 // Same reports whether l and o are one link: Linear links with the same ID

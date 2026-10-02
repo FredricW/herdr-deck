@@ -18,11 +18,11 @@
 ─ Document select for summary · t-0004 ─────────────────────
  Status  ready for review
  Linear  1 ABC-1191
-▶Figma   2 598-48083  3 1138-88367  4 635-76529
-         d desktop app  a all
+ Figma   2 598-48083  3 1138-88367  4 635-76529
  GitHub  5 PR #2320 · review required · 2c
  Open    6 Frontend ●  7 API docs ○
  Dev     :5174 frontend ●   :8002 api ○
 
+
 ────────────────────────────────────────────────────────────
- Figma: 2-4 open  d desktop  a all  f first  esc cancel
+ 1-9 link  l f n g o first  ↵ pane  z drawer  ? help

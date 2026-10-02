@@ -2,9 +2,9 @@
 ────────────────────────────────────────────────────────────────────────────────
     WORK                         THREAD  STATUS              PR      LINKS  DEV
   In progress
- ▸◐ Users page                   t-0002  Building overview           L4
+  ◐ Users page                   t-0002  Building overview           L4
   ◐ Templates page               t-0003  Writing tests               L F    ●●●
-  ◇ Document select for summary  t-0004  review required     #2320   L F3   ●○
+ ▸◇ Document select for summary  t-0004  review required     #2320   L F3   ●○
   On hold until Monday 2026-10-05
   ○ Subscriptions list           t-0001  idle                        L N    ~○
   + Backlog (3)
@@ -15,14 +15,14 @@
 
 
 
-─ Users page ───────────────────────────────────────────────────────────────────
- Thread   t-0002 Members /admin/users · pane w1Z:p1
- Status   working · ~60% · Building overview
- Note     Phase 1 = layout + overview (ABC-1256); report on 1257/1250 before
-          starting them.
-▶Linear   1 ABC-1246   2 ABC-1256   3 ABC-1257   4 ABC-1250
-          a all
- Report   threads/t-0002.md · r shows it
- Branch   hp/admin-rebuild/t-0002-members-admin-users
+─ Document select for summary ──────────────────────────────────────────────────
+ Thread   t-0004 Summary select documents · pane w21:p1
+ Status   ready for review
+ Linear   1 ABC-1191
+ Figma    2 598-48083   3 1138-88367   4 635-76529
+ GitHub   5 PR #2320 · review required · 2 comments
+ Open     6 Frontend ●   7 API docs ○
+ Branch   hp/admin-rebuild/t-0004-summary
+ Dev      :5174 frontend ●   :8002 api ○
 ────────────────────────────────────────────────────────────────────────────────
- Linear: 1-4 open  a all  l first  esc cancel
+ 1-9 link  l f n g o first  ↵ pane  e edit  z drawer  ? help

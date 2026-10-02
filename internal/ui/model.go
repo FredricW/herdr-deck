@@ -374,6 +374,9 @@ func (m Model) links() []deck.Link {
 // linkKey opens the row's only link of kind, or opens the chooser when there
 // are several. Pressed again in the chooser, it opens the first.
 func (m *Model) linkKey(kind deck.LinkKind) tea.Cmd {
+	if kind == deck.LinkLocalhost {
+		return m.openLocalhost()
+	}
 	var of []int
 	for i, l := range m.links() {
 		if l.Kind == kind {
@@ -390,6 +393,27 @@ func (m *Model) linkKey(kind deck.LinkKind) tea.Cmd {
 	m.setMode(modeRow)
 	m.choosing = kind
 	m.desktop = false
+	return nil
+}
+
+// openLocalhost opens the row's first localhost link whose dev server is
+// running. Links to servers that are down open only by their digit.
+func (m *Model) openLocalhost() tea.Cmd {
+	some := false
+	for i, l := range m.links() {
+		if l.Kind != deck.LinkLocalhost {
+			continue
+		}
+		if !l.Down {
+			return m.openNumbered(i)
+		}
+		some = true
+	}
+	if some {
+		m.status = "no dev server on this row is running; a digit opens a link anyway"
+	} else {
+		m.status = "no localhost link on this row"
+	}
 	return nil
 }
 

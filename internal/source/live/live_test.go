@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/FredricW/herdr-deck/internal/deck"
+	"github.com/FredricW/herdr-deck/internal/source/dev"
 	"github.com/FredricW/herdr-deck/internal/source/projects"
 )
 
@@ -208,5 +209,35 @@ func write(t *testing.T, path, data string) {
 	t.Helper()
 	if err := os.WriteFile(path, []byte(data), 0o644); err != nil {
 		t.Fatal(err)
+	}
+}
+
+func TestReadDevServers(t *testing.T) {
+	root := t.TempDir()
+	proj := filepath.Join(root, "demo")
+	if err := os.CopyFS(proj, os.DirFS(filepath.Join("testdata", "demo"))); err != nil {
+		t.Fatal(err)
+	}
+	wt := filepath.Join(root, "worktrees", "t-0001-users")
+	if err := os.MkdirAll(filepath.Join(wt, ".herdr-deck"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	write(t, filepath.Join(wt, ".herdr-deck", "dev.json"), `{"state": {"ports": {"web": 4321}}, "links": [{"title": "Web", "url": "http://localhost:$PORT_web"}]}`)
+	toml := filepath.Join(proj, "threads", "t-0001.toml")
+	b, err := os.ReadFile(toml)
+	if err != nil {
+		t.Fatal(err)
+	}
+	write(t, toml, string(b)+"worktree_path = \""+wt+"\"\n")
+
+	src := source(root, "demo")
+	src.Dev = &dev.Reader{Prober: dev.Prober{Dial: func(context.Context, string) error { return nil }}}
+	snap := src.Read(context.Background())
+	t1 := snap.Threads[0]
+	if len(t1.DevServers) != 1 || t1.DevServers[0] != (deck.DevServer{Name: "web", Port: 4321, Running: true}) {
+		t.Errorf("servers %+v", t1.DevServers)
+	}
+	if got := labels(t1.Links); !strings.Contains(strings.Join(got, ","), "localhost Web") {
+		t.Errorf("links %q, want the manifest's Web link", got)
 	}
 }

@@ -6,7 +6,7 @@
   ◐ Templates page               t-0003  Writing tests               L F    ●●●
   ◇ Document select for summary  t-0004  review required     #2320   L F3   ●○
   On hold until Monday 2026-10-05
-  ○ Subscriptions list           t-0001  idle                        L N
+  ○ Subscriptions list           t-0001  idle                        L N    ~○
   + Backlog (3)
 
 
@@ -19,10 +19,10 @@
  j k        move; the drawer follows
  space      fold or unfold the list under the cursor
  1-9        open the drawer's numbered link
- l f n g o  open the first Linear, Figma, Notion, PR or localhost link; with
-            several, pick one: a digit, a all, d Figma desktop app, the letter
-            again the first, esc cancels
+ l f n g    open the first Linear, Figma, Notion or PR link; with several, pick
+            one: a digit, a all, d Figma desktop app, the letter again the
+            first, esc cancels
+ o          open the first localhost link whose dev server is running
  ↵          focus the thread's herdr pane
- e          open the thread's worktree in VS Code
 ────────────────────────────────────────────────────────────────────────────────
  esc back  pgup pgdn scroll  z drawer  ? help  q quit

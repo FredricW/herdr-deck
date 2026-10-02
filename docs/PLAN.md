@@ -52,8 +52,8 @@ All under the projects root (`$HERDR_PROJECTS_ROOT`, else
 | Thread brief / report | `<slug>/threads/t-NNNN.task.md`, `t-NNNN.md` | Free text. Scrape for links. Report may start with `PR: <url>` and has a `## Next` section. |
 | herdr live state | `session.snapshot` over the socket (the same JSON as `herdr api snapshot`) on every reload | Workspaces, panes, agents, tokens (`hp_project`, `hp_sub`, `hp_group`, `port`). A thread's pane has `hp_project` = slug and `hp_group` = `<slug>!1!<rank>!<thread id>`; the coordinator's `hp_group` is `<slug>!0!<pane id>`. Without tokens, the recorded `pane_id` counts when its `cwd` is the thread's worktree. |
 | herdr events | Unix socket `$HERDR_SOCKET_PATH` (else `~/.config/herdr/herdr.sock`), newline-delimited JSON `{id, method, params}`; `events.subscribe {subscriptions:[{type:"pane.agent_status_changed"}, …]}` | Verified in milestone 5 (herdr 0.9.3): after `subscription_started` the connection stays open and streams `{"event","data"}` lines (event names use `_`: `pane_updated`). `pane.updated` fires for every pane each time the herdr-projects ticker rewrites tokens (~15 s) and carries the whole pane. `pane.agent_status_changed` needs a `pane_id`, so the deck subscribes once per agent pane, and again when panes come or go. One unknown pane id fails the whole subscribe and closes the connection. When the subscribe is refused the deck polls every 2.5 s. Reference round-trip: herdr-projects `src/runner.rs:279-291`. Full method list: `herdr api schema --json`. |
-| Dev servers | herdr-deck's own manifest, `.herdr-deck/dev.json` in the repo | Tells the deck where a worktree's dev-server ports live: `state.file` is a path template per worktree (e.g. `.dev/$DIRNAME/state.json`), `state.ports` maps server names → JSON keys in that file (e.g. `api_port`, `frontend_port`), and `links[]` are URL templates with `$PORT_<name>` placeholders and the servers they `need`. "Running" = TCP connect to 127.0.0.1:port, 400 ms timeout. |
-| Fallback port | herdr workspace token `port` (set by a worktree plugin, e.g. from a hash of the branch) | Use only when no manifest port is found; label it as such. |
+| Dev servers | herdr-deck's own manifest, `.herdr-deck/dev.json` in the worktree, else in the repo's main checkout (the thread's `repo`) | Tells the deck where a worktree's dev-server ports live: `state.file` is a path template per worktree (e.g. `.dev/$DIRNAME/state.json`; also `$BRANCH`, `$WORKTREE`, `$REPO`; relative to the main checkout), `state.ports` maps server names → JSON keys in that file (e.g. `api_port`, `frontend_port`) or fixed port numbers, and `links[]` are URL templates with `$PORT_<name>` placeholders and the servers they `need`. "Running" = TCP connect to 127.0.0.1:port or [::1]:port (Node dev servers may listen on IPv6 only), 400 ms timeout, probed in parallel, answers cached 2 s. Format in the README. A repo without a manifest is a note in Sources (not a missing source); a broken manifest or state file is missing. |
+| Fallback port | herdr workspace token `port` on the workspace whose `worktree.checkout_path` is the thread's worktree (set by a worktree plugin, e.g. from a hash of the branch) | Use only when no manifest port is found; marked `~`. |
 
 **Never** call `herdr-projects context <slug>` without `--peek`: without it
 the command marks inbox items as seen.
@@ -137,11 +137,12 @@ Keys:
 
 - `j`/`k` move (the drawer follows), `space` folds a list.
 - `1`–`9` open the drawer's numbered links. `l` Linear, `f` Figma,
-  `n` Notion, `g` GitHub PR, `o` localhost open the first link of that kind.
-  When there are several, the key highlights that drawer line and waits:
-  a digit opens one, `a` opens all of that kind, `d` opens a Figma link in
-  the desktop app, the same letter again opens the first, and `esc`
-  cancels.
+  `n` Notion, `g` GitHub PR open the first link of that kind. When there
+  are several, the key highlights that drawer line and waits: a digit opens
+  one, `a` opens all of that kind, `d` opens a Figma link in the desktop
+  app, the same letter again opens the first, and `esc` cancels. `o` opens
+  the first localhost link whose dev server is running, without a chooser
+  (milestone 6): links to servers that are down open only by their digit.
 - `enter`: on a thread row, focus its herdr pane (`herdr pane focus
   <pane_id>`); on an inbox row, the subject thread's pane (else the
   coordinator's).
@@ -225,6 +226,9 @@ marked parallel.
    herdr-projects group stands. `enter` runs `pane.focus` over the socket.
 6. **Dev servers.** Reader for the `.herdr-deck/dev.json` manifest + port
    probe; per-thread localhost links with running dots; `port` token fallback.
+   Done: `internal/source/dev` runs after herdr's reader (which sets each
+   thread's `PortToken`); localhost links carry `Down` when their server does
+   not listen; `Snapshot.Notes` holds Sources lines that are not missing data.
 7. **herdr plugin.** `herdr-plugin.toml`, toggle action, auto-open event,
    split sizing. Document install in README.
 8. **Polish / later.** Linear issue status next to IDs (GraphQL; key from

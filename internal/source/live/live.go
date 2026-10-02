@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/FredricW/herdr-deck/internal/deck"
+	"github.com/FredricW/herdr-deck/internal/source/dev"
 	"github.com/FredricW/herdr-deck/internal/source/herdr"
 	"github.com/FredricW/herdr-deck/internal/source/projects"
 	"github.com/FredricW/herdr-deck/internal/source/tasks"
@@ -25,6 +26,9 @@ type Source struct {
 	// Herdr lays herdr's live panes and agent states over the threads; nil
 	// leaves the deck on herdr-projects' data alone.
 	Herdr *herdr.Reader
+	// Dev reads each worktree's dev servers and probes their ports; nil
+	// leaves threads without them.
+	Dev *dev.Reader
 	// Now stamps Snapshot.ReadAt; nil means time.Now.
 	Now func() time.Time
 }
@@ -72,6 +76,10 @@ func (s Source) Read(ctx context.Context) deck.Snapshot {
 	snap.ReadAt = now()
 	if s.Herdr != nil {
 		s.Herdr.Apply(ctx, &snap, snap.ReadAt)
+	}
+	if s.Dev != nil {
+		// After herdr: its workspace port token is the fallback port.
+		s.Dev.Apply(ctx, &snap)
 	}
 	return snap
 }
