@@ -8,7 +8,8 @@ import (
 	"time"
 )
 
-// ProbeTimeout bounds one port probe: a TCP connect to 127.0.0.1.
+// ProbeTimeout bounds one port probe: a TCP connect to 127.0.0.1 and to
+// ::1, at the same time.
 const ProbeTimeout = 400 * time.Millisecond
 
 // probeTTL is how long a probe's answer is reused. The deck reloads every
@@ -57,14 +58,19 @@ func (p *Prober) Listening(ctx context.Context, ports []int) map[int]bool {
 	var wg sync.WaitGroup
 	var mu sync.Mutex
 	for _, port := range todo {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
-			up := p.dial(ctx, net.JoinHostPort("127.0.0.1", strconv.Itoa(port))) == nil
-			mu.Lock()
-			out[port] = up
-			mu.Unlock()
-		}()
+		// A server may listen on IPv4 or IPv6 only (Node resolves
+		// localhost to ::1 first), and a localhost URL reaches either.
+		for _, host := range []string{"127.0.0.1", "::1"} {
+			wg.Add(1)
+			go func() {
+				defer wg.Done()
+				if p.dial(ctx, net.JoinHostPort(host, strconv.Itoa(port))) == nil {
+					mu.Lock()
+					out[port] = true
+					mu.Unlock()
+				}
+			}()
+		}
 	}
 	wg.Wait()
 

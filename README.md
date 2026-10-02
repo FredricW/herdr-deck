@@ -45,7 +45,7 @@ The deck shows the dev servers of each open thread's worktree: one dot per
 server in the list's DEV column (green `●` when something listens on the
 port, dim `○` when not), and in the drawer a `Dev` line with each port and an
 `Open` line with numbered localhost links. A port is running when a TCP
-connect to `127.0.0.1:<port>` succeeds within 400 ms. Ports are probed in
+connect to `127.0.0.1:<port>` or `[::1]:<port>` succeeds within 400 ms. Ports are probed in
 parallel and each answer is reused for 2 seconds.
 
 A repository says where its worktrees' ports are in `.herdr-deck/dev.json`.
@@ -72,11 +72,13 @@ checkout:
   they start the servers, e.g. `{"frontend_port": 5181, "api_port": 8011}`.
   It may use `$DIRNAME` (the worktree's folder name), `$BRANCH`, `$WORKTREE`
   and `$REPO` (absolute paths of the worktree and the main checkout), also as
-  `${…}`. A relative path is under the main checkout. While the file does not
+  `${…}`; write `$$` for a literal `$`. A relative path is under the main checkout. While the file does not
   exist the drawer says the servers are not started.
-- `links` are URL templates with `$PORT_<name>` placeholders. `needs` is the
-  server or servers that must run for the link to work (default: the ports
-  the URL uses); a link to a server that is down shows `○`, and `o` skips it.
+- `links` are URL templates with `$PORT_<name>` placeholders and the same
+  variables. `needs` is the server or servers that must run for the link to
+  work (default: the ports the URL uses); a link to a server that is down,
+  or has no port yet, shows `○`, and `o` skips it. A link whose URL uses a
+  port that is not known yet is left out until it is.
   Without `links`, each server gets `http://localhost:<port>`.
 
 When the manifest gives no port for a worktree, the deck falls back to the

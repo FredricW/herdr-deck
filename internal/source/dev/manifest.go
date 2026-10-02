@@ -142,14 +142,38 @@ func (m Manifest) check() error {
 				return fmt.Errorf("links[%d]: needs %q, which state.ports does not name", i, n)
 			}
 		}
-		for _, n := range portRefs(l.URL) {
-			if !known[n] {
-				return fmt.Errorf("links[%d]: $PORT_%s, but state.ports names no %q", i, n, n)
-			}
+		if err := checkVars(l.URL, known); err != nil {
+			return fmt.Errorf("links[%d]: %w", i, err)
 		}
+	}
+	if err := checkVars(m.State.File, nil); err != nil {
+		return fmt.Errorf("state.file: %w", err)
 	}
 	return nil
 }
+
+// checkVars reports the first placeholder in a template that expand cannot
+// fill: an unknown name, or a $PORT_ of a server not in known.
+func checkVars(s string, known map[string]bool) error {
+	var err error
+	os.Expand(s, func(name string) string {
+		if err != nil || name == "$" || pathVars[name] {
+			return ""
+		}
+		if n, ok := strings.CutPrefix(name, "PORT_"); ok && known != nil {
+			if !known[n] {
+				err = fmt.Errorf("$PORT_%s, but state.ports names no %q", n, n)
+			}
+			return ""
+		}
+		err = fmt.Errorf("unknown $%s (write $$ for a literal $)", name)
+		return ""
+	})
+	return err
+}
+
+// pathVars are the placeholders every template may use.
+var pathVars = map[string]bool{"DIRNAME": true, "WORKTREE": true, "REPO": true, "BRANCH": true}
 
 var nameRe = regexp.MustCompile(`^[A-Za-z0-9_]+$`)
 
@@ -182,7 +206,7 @@ type vars struct {
 }
 
 // expand fills in $DIRNAME, $WORKTREE, $REPO, $BRANCH and $PORT_<name>
-// (also as ${…}). It returns the names it could not fill.
+// (also as ${…}); $$ is a literal $. It returns the names it could not fill.
 func (v vars) expand(s string) (string, []string) {
 	var unknown []string
 	out := os.Expand(s, func(name string) string {
@@ -195,6 +219,8 @@ func (v vars) expand(s string) (string, []string) {
 			return v.repo
 		case "BRANCH":
 			return v.branch
+		case "$":
+			return "$" // $$ is a literal $
 		}
 		if n, ok := strings.CutPrefix(name, "PORT_"); ok {
 			if p, ok := v.ports[n]; ok {

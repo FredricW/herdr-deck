@@ -159,7 +159,7 @@ func (r *Reader) servers(t *deck.Thread, snap *deck.Snapshot, once func(*[]strin
 	for _, spec := range m.Links {
 		url, unknown := v.expand(spec.URL)
 		if len(unknown) > 0 {
-			continue // a server whose port is not known yet
+			continue // a $PORT_ of a server whose port is not known yet
 		}
 		needs := spec.Needs
 		if len(needs) == 0 {
@@ -169,15 +169,12 @@ func (r *Reader) servers(t *deck.Thread, snap *deck.Snapshot, once func(*[]strin
 		if lp.label == "" {
 			lp.label = strings.TrimPrefix(strings.TrimPrefix(url, "http://"), "https://")
 		}
-		ok := true
 		for _, n := range needs {
-			port, known := v.ports[n]
-			ok = ok && known
-			lp.needs = append(lp.needs, port)
+			// A server without a port yet has not started: port 0
+			// never listens, so the link shows as down.
+			lp.needs = append(lp.needs, v.ports[n])
 		}
-		if ok {
-			links = append(links, lp)
-		}
+		links = append(links, lp)
 	}
 	return servers, links
 }

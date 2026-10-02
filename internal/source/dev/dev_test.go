@@ -97,15 +97,15 @@ func TestApplyManifest(t *testing.T) {
 	if snap.Threads[1].DevServers != nil {
 		t.Errorf("a resolved thread got servers: %+v", snap.Threads[1].DevServers)
 	}
-	if n := dials.Load(); n != 3 {
-		t.Errorf("%d dials, want 3", n)
+	if n := dials.Load(); n != 6 {
+		t.Errorf("%d dials, want 6 (3 ports on IPv4 and IPv6)", n)
 	}
 
 	// Within the cache's lifetime the ports are not probed again.
 	again := deck.Snapshot{Threads: []deck.Thread{{ID: "t-0003", Worktree: wt, Repo: main}}}
 	r.Apply(context.Background(), &again)
-	if n := dials.Load(); n != 3 {
-		t.Errorf("%d dials after a cached reload, want 3", n)
+	if n := dials.Load(); n != 6 {
+		t.Errorf("%d dials after a cached reload, want 6", n)
 	}
 }
 
@@ -189,7 +189,8 @@ func TestApplyInvalid(t *testing.T) {
 		{"unknown need", `{"state": {"file": "s.json", "ports": {"api": "api_port"}}, "links": [{"url": "http://localhost:$PORT_api", "needs": "web"}]}`, "", `needs "web"`},
 		{"unknown port", `{"state": {"file": "s.json", "ports": {"api": "api_port"}}, "links": [{"url": "http://localhost:$PORT_web"}]}`, "", "$PORT_web"},
 		{"bad port", `{"state": {"ports": {"api": 70000}}}`, "", "not a port number"},
-		{"unknown var", `{"state": {"file": "$HOME/s.json", "ports": {"api": "api_port"}}}`, "", "unknown $HOME"},
+		{"unknown var", `{"state": {"file": "$HOME/s.json", "ports": {"api": "api_port"}}}`, "", "state.file: unknown $HOME"},
+		{"link var", `{"state": {"ports": {"api": 8000}}, "links": [{"url": "http://localhost:$PORT_api/$metadata"}]}`, "", "links[0]: unknown $metadata (write $$ for a literal $)"},
 		{"bad state", `{"state": {"file": "s.json", "ports": {"api": "api_port"}}}`, "[1, 2", "s.json: unexpected end of JSON input"},
 	} {
 		t.Run(c.name, func(t *testing.T) {
@@ -209,6 +210,35 @@ func TestApplyInvalid(t *testing.T) {
 				t.Errorf("servers %+v, want the fallback port", th.DevServers)
 			}
 		})
+	}
+}
+
+func TestApplyLinkNeedsUnstartedServer(t *testing.T) {
+	main, wt := repo(t)
+	write(t, filepath.Join(main, ManifestPath), `{"state": {"file": "s.json", "ports": {"web": "web_port", "api": "api_port"}},
+		"links": [{"title": "Web", "url": "http://localhost:$PORT_web/$$top", "needs": ["web", "api"]}]}`)
+	write(t, filepath.Join(main, "s.json"), `{"web_port": 5181}`)
+	var dials atomic.Int32
+	r := &Reader{Prober: Prober{Dial: fakeDial(&dials, 5181)}}
+	snap := deck.Snapshot{Threads: []deck.Thread{{ID: "t-0003", Worktree: wt, Repo: main}}}
+	r.Apply(context.Background(), &snap)
+	want := deck.Link{Kind: deck.LinkLocalhost, Label: "Web", URL: "http://localhost:5181/$top", Down: true}
+	if th := snap.Threads[0]; len(th.Links) != 1 || th.Links[0] != want {
+		t.Errorf("links %+v, want %+v", th.Links, want)
+	}
+}
+
+func TestProberIPv6Only(t *testing.T) {
+	var dials atomic.Int32
+	p := Prober{Dial: func(_ context.Context, addr string) error {
+		dials.Add(1)
+		if addr == "[::1]:5173" {
+			return nil
+		}
+		return errors.New("connection refused")
+	}}
+	if got := p.Listening(context.Background(), []int{5173}); !got[5173] {
+		t.Errorf("a server on ::1 only reads as down")
 	}
 }
 
@@ -242,7 +272,7 @@ func TestProberCacheExpires(t *testing.T) {
 	p.Listening(context.Background(), []int{1234})
 	at = at.Add(probeTTL)
 	p.Listening(context.Background(), []int{1234})
-	if n := dials.Load(); n != 2 {
-		t.Errorf("%d dials, want 2", n)
+	if n := dials.Load(); n != 4 {
+		t.Errorf("%d dials, want 4 (twice on IPv4 and IPv6)", n)
 	}
 }
