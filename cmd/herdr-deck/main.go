@@ -87,7 +87,8 @@ func run(args []string) error {
 		}
 	}
 	opt := ui.Options{
-		OpenURL: launch.Browser{Reuse: cfg.ReuseTabs}.OpenURL,
+		OpenURL:      launch.Browser{Reuse: cfg.ReuseTabs}.OpenURL,
+		FigmaDesktop: cfg.FigmaDesktop,
 		OpenEditor: func(path string) error {
 			return runner.Run(cfg.Editor, launch.EditorArgv(cfg.Editor, path), path)
 		},
@@ -163,7 +164,7 @@ func runPlugin(args []string) error {
 		Getenv:  os.Getenv,
 		Root:    cfg.ProjectsRoot,
 		Links:   plugin.LinkSettings{LinearWorkspace: cfg.LinearWorkspace, FigmaDesktop: cfg.FigmaDesktop},
-		OpenURL: launch.URL,
+		OpenURL: launch.Browser{Reuse: cfg.ReuseTabs}.OpenURL,
 	}
 	return plugin.Run(ctx, h, env, args)
 }

@@ -137,7 +137,8 @@ variable, the config file, the built-in default.
 # Linear workspace that bare IDs such as ABC-123 link into.
 linear_workspace = "acme"
 
-# Open Ctrl+clicked Figma links in herdr in the Figma desktop app.
+# Open Figma links in the Figma desktop app: the deck's keys and clicks,
+# and Ctrl+clicked Figma links anywhere in herdr. false opens the browser.
 figma_desktop = false
 
 # How often the deck reloads when no file change says to; 1s to 10m.
@@ -298,7 +299,7 @@ carries on.
 |---|---|
 | `j` / `k`, `↓` / `↑` | move; the drawer follows |
 | `space` | fold or unfold the list under the cursor (Backlog starts folded) |
-| `1`–`9` | open the drawer's numbered link |
+| `1`–`9` | open the drawer's numbered link (Figma links in the desktop app with `figma_desktop = true`) |
 | `l` `f` `n` `g` | open the row's Linear / Figma / Notion / PR link; with several, pick one with a digit, `a` for all, `d` for the Figma desktop app, the same letter for the first, `esc` to cancel |
 | `o` | open the row's first localhost link whose dev server is running |
 | `enter` | focus the thread's herdr pane; on an inbox item, its thread's pane, else the coordinator's |

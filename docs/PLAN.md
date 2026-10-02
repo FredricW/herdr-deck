@@ -153,7 +153,9 @@ Keys:
   `n` Notion, `g` GitHub PR open the first link of that kind. When there
   are several, the key highlights that drawer line and waits: a digit opens
   one, `a` opens all of that kind, `d` opens a Figma link in the desktop
-  app, the same letter again opens the first, and `esc` cancels. `o` opens
+  app, the same letter again opens the first, and `esc` cancels. With
+  `figma_desktop` set (milestone 8) every Figma link the deck opens, by
+  key, digit or click, opens in the desktop app. `o` opens
   the first localhost link whose dev server is running, without a chooser
   (milestone 6): links to servers that are down open only by their digit.
 - `enter`: on a thread row, focus its herdr pane (`herdr pane focus
@@ -233,7 +235,8 @@ live under that home, apart from the user's own herdr):
   share it evenly.
 - `[[link_handlers]] id="figma"` sends Ctrl+clicked Figma URLs to the
   `open-link` action (`herdr-deck plugin open-link`), which opens the
-  `figma://` rewrite when `figma_desktop` is set, else the URL. Verified in
+  `figma://` rewrite when `figma_desktop` is set, else the URL, as the deck
+  itself does. Verified in
   milestone 8 on herdr 0.9.3: a link handler only ever sees a URL. herdr
   turns text into a link only for `http://`/`https://` (`url_byte_range` in
   its `src/app/actions.rs`), or takes an OSC 8 hyperlink's URI, and only on
