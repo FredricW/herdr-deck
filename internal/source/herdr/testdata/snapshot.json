@@ -1,0 +1,101 @@
+{
+  "id": "cli:api:snapshot",
+  "result": {
+    "type": "session_snapshot",
+    "snapshot": {
+      "version": "0.9.3",
+      "protocol": 22,
+      "focused_pane_id": "w23:p2",
+      "panes": [
+        {
+          "agent": "claude",
+          "agent_status": "idle",
+          "cwd": "/home/dev/.herdr-projects/herdr-deck",
+          "display_agent": "Herdr Deck​",
+          "focused": false,
+          "foreground_cwd": "/home/dev/.herdr-projects/herdr-deck",
+          "pane_id": "w23:p1",
+          "revision": 1756,
+          "scroll": {
+            "max_offset_from_bottom": 0,
+            "offset_from_bottom": 0,
+            "viewport_rows": 74
+          },
+          "tab_id": "w23:t1",
+          "terminal_id": "term_65cdcaf0adef938",
+          "terminal_title": "✳ Herdr-deck kickoff and tasks",
+          "terminal_title_stripped": "Herdr-deck kickoff and tasks",
+          "tokens": {
+            "hp_group": "herdr-deck!0!w23:p1",
+            "hp_project": "herdr-deck",
+            "hp_rank": "5",
+            "hp_sub": "Done"
+          },
+          "workspace_id": "w23"
+        },
+        {
+          "agent_status": "unknown",
+          "cwd": "/home/dev/src/herdr-deck",
+          "focused": true,
+          "foreground_cwd": "/home/dev/src/herdr-deck",
+          "pane_id": "w23:p2",
+          "revision": 21,
+          "scroll": {
+            "max_offset_from_bottom": 0,
+            "offset_from_bottom": 0,
+            "viewport_rows": 74
+          },
+          "tab_id": "w23:t1",
+          "terminal_id": "term_65ce220d071ee3e",
+          "terminal_title": "herdr-deck · Herdr Deck",
+          "terminal_title_stripped": "herdr-deck · Herdr Deck",
+          "workspace_id": "w23"
+        },
+        {
+          "agent_status": "unknown",
+          "cwd": "/home/dev/src/herdr-deck",
+          "focused": false,
+          "foreground_cwd": "/home/dev/src/herdr-deck",
+          "pane_id": "w24:p1",
+          "revision": 1,
+          "scroll": {
+            "max_offset_from_bottom": 0,
+            "offset_from_bottom": 0,
+            "viewport_rows": 76
+          },
+          "tab_id": "w24:t1",
+          "terminal_id": "term_65cdcb4927eb839",
+          "terminal_title": "dev@laptop:~/src/herdr-deck",
+          "terminal_title_stripped": "dev@laptop:~/src/herdr-deck",
+          "workspace_id": "w24"
+        },
+        {
+          "agent": "claude",
+          "agent_status": "working",
+          "cwd": "/home/dev/worktrees/herdr-deck/hp-herdr-deck-t-0006-m5-herdr-live-state",
+          "display_agent": "t-0006 · M5 herdr live state",
+          "focused": false,
+          "foreground_cwd": "/home/dev/worktrees/herdr-deck/hp-herdr-deck-t-0006-m5-herdr-live-state",
+          "pane_id": "w2A:p1",
+          "revision": 38,
+          "scroll": {
+            "max_offset_from_bottom": 0,
+            "offset_from_bottom": 0,
+            "viewport_rows": 76
+          },
+          "tab_id": "w2A:t1",
+          "terminal_id": "term_65ce27ee9326640",
+          "terminal_title": "◐ herdr-deck-t-0006 brief",
+          "terminal_title_stripped": "herdr-deck-t-0006 brief",
+          "tokens": {
+            "hp_group": "herdr-deck!1!4!t-0006",
+            "hp_project": "herdr-deck",
+            "hp_rank": "4",
+            "hp_sub": "~40% · Writing tests"
+          },
+          "workspace_id": "w2A"
+        }
+      ]
+    }
+  }
+}

@@ -1,0 +1,16 @@
+{
+  "last_pr_check": "2026-10-02T15:02:05.795169Z",
+  "prs": {
+    "t-0001": {
+      "state": "OPEN",
+      "review_decision": "CHANGES_REQUESTED",
+      "failing_checks": ["lint", "test"],
+      "comment_count": 3,
+      "commenters": ["alice", "bob"],
+      "activity": {"alice": 2, "bob": 1},
+      "head_oid": "0123456789abcdef"
+    }
+  },
+  "pr_ignored": {},
+  "routines": {}
+}

@@ -1,0 +1,6 @@
+id = "t-0002"
+title = "Finished"
+status = "resolved"
+resolved_reason = "merged"
+last_group = "resolved"
+cwd = "/src/worktrees/t-0002"

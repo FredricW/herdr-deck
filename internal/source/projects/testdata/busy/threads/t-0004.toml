@@ -1,0 +1,5 @@
+id = "t-0004"
+title = "Crashed"
+status = "failed"
+error = "worktree add failed"
+last_group = "idle"

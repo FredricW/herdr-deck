@@ -1,0 +1,28 @@
+ Admin rebuild                                                  nothing running
+────────────────────────────────────────────────────────────────────────────────
+    WORK                         THREAD  STATUS              PR      LINKS  DEV
+
+  Nothing yet. Rows appear when the coordinator writes TASKS.md or starts a
+  thread.
+
+
+
+
+
+
+
+
+
+
+
+─ Project ──────────────────────────────────────────────────────────────────────
+ Goal     Complete the Linear project 'Admin rebuild' page by page.
+ Repos    /src/webshop
+ Folder   /projects/admin-rebuild
+
+
+
+
+
+────────────────────────────────────────────────────────────────────────────────
+ ? help  q quit

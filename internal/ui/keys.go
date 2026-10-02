@@ -1,0 +1,40 @@
+package ui
+
+import "charm.land/bubbles/v2/key"
+
+type keyMap struct {
+	Down, Up       key.Binding
+	Fold           key.Binding
+	Linear, Figma  key.Binding
+	Notion, PR     key.Binding
+	Localhost      key.Binding
+	Pane, Editor   key.Binding
+	Report, Drawer key.Binding
+	Sources, Help  key.Binding
+	PageDown       key.Binding
+	PageUp         key.Binding
+	Back, Quit     key.Binding
+}
+
+func defaultKeys() keyMap {
+	return keyMap{
+		Down:      key.NewBinding(key.WithKeys("j", "down")),
+		Up:        key.NewBinding(key.WithKeys("k", "up")),
+		Fold:      key.NewBinding(key.WithKeys("space")),
+		Linear:    key.NewBinding(key.WithKeys("l")),
+		Figma:     key.NewBinding(key.WithKeys("f")),
+		Notion:    key.NewBinding(key.WithKeys("n")),
+		PR:        key.NewBinding(key.WithKeys("g")),
+		Localhost: key.NewBinding(key.WithKeys("o")),
+		Pane:      key.NewBinding(key.WithKeys("enter")),
+		Editor:    key.NewBinding(key.WithKeys("e")),
+		Report:    key.NewBinding(key.WithKeys("r")),
+		Drawer:    key.NewBinding(key.WithKeys("z")),
+		Sources:   key.NewBinding(key.WithKeys("!")),
+		Help:      key.NewBinding(key.WithKeys("?")),
+		PageDown:  key.NewBinding(key.WithKeys("pgdown", "ctrl+d")),
+		PageUp:    key.NewBinding(key.WithKeys("pgup", "ctrl+u")),
+		Back:      key.NewBinding(key.WithKeys("esc")),
+		Quit:      key.NewBinding(key.WithKeys("q", "ctrl+c")),
+	}
+}

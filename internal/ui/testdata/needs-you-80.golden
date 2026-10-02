@@ -1,0 +1,28 @@
+ Admin rebuild                                ● 1 needs you  ◐ 1  ◇ 1  ○ 1  ✉ 1
+────────────────────────────────────────────────────────────────────────────────
+    WORK                         THREAD  STATUS              PR      LINKS  DEV
+  Needs you
+ ▸● Users page                   t-0002  needs you                   L4
+  ✉ inbox: t-0002 is now Waiting on you                                   3m
+  In progress
+  ◐ Templates page               t-0003  Writing tests               L F    ●●●
+  ◇ Document select for summary  t-0004  review required     #2320   L F3   ●○
+  On hold until Monday 2026-10-05
+  ○ Subscriptions list           t-0001  idle                        L N
+  + Backlog (3)
+
+
+
+
+
+─ Users page ───────────────────────────────────────────────────────────────────
+ Thread   t-0002 Members /admin/users · pane w1Z:p1
+ Status   needs you · ~95% · Waiting for you
+ Next     → Approve phase 1 (ABC-1256 overview)
+          → Say whether to start ABC-1257 and ABC-1250
+ Note     Phase 1 = layout + overview (ABC-1256); report on 1257/1250 before
+          starting them.
+ Linear   1 ABC-1246   2 ABC-1256   3 ABC-1257   4 ABC-1250
+ Report   threads/t-0002.md · r shows it
+────────────────────────────────────────────────────────────────────────────────
+ ↵ go to pane  1-9 link  e edit  r report  z drawer  ? help

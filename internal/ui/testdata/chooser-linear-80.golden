@@ -1,0 +1,28 @@
+ Admin rebuild                                               ◐ 2  ◇ 1  ○ 1  ✉ 0
+────────────────────────────────────────────────────────────────────────────────
+    WORK                         THREAD  STATUS              PR      LINKS  DEV
+  In progress
+ ▸◐ Users page                   t-0002  Building overview           L4
+  ◐ Templates page               t-0003  Writing tests               L F    ●●●
+  ◇ Document select for summary  t-0004  review required     #2320   L F3   ●○
+  On hold until Monday 2026-10-05
+  ○ Subscriptions list           t-0001  idle                        L N
+  + Backlog (3)
+
+
+
+
+
+
+
+─ Users page ───────────────────────────────────────────────────────────────────
+ Thread   t-0002 Members /admin/users · pane w1Z:p1
+ Status   working · ~60% · Building overview
+ Note     Phase 1 = layout + overview (ABC-1256); report on 1257/1250 before
+          starting them.
+▶Linear   1 ABC-1246   2 ABC-1256   3 ABC-1257   4 ABC-1250
+          a all
+ Report   threads/t-0002.md · r shows it
+ Branch   hp/admin-rebuild/t-0002-members-admin-users
+────────────────────────────────────────────────────────────────────────────────
+ Linear: 1-4 open  a all  l first  esc cancel

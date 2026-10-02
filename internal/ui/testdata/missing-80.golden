@@ -1,0 +1,28 @@
+ Admin rebuild                                          ◐ 2  ◇ 1  ○ 1  ✉ 0  ! 2
+────────────────────────────────────────────────────────────────────────────────
+    WORK                         THREAD  STATUS              PR      LINKS  DEV
+  In progress                                                       as of 14:23
+ ▸◐ Users page                   t-0002  Building overview           L4
+  ◐ Templates page               t-0003  Writing tests               L F    ●●●
+  ◇ Document select for summary  t-0004  review required     #2320   L F3   ●○
+  On hold until Monday 2026-10-05
+  ○ Subscriptions list           t-0001  idle                        L N
+  + Backlog (3)
+
+
+
+
+
+
+
+─ Sources ──────────────────────────────────────────────────────────────────────
+ ! .state/ticker.json: no such file or directory
+ ! thread list: herdr-projects: no session; showing threads/*.toml as last
+   recorded
+ ! threads as of 14:23, when herdr-projects last wrote them
+ ✓ everything else read 14:41
+
+ ! or esc returns
+
+────────────────────────────────────────────────────────────────────────────────
+ esc back  pgup pgdn scroll  z drawer  ? help  q quit

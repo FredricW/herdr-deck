@@ -1,0 +1,28 @@
+ Admin rebuild                                               ◐ 2  ◇ 1  ○ 1  ✉ 0
+────────────────────────────────────────────────────────────────────────────────
+    WORK                         THREAD  STATUS              PR      LINKS  DEV
+  In progress
+  ◐ Users page                   t-0002  Building overview           L4
+  ◐ Templates page               t-0003  Writing tests               L F    ●●●
+ ▸◇ Document select for summary  t-0004  review required     #2320   L F3   ●○
+  On hold until Monday 2026-10-05
+  ○ Subscriptions list           t-0001  idle                        L N
+  + Backlog (3)
+
+
+
+
+
+
+
+─ Document select for summary ──────────────────────────────────────────────────
+ Thread   t-0004 Summary select documents · pane w21:p1
+ Status   ready for review
+ Linear   1 ABC-1191
+▶Figma    2 598-48083   3 1138-88367   4 635-76529
+          d desktop app  a all
+ GitHub   5 PR #2320 · review required · 2 comments
+ Open     6 :5174 frontend
+ Branch   hp/admin-rebuild/t-0004-summary
+────────────────────────────────────────────────────────────────────────────────
+ Figma: 2-4 open  d desktop  a all  f first  esc cancel
