@@ -443,3 +443,94 @@ func TestWatchResubscribesWhenAPaneCloses(t *testing.T) {
 		t.Errorf("a closed pane made Watch poll: %d calls", n)
 	}
 }
+
+// TestTimelines replays testdata/timelines: a thread's pane through a series
+// of session.snapshot replies, with the status the deck must show after each.
+// herdr-projects' group stays as the file says throughout.
+func TestTimelines(t *testing.T) {
+	files, err := filepath.Glob("testdata/timelines/*.json")
+	if err != nil || len(files) == 0 {
+		t.Fatalf("no timelines: %v", err)
+	}
+	statuses := map[string]deck.ThreadStatus{"working": deck.StatusWorking, "needs you": deck.StatusNeedsYou}
+	for _, f := range files {
+		t.Run(strings.TrimSuffix(filepath.Base(f), ".json"), func(t *testing.T) {
+			b, err := os.ReadFile(f)
+			if err != nil {
+				t.Fatal(err)
+			}
+			var tl struct {
+				Thread string
+				Group  string
+				Steps  []struct {
+					At    string
+					Note  string
+					Want  string
+					Reply struct {
+						Result struct {
+							Snapshot State
+						}
+					}
+				}
+			}
+			if err := json.Unmarshal(b, &tl); err != nil {
+				t.Fatal(err)
+			}
+			group, ok := statuses[tl.Group]
+			if !ok {
+				t.Fatalf("group %q", tl.Group)
+			}
+			r := &Reader{}
+			for _, step := range tl.Steps {
+				at, err := time.ParseDuration(step.At)
+				want, ok := statuses[step.Want]
+				if err != nil || !ok {
+					t.Fatalf("step at %q wants %q", step.At, step.Want)
+				}
+				snap := deck.Snapshot{
+					Project: deck.Project{Slug: "admin-rebuild", Dir: "/home/dev/.herdr-projects/admin-rebuild"},
+					Threads: []deck.Thread{{ID: tl.Thread, Status: group, StateLine: tl.Group}},
+				}
+				r.apply(&snap, step.Reply.Result.Snapshot, t0.Add(at))
+				th := snap.Threads[0]
+				if th.Pane == nil {
+					t.Fatalf("at %s: no pane matched", step.At)
+				}
+				if th.Status != want {
+					t.Errorf("at %s (%s, %s): status %v, want %v", step.At, th.Pane.AgentStatus, step.Note, th.Status, want)
+				}
+			}
+		})
+	}
+}
+
+// Only a long block claims the user. Whatever else the agent does, and
+// however long it has done it, herdr-projects' group stands (or a working
+// agent says working).
+func TestLiveStatusOnlyBlockedNeedsYou(t *testing.T) {
+	long := t0.Add(-time.Hour)
+	for _, c := range []struct {
+		agent string
+		group deck.ThreadStatus
+		want  deck.ThreadStatus
+	}{
+		{"working", deck.StatusWorking, deck.StatusWorking},
+		{"working", deck.StatusReview, deck.StatusReview},
+		{"idle", deck.StatusWorking, deck.StatusWorking},
+		{"idle", deck.StatusUnknown, deck.StatusUnknown},
+		{"done", deck.StatusReview, deck.StatusReview},
+		{"unknown", deck.StatusWorking, deck.StatusWorking},
+		{"blocked", deck.StatusWorking, deck.StatusNeedsYou},
+		{"blocked", deck.StatusReview, deck.StatusNeedsYou},
+		{"blocked", deck.StatusDone, deck.StatusDone},
+	} {
+		th := deck.Thread{Status: c.group, Pane: &deck.Pane{AgentStatus: c.agent, Since: long}}
+		if got := liveStatus(th, t0); got != c.want {
+			t.Errorf("%s agent for an hour, group %v: %v, want %v", c.agent, c.group, got, c.want)
+		}
+	}
+	th := deck.Thread{Status: deck.StatusWorking, Pane: &deck.Pane{AgentStatus: "blocked", Since: t0.Add(-BlockedAfter + time.Second)}}
+	if got := liveStatus(th, t0); got != deck.StatusWorking {
+		t.Errorf("blocked for %v: %v, want the group", BlockedAfter-time.Second, got)
+	}
+}

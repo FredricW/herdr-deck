@@ -12,10 +12,13 @@ import (
 )
 
 // BlockedAfter is how long an agent must stay blocked before its thread
-// counts as needing the user. Permission prompts that are answered at once
-// should not pull the deck's cursor around. herdr-projects itself waits 30 s
-// (src/thread.rs, BLOCKED_DEBOUNCE_SECS).
-const BlockedAfter = 5 * time.Second
+// counts as needing the user. It is herdr-projects' own debounce
+// (src/thread.rs, BLOCKED_DEBOUNCE_SECS), so the deck claims a need only
+// when herdr-projects will agree at its next tick. herdr reads "blocked" off
+// the screen, so a dialog that closes within seconds is a short block; a 5 s
+// threshold once put a thread waiting on its own background review under
+// Needs you while herdr-projects kept it working.
+const BlockedAfter = 30 * time.Second
 
 // Reader reads herdr's live state for the deck and remembers since when
 // each pane's agent has had its status.
@@ -100,10 +103,12 @@ func (r *Reader) sinceOf(p Pane) time.Time {
 }
 
 // liveStatus is the thread's status with its live agent taken into account.
-// An agent blocked on a question or permission prompt needs the user; an
-// agent at work is working, whatever the last group said, unless the thread
-// failed. Otherwise herdr-projects' group stands: idle and done agents need
-// its reports and pull requests to tell review from idle from waiting.
+// An agent blocked on a question or permission prompt for BlockedAfter needs
+// the user; a shorter block is ambiguous and herdr-projects' group stands.
+// An agent at work is working, whatever the last group said, unless the
+// thread failed; herdr shows an agent waiting on its own background agents
+// as working. Otherwise herdr-projects' group stands: idle and done agents
+// need its reports and pull requests to tell review from idle from waiting.
 func liveStatus(t deck.Thread, now time.Time) deck.ThreadStatus {
 	if t.Status == deck.StatusDone || t.Pane == nil {
 		return t.Status

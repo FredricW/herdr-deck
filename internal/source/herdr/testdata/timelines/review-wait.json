@@ -1,0 +1,551 @@
+{
+  "about": "t-0003 ran /code-review in the background and ended its turn to wait for it. herdr shows Claude's 'Waiting for 1 background agent to finish' line as working, and a dialog that opened and closed while the review ran as a short block. herdr-projects kept the thread in Working throughout; the deck must too.",
+  "thread": "t-0003",
+  "group": "working",
+  "steps": [
+    {
+      "at": "0s",
+      "note": "waiting for 1 background agent: herdr says working",
+      "want": "working",
+      "reply": {
+        "id": "cli:api:snapshot",
+        "result": {
+          "type": "session_snapshot",
+          "snapshot": {
+            "version": "0.9.3",
+            "protocol": 22,
+            "focused_pane_id": "w10:p1",
+            "panes": [
+              {
+                "agent": "claude",
+                "agent_status": "idle",
+                "cwd": "/home/dev/.herdr-projects/admin-rebuild",
+                "focused": false,
+                "foreground_cwd": "/home/dev/.herdr-projects/admin-rebuild",
+                "pane_id": "w10:p1",
+                "revision": 40,
+                "scroll": {
+                  "max_offset_from_bottom": 0,
+                  "offset_from_bottom": 0,
+                  "viewport_rows": 60
+                },
+                "tab_id": "w10:t1",
+                "terminal_id": "term_w10_p1",
+                "terminal_title": "✳ Admin rebuild coordinator",
+                "terminal_title_stripped": "Admin rebuild coordinator",
+                "tokens": {
+                  "hp_group": "admin-rebuild!0!w10:p1",
+                  "hp_project": "admin-rebuild",
+                  "hp_rank": "5",
+                  "hp_sub": "Idle"
+                },
+                "workspace_id": "w10"
+              },
+              {
+                "agent": "claude",
+                "agent_status": "working",
+                "cwd": "/home/dev/wt/admin-rebuild-t-0003",
+                "focused": false,
+                "foreground_cwd": "/home/dev/wt/admin-rebuild-t-0003",
+                "pane_id": "w12:p1",
+                "revision": 100,
+                "scroll": {
+                  "max_offset_from_bottom": 0,
+                  "offset_from_bottom": 0,
+                  "viewport_rows": 60
+                },
+                "tab_id": "w12:t1",
+                "terminal_id": "term_w12_p1",
+                "terminal_title": "⠐ Reviewing PR #12",
+                "terminal_title_stripped": "Reviewing PR #12",
+                "tokens": {
+                  "hp_group": "admin-rebuild!1!4!t-0003",
+                  "hp_project": "admin-rebuild",
+                  "hp_rank": "4",
+                  "hp_sub": "Working"
+                },
+                "workspace_id": "w12"
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "at": "10s",
+      "note": "a dialog opens: blocked, but only just",
+      "want": "working",
+      "reply": {
+        "id": "cli:api:snapshot",
+        "result": {
+          "type": "session_snapshot",
+          "snapshot": {
+            "version": "0.9.3",
+            "protocol": 22,
+            "focused_pane_id": "w10:p1",
+            "panes": [
+              {
+                "agent": "claude",
+                "agent_status": "idle",
+                "cwd": "/home/dev/.herdr-projects/admin-rebuild",
+                "focused": false,
+                "foreground_cwd": "/home/dev/.herdr-projects/admin-rebuild",
+                "pane_id": "w10:p1",
+                "revision": 40,
+                "scroll": {
+                  "max_offset_from_bottom": 0,
+                  "offset_from_bottom": 0,
+                  "viewport_rows": 60
+                },
+                "tab_id": "w10:t1",
+                "terminal_id": "term_w10_p1",
+                "terminal_title": "✳ Admin rebuild coordinator",
+                "terminal_title_stripped": "Admin rebuild coordinator",
+                "tokens": {
+                  "hp_group": "admin-rebuild!0!w10:p1",
+                  "hp_project": "admin-rebuild",
+                  "hp_rank": "5",
+                  "hp_sub": "Idle"
+                },
+                "workspace_id": "w10"
+              },
+              {
+                "agent": "claude",
+                "agent_status": "blocked",
+                "cwd": "/home/dev/wt/admin-rebuild-t-0003",
+                "focused": false,
+                "foreground_cwd": "/home/dev/wt/admin-rebuild-t-0003",
+                "pane_id": "w12:p1",
+                "revision": 101,
+                "scroll": {
+                  "max_offset_from_bottom": 0,
+                  "offset_from_bottom": 0,
+                  "viewport_rows": 60
+                },
+                "tab_id": "w12:t1",
+                "terminal_id": "term_w12_p1",
+                "terminal_title": "⠐ Reviewing PR #12",
+                "terminal_title_stripped": "Reviewing PR #12",
+                "tokens": {
+                  "hp_group": "admin-rebuild!1!4!t-0003",
+                  "hp_project": "admin-rebuild",
+                  "hp_rank": "4",
+                  "hp_sub": "Working"
+                },
+                "workspace_id": "w12"
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "at": "25s",
+      "note": "blocked 15 s: the old 5 s rule said needs you here",
+      "want": "working",
+      "reply": {
+        "id": "cli:api:snapshot",
+        "result": {
+          "type": "session_snapshot",
+          "snapshot": {
+            "version": "0.9.3",
+            "protocol": 22,
+            "focused_pane_id": "w10:p1",
+            "panes": [
+              {
+                "agent": "claude",
+                "agent_status": "idle",
+                "cwd": "/home/dev/.herdr-projects/admin-rebuild",
+                "focused": false,
+                "foreground_cwd": "/home/dev/.herdr-projects/admin-rebuild",
+                "pane_id": "w10:p1",
+                "revision": 40,
+                "scroll": {
+                  "max_offset_from_bottom": 0,
+                  "offset_from_bottom": 0,
+                  "viewport_rows": 60
+                },
+                "tab_id": "w10:t1",
+                "terminal_id": "term_w10_p1",
+                "terminal_title": "✳ Admin rebuild coordinator",
+                "terminal_title_stripped": "Admin rebuild coordinator",
+                "tokens": {
+                  "hp_group": "admin-rebuild!0!w10:p1",
+                  "hp_project": "admin-rebuild",
+                  "hp_rank": "5",
+                  "hp_sub": "Idle"
+                },
+                "workspace_id": "w10"
+              },
+              {
+                "agent": "claude",
+                "agent_status": "blocked",
+                "cwd": "/home/dev/wt/admin-rebuild-t-0003",
+                "focused": false,
+                "foreground_cwd": "/home/dev/wt/admin-rebuild-t-0003",
+                "pane_id": "w12:p1",
+                "revision": 102,
+                "scroll": {
+                  "max_offset_from_bottom": 0,
+                  "offset_from_bottom": 0,
+                  "viewport_rows": 60
+                },
+                "tab_id": "w12:t1",
+                "terminal_id": "term_w12_p1",
+                "terminal_title": "⠐ Reviewing PR #12",
+                "terminal_title_stripped": "Reviewing PR #12",
+                "tokens": {
+                  "hp_group": "admin-rebuild!1!4!t-0003",
+                  "hp_project": "admin-rebuild",
+                  "hp_rank": "4",
+                  "hp_sub": "Working"
+                },
+                "workspace_id": "w12"
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "at": "38s",
+      "note": "blocked 28 s: still under herdr-projects' 30 s",
+      "want": "working",
+      "reply": {
+        "id": "cli:api:snapshot",
+        "result": {
+          "type": "session_snapshot",
+          "snapshot": {
+            "version": "0.9.3",
+            "protocol": 22,
+            "focused_pane_id": "w10:p1",
+            "panes": [
+              {
+                "agent": "claude",
+                "agent_status": "idle",
+                "cwd": "/home/dev/.herdr-projects/admin-rebuild",
+                "focused": false,
+                "foreground_cwd": "/home/dev/.herdr-projects/admin-rebuild",
+                "pane_id": "w10:p1",
+                "revision": 40,
+                "scroll": {
+                  "max_offset_from_bottom": 0,
+                  "offset_from_bottom": 0,
+                  "viewport_rows": 60
+                },
+                "tab_id": "w10:t1",
+                "terminal_id": "term_w10_p1",
+                "terminal_title": "✳ Admin rebuild coordinator",
+                "terminal_title_stripped": "Admin rebuild coordinator",
+                "tokens": {
+                  "hp_group": "admin-rebuild!0!w10:p1",
+                  "hp_project": "admin-rebuild",
+                  "hp_rank": "5",
+                  "hp_sub": "Idle"
+                },
+                "workspace_id": "w10"
+              },
+              {
+                "agent": "claude",
+                "agent_status": "blocked",
+                "cwd": "/home/dev/wt/admin-rebuild-t-0003",
+                "focused": false,
+                "foreground_cwd": "/home/dev/wt/admin-rebuild-t-0003",
+                "pane_id": "w12:p1",
+                "revision": 103,
+                "scroll": {
+                  "max_offset_from_bottom": 0,
+                  "offset_from_bottom": 0,
+                  "viewport_rows": 60
+                },
+                "tab_id": "w12:t1",
+                "terminal_id": "term_w12_p1",
+                "terminal_title": "⠐ Reviewing PR #12",
+                "terminal_title_stripped": "Reviewing PR #12",
+                "tokens": {
+                  "hp_group": "admin-rebuild!1!4!t-0003",
+                  "hp_project": "admin-rebuild",
+                  "hp_rank": "4",
+                  "hp_sub": "Working"
+                },
+                "workspace_id": "w12"
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "at": "39s",
+      "note": "the dialog closed",
+      "want": "working",
+      "reply": {
+        "id": "cli:api:snapshot",
+        "result": {
+          "type": "session_snapshot",
+          "snapshot": {
+            "version": "0.9.3",
+            "protocol": 22,
+            "focused_pane_id": "w10:p1",
+            "panes": [
+              {
+                "agent": "claude",
+                "agent_status": "idle",
+                "cwd": "/home/dev/.herdr-projects/admin-rebuild",
+                "focused": false,
+                "foreground_cwd": "/home/dev/.herdr-projects/admin-rebuild",
+                "pane_id": "w10:p1",
+                "revision": 40,
+                "scroll": {
+                  "max_offset_from_bottom": 0,
+                  "offset_from_bottom": 0,
+                  "viewport_rows": 60
+                },
+                "tab_id": "w10:t1",
+                "terminal_id": "term_w10_p1",
+                "terminal_title": "✳ Admin rebuild coordinator",
+                "terminal_title_stripped": "Admin rebuild coordinator",
+                "tokens": {
+                  "hp_group": "admin-rebuild!0!w10:p1",
+                  "hp_project": "admin-rebuild",
+                  "hp_rank": "5",
+                  "hp_sub": "Idle"
+                },
+                "workspace_id": "w10"
+              },
+              {
+                "agent": "claude",
+                "agent_status": "working",
+                "cwd": "/home/dev/wt/admin-rebuild-t-0003",
+                "focused": false,
+                "foreground_cwd": "/home/dev/wt/admin-rebuild-t-0003",
+                "pane_id": "w12:p1",
+                "revision": 104,
+                "scroll": {
+                  "max_offset_from_bottom": 0,
+                  "offset_from_bottom": 0,
+                  "viewport_rows": 60
+                },
+                "tab_id": "w12:t1",
+                "terminal_id": "term_w12_p1",
+                "terminal_title": "⠐ Reviewing PR #12",
+                "terminal_title_stripped": "Reviewing PR #12",
+                "tokens": {
+                  "hp_group": "admin-rebuild!1!4!t-0003",
+                  "hp_project": "admin-rebuild",
+                  "hp_rank": "4",
+                  "hp_sub": "Working"
+                },
+                "workspace_id": "w12"
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "at": "55s",
+      "note": "blocked again: the wait starts over",
+      "want": "working",
+      "reply": {
+        "id": "cli:api:snapshot",
+        "result": {
+          "type": "session_snapshot",
+          "snapshot": {
+            "version": "0.9.3",
+            "protocol": 22,
+            "focused_pane_id": "w10:p1",
+            "panes": [
+              {
+                "agent": "claude",
+                "agent_status": "idle",
+                "cwd": "/home/dev/.herdr-projects/admin-rebuild",
+                "focused": false,
+                "foreground_cwd": "/home/dev/.herdr-projects/admin-rebuild",
+                "pane_id": "w10:p1",
+                "revision": 40,
+                "scroll": {
+                  "max_offset_from_bottom": 0,
+                  "offset_from_bottom": 0,
+                  "viewport_rows": 60
+                },
+                "tab_id": "w10:t1",
+                "terminal_id": "term_w10_p1",
+                "terminal_title": "✳ Admin rebuild coordinator",
+                "terminal_title_stripped": "Admin rebuild coordinator",
+                "tokens": {
+                  "hp_group": "admin-rebuild!0!w10:p1",
+                  "hp_project": "admin-rebuild",
+                  "hp_rank": "5",
+                  "hp_sub": "Idle"
+                },
+                "workspace_id": "w10"
+              },
+              {
+                "agent": "claude",
+                "agent_status": "blocked",
+                "cwd": "/home/dev/wt/admin-rebuild-t-0003",
+                "focused": false,
+                "foreground_cwd": "/home/dev/wt/admin-rebuild-t-0003",
+                "pane_id": "w12:p1",
+                "revision": 105,
+                "scroll": {
+                  "max_offset_from_bottom": 0,
+                  "offset_from_bottom": 0,
+                  "viewport_rows": 60
+                },
+                "tab_id": "w12:t1",
+                "terminal_id": "term_w12_p1",
+                "terminal_title": "⠐ Reviewing PR #12",
+                "terminal_title_stripped": "Reviewing PR #12",
+                "tokens": {
+                  "hp_group": "admin-rebuild!1!4!t-0003",
+                  "hp_project": "admin-rebuild",
+                  "hp_rank": "4",
+                  "hp_sub": "Working"
+                },
+                "workspace_id": "w12"
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "at": "80s",
+      "note": "blocked 25 s",
+      "want": "working",
+      "reply": {
+        "id": "cli:api:snapshot",
+        "result": {
+          "type": "session_snapshot",
+          "snapshot": {
+            "version": "0.9.3",
+            "protocol": 22,
+            "focused_pane_id": "w10:p1",
+            "panes": [
+              {
+                "agent": "claude",
+                "agent_status": "idle",
+                "cwd": "/home/dev/.herdr-projects/admin-rebuild",
+                "focused": false,
+                "foreground_cwd": "/home/dev/.herdr-projects/admin-rebuild",
+                "pane_id": "w10:p1",
+                "revision": 40,
+                "scroll": {
+                  "max_offset_from_bottom": 0,
+                  "offset_from_bottom": 0,
+                  "viewport_rows": 60
+                },
+                "tab_id": "w10:t1",
+                "terminal_id": "term_w10_p1",
+                "terminal_title": "✳ Admin rebuild coordinator",
+                "terminal_title_stripped": "Admin rebuild coordinator",
+                "tokens": {
+                  "hp_group": "admin-rebuild!0!w10:p1",
+                  "hp_project": "admin-rebuild",
+                  "hp_rank": "5",
+                  "hp_sub": "Idle"
+                },
+                "workspace_id": "w10"
+              },
+              {
+                "agent": "claude",
+                "agent_status": "blocked",
+                "cwd": "/home/dev/wt/admin-rebuild-t-0003",
+                "focused": false,
+                "foreground_cwd": "/home/dev/wt/admin-rebuild-t-0003",
+                "pane_id": "w12:p1",
+                "revision": 106,
+                "scroll": {
+                  "max_offset_from_bottom": 0,
+                  "offset_from_bottom": 0,
+                  "viewport_rows": 60
+                },
+                "tab_id": "w12:t1",
+                "terminal_id": "term_w12_p1",
+                "terminal_title": "⠐ Reviewing PR #12",
+                "terminal_title_stripped": "Reviewing PR #12",
+                "tokens": {
+                  "hp_group": "admin-rebuild!1!4!t-0003",
+                  "hp_project": "admin-rebuild",
+                  "hp_rank": "4",
+                  "hp_sub": "Working"
+                },
+                "workspace_id": "w12"
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "at": "82s",
+      "note": "the review finished and the turn ended: the group stands",
+      "want": "working",
+      "reply": {
+        "id": "cli:api:snapshot",
+        "result": {
+          "type": "session_snapshot",
+          "snapshot": {
+            "version": "0.9.3",
+            "protocol": 22,
+            "focused_pane_id": "w10:p1",
+            "panes": [
+              {
+                "agent": "claude",
+                "agent_status": "idle",
+                "cwd": "/home/dev/.herdr-projects/admin-rebuild",
+                "focused": false,
+                "foreground_cwd": "/home/dev/.herdr-projects/admin-rebuild",
+                "pane_id": "w10:p1",
+                "revision": 40,
+                "scroll": {
+                  "max_offset_from_bottom": 0,
+                  "offset_from_bottom": 0,
+                  "viewport_rows": 60
+                },
+                "tab_id": "w10:t1",
+                "terminal_id": "term_w10_p1",
+                "terminal_title": "✳ Admin rebuild coordinator",
+                "terminal_title_stripped": "Admin rebuild coordinator",
+                "tokens": {
+                  "hp_group": "admin-rebuild!0!w10:p1",
+                  "hp_project": "admin-rebuild",
+                  "hp_rank": "5",
+                  "hp_sub": "Idle"
+                },
+                "workspace_id": "w10"
+              },
+              {
+                "agent": "claude",
+                "agent_status": "done",
+                "cwd": "/home/dev/wt/admin-rebuild-t-0003",
+                "focused": false,
+                "foreground_cwd": "/home/dev/wt/admin-rebuild-t-0003",
+                "pane_id": "w12:p1",
+                "revision": 107,
+                "scroll": {
+                  "max_offset_from_bottom": 0,
+                  "offset_from_bottom": 0,
+                  "viewport_rows": 60
+                },
+                "tab_id": "w12:t1",
+                "terminal_id": "term_w12_p1",
+                "terminal_title": "✳ Reviewing PR #12",
+                "terminal_title_stripped": "Reviewing PR #12",
+                "tokens": {
+                  "hp_group": "admin-rebuild!1!4!t-0003",
+                  "hp_project": "admin-rebuild",
+                  "hp_rank": "4",
+                  "hp_sub": "Working"
+                },
+                "workspace_id": "w12"
+              }
+            ]
+          }
+        }
+      }
+    }
+  ]
+}
