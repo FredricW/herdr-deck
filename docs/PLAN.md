@@ -242,7 +242,8 @@ default (`internal/config`). The deck only reads the file and never writes
 secrets there; a later settings page will edit it.
 
 - Keys: `linear_workspace`, `refresh_interval` (Go duration, 1s–10m, default
-  5s), `projects_root`, `[editor]` and `[diff]`. The README has the full
+  5s), `projects_root`, `reuse_browser_tabs` (default true), `[editor]` and
+  `[diff]`. The README has the full
   table and an example.
 - `[editor]` and `[diff]` are a command plus `terminal`. Commands are split
   into argv like a POSIX shell but never run through one. Placeholders:
@@ -330,8 +331,11 @@ marked parallel.
    a deck that is not focused instead of closing it, and closes only a
    focused deck.
 8. **Polish / later.** Done: the config file (see Configuration), with a
-   configurable editor and diff tool, and a blank line between the list's
-   groups. Still to do: Linear issue status next
+   configurable editor and diff tool, a blank line between the list's
+   groups, and browser tab reuse (`launch.Browser`: on macOS, AppleScript
+   finds a tab of the default browser showing the same page, as `pageKey`
+   defines it, and focuses it; else `open`/`xdg-open`; the README's
+   "Browser tabs" has the rules). Still to do: Linear issue status next
    to IDs (GraphQL; key from env or `op`), `u` to start dev servers, link
    handlers, multi-project view.
 

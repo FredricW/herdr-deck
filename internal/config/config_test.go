@@ -348,3 +348,38 @@ func TestResolveRelativeProjectsRootFlag(t *testing.T) {
 		t.Errorf("ProjectsRoot = %q, want %q", s.ProjectsRoot, want)
 	}
 }
+
+func TestResolveReuseTabs(t *testing.T) {
+	off, on := false, true
+	tests := []struct {
+		name     string
+		flag     *bool
+		env      string
+		file     string
+		want     bool
+		problems int
+	}{
+		{name: "default", want: true},
+		{name: "file", file: "reuse_browser_tabs = false\n", want: false},
+		{name: "env beats file", env: "true", file: "reuse_browser_tabs = false\n", want: true},
+		{name: "flag beats env", flag: &off, env: "true", want: false},
+		{name: "flag on", flag: &on, file: "reuse_browser_tabs = false\n", want: true},
+		{name: "bad env falls back to file", env: "maybe", file: "reuse_browser_tabs = false\n", want: false, problems: 1},
+		{name: "bad file value", file: "reuse_browser_tabs = \"no\"\n", want: true, problems: 1},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			getenv, home := env(t, map[string]string{EnvReuseTabs: tt.env})
+			if tt.file != "" {
+				write(t, filepath.Join(home, ".config", "herdr-deck", "config.toml"), tt.file)
+			}
+			s, err := Resolve(Flags{ReuseTabs: tt.flag}, getenv, noHunk)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if s.ReuseTabs != tt.want || len(s.Problems) != tt.problems {
+				t.Errorf("ReuseTabs = %v with problems %q; want %v with %d", s.ReuseTabs, s.Problems, tt.want, tt.problems)
+			}
+		})
+	}
+}

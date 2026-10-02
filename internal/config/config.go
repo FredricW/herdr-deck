@@ -36,6 +36,7 @@ const (
 	EnvEditorTerminal  = "HERDR_DECK_EDITOR_TERMINAL"
 	EnvDiffTool        = "HERDR_DECK_DIFF_TOOL"
 	EnvDiffTerminal    = "HERDR_DECK_DIFF_TERMINAL"
+	EnvReuseTabs       = "HERDR_DECK_REUSE_BROWSER_TABS"
 )
 
 // Default editor and diff tool commands. The diff tool is hunk when it is
@@ -69,6 +70,7 @@ type File struct {
 	ProjectsRoot    *string   `toml:"projects_root"`
 	Editor          *Program  `toml:"editor"`
 	Diff            *Program  `toml:"diff"`
+	ReuseTabs       *bool     `toml:"reuse_browser_tabs"`
 }
 
 // Program is a table such as [editor]: a command line with placeholders,
@@ -135,11 +137,12 @@ func Load(path string, named bool) (File, []string) {
 		return File{}, []string{"config: " + path + ": " + parseErr(err) + "; the file is ignored"}
 	}
 	fields := map[string]func(toml.Primitive) error{
-		"linear_workspace": func(p toml.Primitive) error { return decode(md, p, &f.LinearWorkspace) },
-		"refresh_interval": func(p toml.Primitive) error { return decode(md, p, &f.RefreshInterval) },
-		"projects_root":    func(p toml.Primitive) error { return decode(md, p, &f.ProjectsRoot) },
-		"editor":           func(p toml.Primitive) error { return decode(md, p, &f.Editor) },
-		"diff":             func(p toml.Primitive) error { return decode(md, p, &f.Diff) },
+		"linear_workspace":   func(p toml.Primitive) error { return decode(md, p, &f.LinearWorkspace) },
+		"refresh_interval":   func(p toml.Primitive) error { return decode(md, p, &f.RefreshInterval) },
+		"projects_root":      func(p toml.Primitive) error { return decode(md, p, &f.ProjectsRoot) },
+		"editor":             func(p toml.Primitive) error { return decode(md, p, &f.Editor) },
+		"diff":               func(p toml.Primitive) error { return decode(md, p, &f.Diff) },
+		"reuse_browser_tabs": func(p toml.Primitive) error { return decode(md, p, &f.ReuseTabs) },
 	}
 	var problems []string
 	failed := map[string]bool{}
@@ -185,9 +188,11 @@ type Flags struct {
 	ProjectsRoot    string
 	Editor          string
 	DiffTool        string
-	// EditorTerminal and DiffTerminal are nil when the flag was not given.
+	// EditorTerminal, DiffTerminal and ReuseTabs are nil when the flag was
+	// not given.
 	EditorTerminal *bool
 	DiffTerminal   *bool
+	ReuseTabs      *bool
 }
 
 // Settings are the resolved values the deck runs with.
@@ -202,6 +207,9 @@ type Settings struct {
 	// ({path}, {base}, optional {file}).
 	Editor launch.Command
 	Diff   launch.Command
+	// ReuseTabs opens a web link by focusing a browser tab that already
+	// shows it, where the browser allows (launch.Browser).
+	ReuseTabs bool
 	// Problems are one line each about the file or a bad value that was
 	// skipped. They never stop the deck.
 	Problems []string
@@ -288,6 +296,23 @@ func Resolve(fl Flags, getenv func(string) string, lookPath func(string) (string
 	}, getenv, &s.Problems); err != nil {
 		return s, err
 	}
+	s.ReuseTabs = true
+	switch v := getenv(EnvReuseTabs); {
+	case fl.ReuseTabs != nil:
+		s.ReuseTabs = *fl.ReuseTabs
+	case v != "":
+		if b, err := strconv.ParseBool(v); err == nil {
+			s.ReuseTabs = b
+			break
+		}
+		s.Problems = append(s.Problems, fmt.Sprintf("$%s: %q is not true or false; ignored", EnvReuseTabs, v))
+		fallthrough
+	default:
+		if f.ReuseTabs != nil {
+			s.ReuseTabs = *f.ReuseTabs
+		}
+	}
+
 	// The Sources view is narrow: show the file as ~/… where it fits.
 	if home := homeDir(getenv); home != "" && strings.HasPrefix(s.Path, home+string(filepath.Separator)) {
 		short := "~" + strings.TrimPrefix(s.Path, home)

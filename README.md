@@ -126,6 +126,10 @@ refresh_interval = "5s"
 # The herdr-projects root; ~ is your home folder.
 projects_root = "~/.herdr-projects"
 
+# Open a web link in a browser tab that already shows it (macOS); see
+# "Browser tabs" below.
+reuse_browser_tabs = true
+
 # What `e` opens a thread's worktree with. {path} is the worktree folder;
 # without it the folder is added at the end. Not run through a shell: quote
 # arguments with spaces. terminal = true opens it in a new herdr pane below
@@ -148,6 +152,7 @@ terminal = true
 | `linear_workspace` | `--linear-workspace` | `HERDR_DECK_LINEAR_WORKSPACE` | none |
 | `refresh_interval` | `--refresh-interval` | `HERDR_DECK_REFRESH_INTERVAL` | `5s` |
 | `projects_root` | `--projects-root` | `HERDR_PROJECTS_ROOT` | `~/.herdr-projects` |
+| `reuse_browser_tabs` | `--reuse-browser-tabs` | `HERDR_DECK_REUSE_BROWSER_TABS` | `true` |
 | `[editor] command` | `--editor` | `HERDR_DECK_EDITOR` | `code {path}` |
 | `[editor] terminal` | `--editor-terminal` | `HERDR_DECK_EDITOR_TERMINAL` | `false` |
 | `[diff] command` | `--diff-tool` | `HERDR_DECK_DIFF_TOOL` | `hunk diff {base} -- {file}`, or `git -C {path} diff --merge-base {base} -- {file}` without hunk |
@@ -168,6 +173,40 @@ file is fine. A file that does not parse, an unknown key or a bad value
 never stops the deck: the `!` sources view lists the problem (the plugin
 commands print it to herdr's plugin log), and that setting falls back to
 the next source. A bad flag value is an error.
+
+## Browser tabs
+
+On macOS the deck opens a web link by focusing a tab that already shows the
+same page, raising its window and bringing the browser forward, and only
+opens a new tab when there is none. It does this for the default browser
+when that is Chrome, Chromium, Brave, Edge, Vivaldi, Arc or Safari, through
+AppleScript (`osascript`). Any other browser (Firefox, for one), a browser
+that is not running, or Linux opens a new tab with `open` or `xdg-open`.
+Turn it off with `reuse_browser_tabs = false` (or the flag or variable
+above).
+
+The same page means:
+
+- Linear: the same workspace and issue ID; the title slug may differ.
+- GitHub: the same pull request or issue, whichever of its tabs (files,
+  commits, checks) is showing.
+- Figma: the same file (or branch), whatever frame is selected. A
+  prototype is not the same page as its design file.
+- Notion: the same page ID, also when it is open over a database (`?p=`).
+- A dev server on `localhost`, `127.0.0.1`, `[::1]` or `*.localhost`: the
+  same scheme, host and port, wherever in the app the tab is.
+- Anything else: the same URL, ignoring case in the host, a trailing slash
+  and the `#fragment`.
+
+A tab showing exactly the link wins over one that only shows the same page,
+and the deck does not navigate the tab it focuses. It reads tab URLs only to
+compare them; nothing is kept or sent anywhere.
+
+The first time, macOS asks whether your terminal app (the one herdr runs
+in) may control the browser. If you refuse, or the question is still open
+after 10 seconds, the link opens in a new tab, as it does every time after
+a refusal. To change your answer, use System Settings → Privacy & Security
+→ Automation, or turn reuse off.
 
 ## Dev servers
 
@@ -252,8 +291,9 @@ drawer.
   watches the project folder, `fake` is sample data for tests and `--fake`.
 - `internal/config`: finds and reads `config.toml` and resolves each setting
   (flag > environment > file > default).
-- `internal/launch`: opens URLs (`open` / `xdg-open`) and runs the editor and
-  diff tool, as desktop apps or in a new herdr pane.
+- `internal/launch`: opens URLs (`open` / `xdg-open`, reusing a browser tab
+  on macOS) and runs the editor and diff tool, as desktop apps or in a new
+  herdr pane.
 - `internal/project`: works out the project slug.
 - `internal/plugin`: the herdr plugin's toggle action and auto-open hook
   (`herdr-deck plugin toggle|agent-detected`, run by herdr).
