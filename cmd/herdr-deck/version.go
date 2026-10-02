@@ -69,7 +69,8 @@ var pseudoVersion = regexp.MustCompile(`[-.]\d{14}-([0-9a-f]{12})$`)
 
 func shortVersion(ldVersion string, info *debug.BuildInfo) string {
 	v, rev, _ := buildVersion(ldVersion, info)
-	v = strings.TrimSuffix(v, "-dirty")
+	// git describe marks a dirty tree with -dirty, Go's build stamp with +dirty.
+	v = strings.TrimSuffix(strings.TrimSuffix(v, "+dirty"), "-dirty")
 	// A pseudo-version (v0.0.0-20261003000000-abc1234def56) says no more
 	// than its commit.
 	if m := pseudoVersion.FindStringSubmatch(v); m != nil {

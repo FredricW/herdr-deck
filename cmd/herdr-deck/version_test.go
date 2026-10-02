@@ -85,6 +85,18 @@ func TestShortVersion(t *testing.T) {
 			"abc1234",
 		},
 		{
+			"dirty pseudo-version",
+			"",
+			&debug.BuildInfo{Main: debug.Module{Version: "v0.0.0-20261003000000-abc1234def56+dirty"}},
+			"abc1234",
+		},
+		{
+			"dirty tagged build",
+			"",
+			&debug.BuildInfo{Main: debug.Module{Version: "v1.2.3+dirty"}},
+			"v1.2.3",
+		},
+		{
 			"pre-release pseudo-version",
 			"",
 			&debug.BuildInfo{Main: debug.Module{Version: "v1.2.4-0.20261003000000-abc1234def56"}},
