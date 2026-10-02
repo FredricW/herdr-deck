@@ -42,7 +42,7 @@ type Browser struct {
 	Open func(url string) error
 }
 
-// scriptTimeout bounds each AppleScript run. The first run may wait on the
+// scriptTimeout bounds each AppleScript run. The first list may wait on the
 // Automation prompt; past this the link opens in a new tab.
 const scriptTimeout = 10 * time.Second
 
@@ -78,9 +78,15 @@ func (b Browser) focus(u string) bool {
 	if run == nil {
 		run = osascript
 	}
-	ctx, cancel := context.WithTimeout(context.Background(), scriptTimeout)
-	defer cancel()
-	out, err := run(ctx, listScript(d.id))
+	// Each script gets its own deadline: a list that waited on the
+	// Automation prompt must not leave the focus script too little time to
+	// report, or the link would open again next to the tab it focused.
+	timed := func(script string, args ...string) (string, error) {
+		ctx, cancel := context.WithTimeout(context.Background(), scriptTimeout)
+		defer cancel()
+		return run(ctx, script, args...)
+	}
+	out, err := timed(listScript(d.id))
 	if err != nil {
 		return false // no permission, browser quit, …: a new tab will do
 	}
@@ -88,7 +94,7 @@ func (b Browser) focus(u string) bool {
 	if !ok {
 		return false
 	}
-	out, err = run(ctx, d.focusScript(), strconv.Itoa(t.window), strconv.Itoa(t.tab), t.url)
+	out, err = timed(d.focusScript(), strconv.Itoa(t.window), strconv.Itoa(t.tab), t.url)
 	return err == nil && strings.TrimSpace(out) == "focused"
 }
 
