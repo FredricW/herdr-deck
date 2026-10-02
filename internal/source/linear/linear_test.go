@@ -20,12 +20,13 @@ import (
 const testKey = "lin_api_TESTKEY0123456789"
 
 // fakeLinear answers GraphQL requests from a table of known issues, the
-// way Linear does: an unknown ID is a null alias with an error naming it.
-// Nothing ever goes over the network.
+// way Linear's issues(filter:) does: a team search returns the issues it
+// finds, so an unknown ID is simply not among the nodes. Nothing ever goes
+// over the network.
 type fakeLinear struct {
 	mu       sync.Mutex
 	issues   map[string]deck.Issue
-	requests []map[string]string // each request's variables
+	requests []map[string]any // each request's variables
 	auth     []string
 	// respond, when set, answers instead of the table, unless it returns
 	// neither a response nor an error.
@@ -34,8 +35,8 @@ type fakeLinear struct {
 
 func (f *fakeLinear) RoundTrip(req *http.Request) (*http.Response, error) {
 	var body struct {
-		Query     string            `json:"query"`
-		Variables map[string]string `json:"variables"`
+		Query     string         `json:"query"`
+		Variables map[string]any `json:"variables"`
 	}
 	if err := json.NewDecoder(req.Body).Decode(&body); err != nil {
 		return nil, err
@@ -50,28 +51,27 @@ func (f *fakeLinear) RoundTrip(req *http.Request) (*http.Response, error) {
 		}
 	}
 	data := map[string]any{}
-	var errs []any
-	for alias, id := range body.Variables {
-		if !strings.Contains(body.Query, alias+": issue(id: $"+alias+")") {
-			return nil, fmt.Errorf("query does not ask for %s", alias)
-		}
-		is, ok := f.issues[id]
+	for i := 0; ; i++ {
+		k, n := "k"+strconv.Itoa(i), "n"+strconv.Itoa(i)
+		team, ok := body.Variables[k].(string)
 		if !ok {
-			data[alias] = nil
-			errs = append(errs, map[string]any{
-				"message":    "Entity not found: Issue",
-				"path":       []string{alias},
-				"extensions": map[string]any{"type": "invalid input", "code": "INPUT_ERROR"},
-			})
-			continue
+			break
 		}
-		data[alias] = map[string]any{"identifier": id, "state": map[string]string{"name": is.State, "type": is.StateType}}
+		want := fmt.Sprintf("filter: { team: { key: { eq: $%s } }, number: { in: $%s } }", k, n)
+		if !strings.Contains(body.Query, want) {
+			return nil, fmt.Errorf("query does not filter on $%s and $%s: %s", k, n, body.Query)
+		}
+		nums, _ := body.Variables[n].([]any)
+		nodes := []any{}
+		for _, num := range nums {
+			id := fmt.Sprintf("%s-%v", team, num)
+			if is, ok := f.issues[id]; ok {
+				nodes = append(nodes, map[string]any{"identifier": id, "state": map[string]string{"name": is.State, "type": is.StateType}})
+			}
+		}
+		data["t"+strconv.Itoa(i)] = map[string]any{"nodes": nodes}
 	}
-	out := map[string]any{"data": data}
-	if errs != nil {
-		out["errors"] = errs
-	}
-	return jsonResponse(http.StatusOK, out, nil), nil
+	return jsonResponse(http.StatusOK, map[string]any{"data": data}, nil), nil
 }
 
 func (f *fakeLinear) count() int {
@@ -185,13 +185,8 @@ func TestApplyFetchesAndCaches(t *testing.T) {
 	if f.auth[0] != testKey {
 		t.Errorf("Authorization = %q", f.auth[0])
 	}
-	vars := f.requests[0]
-	var ids []string
-	for _, v := range vars {
-		ids = append(ids, v)
-	}
-	if len(ids) != 3 {
-		t.Errorf("asked for %v, want ABC-1, ABC-2 and ABC-404 once each", ids)
+	if nums := f.requests[0]["n0"].([]any); len(nums) != 3 || f.requests[0]["k0"] != "ABC" {
+		t.Errorf("asked for %v, want ABC 1, 2 and 404 once each", f.requests[0])
 	}
 
 	// Within the TTL, the cache answers.
@@ -369,15 +364,19 @@ func TestOfflineNeverLeaksKey(t *testing.T) {
 func TestServerErrorAndBadJSON(t *testing.T) {
 	for _, tt := range []struct {
 		name string
-		resp *http.Response
+		code int
+		body string
 		want string
 	}{
-		{"5xx", jsonResponse(http.StatusBadGateway, map[string]any{}, nil), "HTTP 502"},
-		{"not JSON", &http.Response{StatusCode: http.StatusOK, Header: http.Header{}, Body: io.NopCloser(strings.NewReader("<html>"))}, "not GraphQL JSON"},
-		{"query error", jsonResponse(http.StatusOK, map[string]any{"errors": []any{map[string]any{"message": "Syntax\nerror"}}}, nil), "Linear: Syntax error"},
+		{"5xx", http.StatusBadGateway, `{}`, "HTTP 502"},
+		{"not JSON", http.StatusOK, "<html>", "not GraphQL JSON"},
+		{"query error", http.StatusBadRequest, `{"errors":[{"message":"Syntax\nerror"}]}`, "Linear: Syntax error"},
+		{"no data", http.StatusOK, `{"data":null}`, "without data"},
 	} {
 		t.Run(tt.name, func(t *testing.T) {
-			f := &fakeLinear{respond: func(*http.Request) (*http.Response, error) { return tt.resp, nil }}
+			f := &fakeLinear{respond: func(*http.Request) (*http.Response, error) {
+				return &http.Response{StatusCode: tt.code, Header: http.Header{}, Body: io.NopCloser(strings.NewReader(tt.body))}, nil
+			}}
 			s := apply(newTestReader(f, newClock(), &Key{Getenv: envWith(testKey)}))
 			if len(s.Missing) != 1 || !strings.Contains(s.Missing[0], tt.want) {
 				t.Errorf("Missing = %q, want %q", s.Missing, tt.want)
@@ -481,21 +480,37 @@ func TestExecRunNoShell(t *testing.T) {
 }
 
 func TestQueryUsesVariables(t *testing.T) {
-	b, err := query([]string{"ABC-1", "ABC-22"})
+	b, err := query([]string{"ABC-1", "XY2-7", "ABC-22"})
 	if err != nil {
 		t.Fatal(err)
 	}
 	var q struct {
-		Query     string            `json:"query"`
-		Variables map[string]string `json:"variables"`
+		Query     string         `json:"query"`
+		Variables map[string]any `json:"variables"`
 	}
 	if err := json.Unmarshal(b, &q); err != nil {
 		t.Fatal(err)
 	}
-	if strings.Contains(q.Query, "ABC-") {
+	if strings.Contains(q.Query, "ABC") || strings.Contains(q.Query, "XY2") {
 		t.Errorf("IDs are in the query text: %s", q.Query)
 	}
-	if q.Variables["i0"] != "ABC-1" || q.Variables["i1"] != "ABC-22" {
-		t.Errorf("variables = %v", q.Variables)
+	if strings.Contains(q.Query, "issue(") {
+		t.Errorf("issue(id:) is non-null, so one unknown ID would fail the batch: %s", q.Query)
+	}
+	got := fmt.Sprint(q.Variables)
+	if want := "map[k0:ABC k1:XY2 n0:[1 22] n1:[7]]"; got != want {
+		t.Errorf("variables = %s, want %s", got, want)
+	}
+}
+
+// An unknown ID next to known ones leaves only itself without a state.
+func TestUnknownIDKeepsTheBatch(t *testing.T) {
+	f := &fakeLinear{issues: map[string]deck.Issue{"ABC-1": {State: "Todo", StateType: "unstarted"}}}
+	s := apply(newTestReader(f, newClock(), &Key{Getenv: envWith(testKey)}))
+	if s.TaskLists[0].Tasks[0].Links[0].Issue == nil {
+		t.Error("ABC-1 lost its state next to unknown IDs")
+	}
+	if len(s.Missing) != 0 {
+		t.Errorf("Missing = %q", s.Missing)
 	}
 }

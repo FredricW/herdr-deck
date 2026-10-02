@@ -373,32 +373,51 @@ func (r *Reader) fetch(ctx context.Context, ids []string) error {
 // farFuture keeps a failed key command from running again.
 var farFuture = time.Date(9999, 1, 1, 0, 0, 0, 0, time.UTC)
 
-// query builds one request: an aliased issue(id:) lookup per ID, with the
-// IDs passed as variables.
+// query builds one request: per team key, an aliased issues() search for
+// its issue numbers, with keys and numbers passed as variables. issues()
+// answers an unknown ID with fewer nodes; issue(id:) would fail the whole
+// request, since it returns a non-null Issue!.
 func query(ids []string) ([]byte, error) {
+	var teams []string
+	numbers := map[string][]int{}
+	for _, id := range ids {
+		team, num, _ := strings.Cut(id, "-")
+		n, err := strconv.Atoi(num)
+		if err != nil {
+			return nil, fmt.Errorf("bad issue ID %q", id)
+		}
+		if _, ok := numbers[team]; !ok {
+			teams = append(teams, team)
+		}
+		numbers[team] = append(numbers[team], n)
+	}
 	var params, fields []string
-	vars := map[string]string{}
-	for i, id := range ids {
-		v := "i" + strconv.Itoa(i)
-		params = append(params, "$"+v+": String!")
-		fields = append(fields, v+": issue(id: $"+v+") { identifier state { name type } }")
-		vars[v] = id
+	vars := map[string]any{}
+	for i, team := range teams {
+		k, n := "k"+strconv.Itoa(i), "n"+strconv.Itoa(i)
+		params = append(params, "$"+k+": String!", "$"+n+": [Float!]")
+		fields = append(fields, fmt.Sprintf("t%d: issues(first: %d, includeArchived: true, filter: { team: { key: { eq: $%s } }, number: { in: $%s } }) { nodes { identifier state { name type } } }",
+			i, len(numbers[team]), k, n))
+		vars[k] = team
+		vars[n] = numbers[team]
 	}
 	q := "query DeckIssues(" + strings.Join(params, ", ") + ") { " + strings.Join(fields, " ") + " }"
 	return json.Marshal(map[string]any{"query": q, "variables": vars})
 }
 
 type gqlResponse struct {
-	Data   map[string]*gqlIssue `json:"data"`
-	Errors []gqlError           `json:"errors"`
+	Data   map[string]*gqlIssues `json:"data"`
+	Errors []gqlError            `json:"errors"`
 }
 
-type gqlIssue struct {
-	Identifier string `json:"identifier"`
-	State      *struct {
-		Name string `json:"name"`
-		Type string `json:"type"`
-	} `json:"state"`
+type gqlIssues struct {
+	Nodes []struct {
+		Identifier string `json:"identifier"`
+		State      *struct {
+			Name string `json:"name"`
+			Type string `json:"type"`
+		} `json:"state"`
+	} `json:"nodes"`
 }
 
 type gqlError struct {
@@ -410,8 +429,8 @@ type gqlError struct {
 	} `json:"extensions"`
 }
 
-// request asks for one batch. The map holds every ID Linear answered for;
-// an ID Linear does not know maps to nil.
+// request asks for one batch. The map holds every ID asked for; an ID
+// Linear does not know maps to nil.
 func (r *Reader) request(ctx context.Context, key string, ids []string) (map[string]*deck.Issue, error) {
 	body, err := query(ids)
 	if err != nil {
@@ -457,8 +476,6 @@ func (r *Reader) request(ctx context.Context, key string, ids []string) (map[str
 	if err := json.Unmarshal(raw, &gr); err != nil {
 		return nil, &fetchError{msg: fmt.Sprintf("Linear's answer (HTTP %d) is not GraphQL JSON", resp.StatusCode)}
 	}
-	// Errors about one alias are issues Linear does not know; any other
-	// error fails the batch.
 	for _, e := range gr.Errors {
 		code := strings.ToUpper(e.Extensions.Code)
 		switch {
@@ -467,27 +484,31 @@ func (r *Reader) request(ctx context.Context, key string, ids []string) (map[str
 		case code == "RATELIMITED":
 			at := r.resetAt(resp.Header)
 			return nil, &fetchError{msg: "rate limited until " + at.Local().Format("15:04"), retryAt: at}
-		case len(e.Path) > 0:
-			continue
-		default:
-			return nil, &fetchError{msg: "Linear: " + oneLine(e.Message)}
 		}
 	}
-	if resp.StatusCode != http.StatusOK && gr.Data == nil {
-		return nil, &fetchError{msg: "Linear answered HTTP " + strconv.Itoa(resp.StatusCode)}
+	// Without data the request failed as a whole; with it, an error about
+	// one team's search only leaves that team's IDs without a state.
+	if gr.Data == nil {
+		if len(gr.Errors) > 0 {
+			return nil, &fetchError{msg: "Linear: " + oneLine(gr.Errors[0].Message)}
+		}
+		return nil, &fetchError{msg: "Linear answered HTTP " + strconv.Itoa(resp.StatusCode) + " without data"}
 	}
 
+	byID := map[string]*deck.Issue{}
+	for _, res := range gr.Data {
+		if res == nil {
+			continue
+		}
+		for _, n := range res.Nodes {
+			if n.State != nil {
+				byID[n.Identifier] = &deck.Issue{State: n.State.Name, StateType: n.State.Type}
+			}
+		}
+	}
 	out := map[string]*deck.Issue{}
-	for i, id := range ids {
-		gi, ok := gr.Data["i"+strconv.Itoa(i)]
-		if !ok {
-			continue
-		}
-		if gi == nil || gi.State == nil {
-			out[id] = nil
-			continue
-		}
-		out[id] = &deck.Issue{State: gi.State.Name, StateType: gi.State.Type}
+	for _, id := range ids {
+		out[id] = byID[id] // nil: Linear has no such issue
 	}
 	// A rate limit spent to the last request: wait for its reset.
 	if resp.Header.Get("X-RateLimit-Requests-Remaining") == "0" {

@@ -330,10 +330,12 @@ name with "review" magenta), triage yellow, unstarted and backlog plain,
 completed and canceled dim, the ID too. The list's LINKS column keeps its
 `L4` badge: six columns have no room for states. `internal/source/linear`:
 
-- One GraphQL request (`https://api.linear.app/graphql`) per 50 IDs, an
-  aliased `issue(id: $iN) { identifier state { name type } }` each, the IDs
-  as variables. An ID Linear does not know comes back null with an error
-  whose `path` names it; it just has no state.
+- One GraphQL request (`https://api.linear.app/graphql`) per 50 IDs: per
+  team key an aliased `issues(filter: { team: { key: { eq: $kN } }, number:
+  { in: $nN } }, includeArchived: true)`, keys and numbers as variables. An
+  ID Linear does not know is just missing from the nodes and has no state.
+  Not `issue(id:)`: it returns a non-null `Issue!`, so one unknown ID would
+  null the whole response.
 - `live.Source.Read` calls `Apply`, which lays the cache over every Linear
   link and starts a background fetch for IDs missing or older than 3
   minutes, one at a time. When it ends, `OnUpdate` sends a reload. A reload
