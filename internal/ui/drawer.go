@@ -323,7 +323,7 @@ func (m Model) linkFields(d *drawer, links []deck.Link, choosing deck.LinkKind, 
 }
 
 // noWorkspace says why a bare Linear ID has no link.
-const noWorkspace = "no Linear workspace: set --linear-workspace or $" + deck.EnvLinearWorkspace
+const noWorkspace = "no Linear workspace: set linear_workspace in the config file, --linear-workspace or $" + deck.EnvLinearWorkspace
 
 func prDetails(pr deck.PullRequest, narrow bool) string {
 	var parts []string
@@ -509,7 +509,7 @@ var helpLines = [][2]string{
 	{"l f n g", "open the first Linear, Figma, Notion or PR link; with several, pick one: a digit, a all, d Figma desktop app, the letter again the first, esc cancels"},
 	{"o", "open the first localhost link whose dev server is running"},
 	{"↵", "focus the thread's herdr pane"},
-	{"e", "open the thread's worktree in VS Code"},
+	{"e", "open the thread's worktree in the editor"},
 	{"r", "the thread's report, full height"},
 	{"z", "drawer: normal, full height, hidden"},
 	{"pgup pgdn", "scroll the drawer"},

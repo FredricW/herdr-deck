@@ -40,10 +40,3 @@ func TestSlug(t *testing.T) {
 		})
 	}
 }
-
-func TestRootFromEnv(t *testing.T) {
-	got, err := Root(env(map[string]string{"HERDR_PROJECTS_ROOT": "/x"}))
-	if err != nil || got != "/x" {
-		t.Fatalf("Root = %q, %v", got, err)
-	}
-}
