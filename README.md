@@ -1,5 +1,7 @@
 # herdr-deck
 
+[![ci](https://github.com/FredricW/herdr-deck/actions/workflows/ci.yml/badge.svg)](https://github.com/FredricW/herdr-deck/actions/workflows/ci.yml)
+
 A status pane for [herdr-projects](https://github.com/eliasstravik/herdr-projects):
 a Go + Charm TUI that runs in a split next to a project's coordinator and shows
 its tasks, threads and their status, Linear / Notion / Figma / GitHub links and
@@ -19,9 +21,15 @@ make build                              # → bin/herdr-deck
 ./bin/herdr-deck --project admin-rebuild
 make run ARGS="--project admin-rebuild" # build and run
 ./bin/herdr-deck --fake                 # built-in sample data
+./bin/herdr-deck --version              # version and commit
 make test                               # go test ./...
 make lint                               # golangci-lint if installed, else gofmt + go vet
 ```
+
+`make build` stamps the version from `git describe --tags --always --dirty`;
+other builds fall back to the module version and commit Go records.
+CI (`.github/workflows/ci.yml`) runs gofmt, `go vet`, `go test -race` and
+golangci-lint on Linux and macOS.
 
 The project slug comes from, in order:
 
