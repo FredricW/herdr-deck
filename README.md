@@ -38,8 +38,11 @@ What the plugin does (`herdr-plugin.toml`):
   focus. A workspace gets one deck: a second coordinator in it, or the same
   one restarting, opens no other. Thread agents run in worktrees or under
   `<slug>/threads/` and never get a deck of their own.
-- **Toggle** (`herdr-deck.toggle`) closes the deck in the focused pane's
-  tab, or opens one to the right of the focused pane, any pane. The project
+- **Toggle** (`herdr-deck.toggle`) works in three steps. With no deck in
+  the focused pane's tab it opens one to the right of the focused pane, any
+  pane, and focuses it. With a deck in the tab but the focus elsewhere it
+  focuses the deck. On the deck itself it closes the deck, and the focus
+  goes back to the pane left of it. The project
   is the one the pane works in: its folder under the projects root, else the
   herdr-projects `hp_project` token on the pane (thread panes have it), else
   `$HERDR_DECK_PROJECT`. Run it with `herdr plugin action invoke

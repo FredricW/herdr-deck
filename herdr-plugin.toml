@@ -19,9 +19,9 @@ title = "Deck"
 placement = "split"
 command = ["bin/herdr-deck"]
 
-# Opens a deck to the right of the focused pane, or closes the deck in this
-# tab. Bind it with [[keys.command]] type = "plugin_action",
-# command = "herdr-deck.toggle".
+# Opens a focused deck to the right of the focused pane, focuses the deck in
+# this tab, or closes the deck when it has the focus. Bind it with
+# [[keys.command]] type = "plugin_action", command = "herdr-deck.toggle".
 [[actions]]
 id = "toggle"
 title = "Deck: show or hide"

@@ -20,6 +20,8 @@ type fakeHost struct {
 	layout Layout
 	opened []Open
 	closed []string
+	focus  []string
+	left   map[string]string // LeftOf answers
 	marks  map[string]string
 	ratios []string
 	notes  []string
@@ -47,6 +49,13 @@ func (f *fakeHost) Close(_ context.Context, id string) error {
 	f.closed = append(f.closed, id)
 	return nil
 }
+
+func (f *fakeHost) Focus(_ context.Context, id string) error {
+	f.focus = append(f.focus, id)
+	return nil
+}
+
+func (f *fakeHost) LeftOf(_ context.Context, id string) (string, error) { return f.left[id], nil }
 
 func (f *fakeHost) Mark(_ context.Context, id, slug string) error {
 	if f.marks == nil {
@@ -109,6 +118,10 @@ func TestAgentDetectedOpensNextToCoordinator(t *testing.T) {
 	if h.marks[deck] != "admin-rebuild" {
 		t.Errorf("marks = %v", h.marks)
 	}
+	// The coordinator keeps focus.
+	if h.opened[0].Focus || len(h.focus) != 0 {
+		t.Errorf("deck focused: open %+v, focus %v", h.opened[0], h.focus)
+	}
 	// 200 columns: the deck gets 80, the coordinator 120.
 	if want := []string{deck + " [] 0.60"}; !reflect.DeepEqual(h.ratios, want) {
 		t.Errorf("ratios = %v, want %v", h.ratios, want)
@@ -165,22 +178,28 @@ func TestToggle(t *testing.T) {
 	root := projectsRoot(t)
 	coord := herdr.Pane{ID: "w1:p1", WorkspaceID: "w1", TabID: "w1:t1", Cwd: filepath.Join(root, "admin-rebuild"), Agent: "claude"}
 	deckPane := herdr.Pane{ID: "w1:p2", WorkspaceID: "w1", TabID: "w1:t1", Tokens: map[string]string{Token: "admin-rebuild"}}
+	otherTab := herdr.Pane{ID: "w1:p3", WorkspaceID: "w1", TabID: "w1:t2", Cwd: filepath.Join(root, "admin-rebuild")}
 	worktree := herdr.Pane{ID: "w2:p1", WorkspaceID: "w2", TabID: "w2:t1", Cwd: "/src/webshop-worktrees/abc-123", Tokens: map[string]string{"hp_project": "admin-rebuild"}}
 	bare := herdr.Pane{ID: "w3:p1", WorkspaceID: "w3", TabID: "w3:t1", Cwd: "/src/elsewhere"}
+	deckRightOfCoord := map[string]string{"w1:p2": "w1:p1"}
 
 	tests := []struct {
 		name       string
 		panes      []herdr.Pane
+		left       map[string]string
 		focused    string
 		env        map[string]string
 		wantClose  []string
-		wantOpen   string // the slug opened, or ""
+		wantFocus  []string // Focus calls after the deck opened or closed
+		wantOpen   string   // the slug opened, or ""
 		wantErr    bool
 		wantNotice bool
 	}{
 		{name: "opens from the project folder", panes: []herdr.Pane{coord}, focused: "w1:p1", wantOpen: "admin-rebuild"},
-		{name: "closes the tab's deck", panes: []herdr.Pane{coord, deckPane}, focused: "w1:p1", wantClose: []string{"w1:p2"}},
-		{name: "closes a focused deck", panes: []herdr.Pane{coord, deckPane}, focused: "w1:p2", wantClose: []string{"w1:p2"}},
+		{name: "focuses the tab's deck", panes: []herdr.Pane{coord, deckPane}, focused: "w1:p1", wantFocus: []string{"w1:p2"}},
+		{name: "closes a focused deck, focus goes left", panes: []herdr.Pane{coord, deckPane}, left: deckRightOfCoord, focused: "w1:p2", wantClose: []string{"w1:p2"}, wantFocus: []string{"w1:p1"}},
+		{name: "closes a focused deck with nothing left of it", panes: []herdr.Pane{deckPane}, focused: "w1:p2", wantClose: []string{"w1:p2"}},
+		{name: "a deck in another tab is not this tab's", panes: []herdr.Pane{deckPane, otherTab}, focused: "w1:p3", wantOpen: "admin-rebuild"},
 		{name: "opens from hp_project", panes: []herdr.Pane{worktree}, focused: "w2:p1", wantOpen: "admin-rebuild"},
 		{name: "opens from HERDR_DECK_PROJECT", panes: []herdr.Pane{bare}, focused: "w3:p1", env: map[string]string{"HERDR_DECK_PROJECT": "admin-rebuild"}, wantOpen: "admin-rebuild"},
 		{name: "no project", panes: []herdr.Pane{bare}, focused: "w3:p1", wantErr: true, wantNotice: true},
@@ -188,7 +207,7 @@ func TestToggle(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			h := &fakeHost{st: herdr.State{Panes: tt.panes}}
+			h := &fakeHost{st: herdr.State{Panes: tt.panes}, left: tt.left}
 			env := Env{Getenv: func(k string) string { return tt.env[k] }, Root: root}
 			err := Toggle(context.Background(), h, env, tt.focused)
 			if (err != nil) != tt.wantErr {
@@ -197,11 +216,18 @@ func TestToggle(t *testing.T) {
 			if !reflect.DeepEqual(h.closed, tt.wantClose) {
 				t.Errorf("closed %v, want %v", h.closed, tt.wantClose)
 			}
+			if !reflect.DeepEqual(h.focus, tt.wantFocus) {
+				t.Errorf("focus %v, want %v", h.focus, tt.wantFocus)
+			}
 			var opened string
 			if len(h.opened) == 1 {
 				opened = h.opened[0].Env["HERDR_DECK_PROJECT"]
 				if h.opened[0].Target != tt.focused {
 					t.Errorf("opened next to %s, want %s", h.opened[0].Target, tt.focused)
+				}
+				// A deck opened with the key takes focus.
+				if !h.opened[0].Focus {
+					t.Error("opened without focus")
 				}
 			}
 			if opened != tt.wantOpen || len(h.opened) > 1 {
@@ -230,8 +256,8 @@ func TestRunReadsHerdrEnv(t *testing.T) {
 	}
 	// The action's context names the focused pane; the deck is in its tab now.
 	vars["HERDR_PLUGIN_CONTEXT_JSON"] = `{"workspace_id":"w1","tab_id":"w1:t1","focused_pane_id":"w1:p1","invocation_source":"keybinding"}`
-	if err := Run(context.Background(), h, env, []string{"toggle"}); err != nil || len(h.closed) != 1 {
-		t.Fatalf("toggle: %v, closed %v", err, h.closed)
+	if err := Run(context.Background(), h, env, []string{"toggle"}); err != nil || len(h.focus) != 1 || h.focus[0] != h.st.Panes[1].ID {
+		t.Fatalf("toggle: %v, focus %v", err, h.focus)
 	}
 	if err := Run(context.Background(), h, env, []string{"bogus"}); err == nil {
 		t.Error("unknown command: no error")
