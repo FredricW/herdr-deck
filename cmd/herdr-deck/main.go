@@ -26,6 +26,7 @@ import (
 	"github.com/FredricW/herdr-deck/internal/source/dev"
 	"github.com/FredricW/herdr-deck/internal/source/fake"
 	"github.com/FredricW/herdr-deck/internal/source/herdr"
+	"github.com/FredricW/herdr-deck/internal/source/linear"
 	"github.com/FredricW/herdr-deck/internal/source/live"
 	"github.com/FredricW/herdr-deck/internal/ui"
 	"github.com/FredricW/herdr-deck/internal/update"
@@ -138,6 +139,9 @@ func run(args []string) error {
 	devs := dev.NewReader()
 	devs.Logs = config.LogDir(os.Getenv)
 	src.Dev = devs
+	if cfg.LinearStatus {
+		src.Linear = linear.NewReader(os.Getenv, cfg.LinearAPIKeyCommand)
+	}
 	go plugin.MarkSelf(context.Background(), plugin.Socket{Client: client}, os.Getenv, slug)
 	// Config problems show in the Sources view with the sources' own.
 	opt.Load = func(ctx context.Context) deck.Snapshot {
@@ -166,6 +170,10 @@ func run(args []string) error {
 		if p := cur.Load(); p != nil {
 			p.Send(ui.RefreshMsg{})
 		}
+	}
+	if src.Linear != nil {
+		// A background fetch finished: reload to show its statuses.
+		src.Linear.OnUpdate = refresh
 	}
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()

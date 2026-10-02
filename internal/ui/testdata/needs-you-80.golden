@@ -22,7 +22,7 @@
           → Say whether to start ABC-1257 and ABC-1250
  Note     Phase 1 = layout + overview (ABC-1256); report on 1257/1250 before
           starting them.
- Linear   1 ABC-1246   2 ABC-1256   3 ABC-1257   4 ABC-1250
- Report   threads/t-0002.md · r shows it
+ Linear   1 ABC-1246 done   2 ABC-1256 in progress   3 ABC-1257 todo
+          4 ABC-1250
 ────────────────────────────────────────────────────────────────────────────────
  ↵ go to pane  1-9 link  e edit  r report  z drawer  ? help               v9.9.9

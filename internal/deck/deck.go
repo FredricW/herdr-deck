@@ -201,6 +201,16 @@ type Link struct {
 	URL   string
 	// Down is set on a localhost link whose dev server does not listen.
 	Down bool
+	// Issue is a Linear link's issue status, when Linear's API gave one.
+	Issue *Issue
+}
+
+// Issue is a Linear issue's workflow state as Linear's API last gave it.
+type Issue struct {
+	State string // the state's name, e.g. "In Progress"
+	// StateType is Linear's kind of state: triage, backlog, unstarted,
+	// started, completed or canceled.
+	StateType string
 }
 
 // Same reports whether l and o are one link: Linear links with the same ID

@@ -19,10 +19,10 @@
  Status  working · ~60% · Building overview
  Note    Phase 1 = layout + overview (ABC-1256); report on
          1257/1250 before starting them.
- Linear  1 ABC-1246  2 ABC-1256  3 ABC-1257  4 ABC-1250
+ Linear  1 ABC-1246 done  2 ABC-1256 in progress
+         3 ABC-1257 todo  4 ABC-1250
  Report  threads/t-0002.md · r shows it
  Dev     not started: no .dev/t-0002/state.json ·
          up exited · see the log
- Log     /var/state/herdr-deck/logs/admin-rebuild-t-0002.log
 ────────────────────────────────────────────────────────────
  1-9 link  l f n g o first  ↵ pane  z drawer  ? help  v9.9.9

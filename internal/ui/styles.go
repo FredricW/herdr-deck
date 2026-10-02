@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	"charm.land/lipgloss/v2"
+	"github.com/charmbracelet/x/ansi"
 
 	"github.com/FredricW/herdr-deck/internal/deck"
 )
@@ -89,4 +90,35 @@ func linkStyle(k deck.LinkKind) lipgloss.Style {
 		return bold.Foreground(colGreen)
 	}
 	return bold
+}
+
+// issueStyle colours a Linear issue's state by its type: started cyan (in
+// review magenta), triage yellow, done and canceled dim.
+func issueStyle(is deck.Issue) lipgloss.Style {
+	switch is.StateType {
+	case "started":
+		if strings.Contains(strings.ToLower(is.State), "review") {
+			return reviewStyle
+		}
+		return workStyle
+	case "triage":
+		return warnStyle
+	case "unstarted", "backlog":
+		return plain
+	}
+	return dim
+}
+
+// issueClosed reports whether the issue is done or canceled.
+func issueClosed(is deck.Issue) bool {
+	return is.StateType == "completed" || is.StateType == "canceled"
+}
+
+// shortState is a state's name in lower case, cut to fit next to its ID.
+func shortState(name string) string {
+	s := strings.ToLower(strings.TrimSpace(name))
+	if s == "" {
+		return "?"
+	}
+	return ansi.Truncate(s, 11, "…")
 }

@@ -12,6 +12,12 @@ func linear(id string) deck.Link {
 	return deck.Link{Kind: deck.LinkLinear, Label: id, URL: "https://linear.app/acme/issue/" + id}
 }
 
+// issue gives a Linear link the status Linear's API would.
+func issue(l deck.Link, state, stateType string) deck.Link {
+	l.Issue = &deck.Issue{State: state, StateType: stateType}
+	return l
+}
+
 func figma(node string) deck.Link {
 	return deck.Link{Kind: deck.LinkFigma, Label: node, URL: "https://www.figma.com/design/abc123/Document-select?node-id=" + node}
 }
@@ -38,7 +44,7 @@ func Snapshot(slug string, now time.Time) deck.Snapshot {
 					{
 						Title: "Users page", Threads: []string{"t-0002"},
 						Notes: "Phase 1 = layout + overview (ABC-1256); report on 1257/1250 before starting them.",
-						Links: []deck.Link{linear("ABC-1246"), linear("ABC-1256"), linear("ABC-1257"), linear("ABC-1250")},
+						Links: []deck.Link{issue(linear("ABC-1246"), "Done", "completed"), issue(linear("ABC-1256"), "In Progress", "started"), issue(linear("ABC-1257"), "Todo", "unstarted"), linear("ABC-1250")},
 					},
 					{Title: "Templates page", Threads: []string{"t-0003"}, Links: []deck.Link{
 						linear("ABC-1051"),

@@ -4,6 +4,7 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -477,5 +478,71 @@ func TestCacheDir(t *testing.T) {
 	getenv, _ = env(t, map[string]string{"XDG_CACHE_HOME": "/var/cache/me"})
 	if got, want := CacheDir(getenv), filepath.Join("/var/cache/me", "herdr-deck"); got != want {
 		t.Errorf("CacheDir = %q, want %q", got, want)
+	}
+}
+
+func TestResolveLinearStatus(t *testing.T) {
+	getenv, home := env(t, nil)
+	s, err := Resolve(Flags{}, getenv, noHunk)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !s.LinearStatus || s.LinearAPIKeyCommand != nil {
+		t.Errorf("default: LinearStatus = %v, command = %q; want on, none", s.LinearStatus, s.LinearAPIKeyCommand)
+	}
+
+	write(t, filepath.Join(home, ".config", "herdr-deck", "config.toml"), `
+linear_status = false
+linear_api_key_command = "op read 'op://Private/Linear API/credential'"
+`)
+	s, err = Resolve(Flags{}, getenv, noHunk)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(s.Problems) != 0 {
+		t.Errorf("problems = %q", s.Problems)
+	}
+	want := []string{"op", "read", "op://Private/Linear API/credential"}
+	if s.LinearStatus || !slices.Equal(s.LinearAPIKeyCommand, want) {
+		t.Errorf("file: LinearStatus = %v, command = %q; want off, %q", s.LinearStatus, s.LinearAPIKeyCommand, want)
+	}
+
+	// The environment variable wins over the file; a bad one falls back to it.
+	getenv2 := func(k string) string {
+		if k == EnvLinearStatus {
+			return "true"
+		}
+		return getenv(k)
+	}
+	if s, _ = Resolve(Flags{}, getenv2, noHunk); !s.LinearStatus {
+		t.Error("$" + EnvLinearStatus + "=true did not win over the file")
+	}
+	getenv3 := func(k string) string {
+		if k == EnvLinearStatus {
+			return "maybe"
+		}
+		return getenv(k)
+	}
+	if s, _ = Resolve(Flags{}, getenv3, noHunk); s.LinearStatus || len(s.Problems) != 1 {
+		t.Errorf("bad env: LinearStatus = %v, problems = %q; want the file's false and one problem", s.LinearStatus, s.Problems)
+	}
+}
+
+// A command that does not parse is reported without quoting it: a key
+// pasted there by mistake must not reach the Sources view.
+func TestResolveLinearKeyCommandNeverQuoted(t *testing.T) {
+	getenv, home := env(t, nil)
+	write(t, filepath.Join(home, ".config", "herdr-deck", "config.toml"), `
+linear_api_key_command = "lin_api_SECRETSECRET 'unterminated"
+`)
+	s, err := Resolve(Flags{}, getenv, noHunk)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if s.LinearAPIKeyCommand != nil || len(s.Problems) != 1 {
+		t.Fatalf("command = %q, problems = %q", s.LinearAPIKeyCommand, s.Problems)
+	}
+	if strings.Contains(s.Problems[0], "SECRET") || !strings.Contains(s.Problems[0], "linear_api_key_command") {
+		t.Errorf("problem = %q", s.Problems[0])
 	}
 }
