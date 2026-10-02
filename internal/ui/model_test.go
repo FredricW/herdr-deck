@@ -27,7 +27,7 @@ const testVersion = "v9.9.9"
 var now = time.Date(2026, 10, 2, 14, 41, 0, 0, time.UTC)
 
 // opened records what the model asked to open; nothing is ever opened.
-type opened struct{ urls, dirs, panes []string }
+type opened struct{ urls, dirs, panes, devs []string }
 
 func newModel(t *testing.T, snap deck.Snapshot, w, h int) (Model, *opened) {
 	t.Helper()
@@ -38,7 +38,11 @@ func newModel(t *testing.T, snap deck.Snapshot, w, h int) (Model, *opened) {
 		OpenURL:    func(u string) error { o.urls = append(o.urls, u); return nil },
 		OpenEditor: func(p string) error { o.dirs = append(o.dirs, p); return nil },
 		FocusPane:  func(id string) error { o.panes = append(o.panes, id); return nil },
-		Version:    testVersion,
+		StartDev: func(t deck.Thread) (string, error) {
+			o.devs = append(o.devs, t.Worktree)
+			return "started make dev for " + t.ID, nil
+		},
+		Version: testVersion,
 	})
 	m, _ = press(m, tea.WindowSizeMsg{Width: w, Height: h})
 	return m, o
@@ -66,7 +70,7 @@ func run(m Model, cmd tea.Cmd) Model {
 		for _, c := range msg {
 			m = run(m, c)
 		}
-	case openedMsg:
+	case openedMsg, devUpMsg:
 		next, _ := m.Update(msg)
 		m = next.(Model)
 	}
@@ -166,6 +170,8 @@ func TestGolden(t *testing.T) {
 		{name: "dev", snap: calm(), keys: keys("jj")},
 		{name: "dev-fallback", snap: calm(), keys: keys("jjjj")},
 		{name: "sources-notes", snap: calm(), keys: keys("!")},
+		{name: "dev-starting", snap: starting(true)},
+		{name: "dev-exited", snap: starting(false)},
 	}
 	for _, c := range cases {
 		for _, w := range []int{80, 60} {
@@ -199,6 +205,43 @@ func click(x, y int) tea.MouseClickMsg {
 func selectedTitle(m Model) string {
 	r, _ := m.selected()
 	return r.title()
+}
+
+// starting is calm with an up command the deck started for t-0002, whose
+// state file is not written yet.
+func starting(alive bool) deck.Snapshot {
+	s := calm()
+	s.Threads[1].DevUp = &deck.DevUp{Log: "/var/state/herdr-deck/logs/admin-rebuild-t-0002.log", Alive: alive}
+	return s
+}
+
+func TestDevUpKeepsProblemNote(t *testing.T) {
+	s := starting(false)
+	s.Threads[1].DevNote = "worktree not found"
+	m, _ := newModel(t, s, 80, 40)
+	if sc := screen(m); !strings.Contains(sc, "worktree not found · up exited · see the log") {
+		t.Errorf("Dev line hides the problem:\n%s", sc)
+	}
+}
+
+func TestDevUp(t *testing.T) {
+	m, o := newModel(t, calm(), 80, 28)
+	m, _ = press(m, keys("u")...)
+	if len(o.devs) != 1 || o.devs[0] != "/src/worktrees/t-0002" || m.Status() != "started make dev for t-0002" {
+		t.Fatalf("u: started %q, status %q", o.devs, m.Status())
+	}
+	m, _ = press(m, keys("jjj")...) // Templates page: no thread
+	m, _ = press(m, keys("u")...)
+	if len(o.devs) != 1 || m.Status() != "no thread on this row" {
+		t.Errorf("u without a thread: started %q, status %q", o.devs, m.Status())
+	}
+
+	m, _ = newModel(t, calm(), 80, 28)
+	m.opt.StartDev = func(deck.Thread) (string, error) { return "", errors.New("permission denied") }
+	m, _ = press(m, keys("u")...)
+	if m.Status() != "could not start dev servers: permission denied" {
+		t.Errorf("u failing: status %q", m.Status())
+	}
 }
 
 func TestMoveAndClamp(t *testing.T) {

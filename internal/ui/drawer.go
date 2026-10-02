@@ -231,8 +231,11 @@ func (m Model) rowDrawer(r row, links []deck.Link, width int, choosing deck.Link
 	if hasThread && t.Branch != "" && !narrow {
 		d.field("Branch", false, words(t.Branch, plain))
 	}
-	if hasThread && (len(t.DevServers) > 0 || t.DevNote != "") {
+	if hasThread && (len(t.DevServers) > 0 || t.DevNote != "" || t.DevUp != nil) {
 		d.field("Dev", false, devGroup(t))
+	}
+	if hasThread && t.DevUp != nil {
+		d.field("Log", false, words(tilde(t.DevUp.Log), dim))
 	}
 	return d
 }
@@ -347,10 +350,35 @@ func prDetails(pr deck.PullRequest, narrow bool) string {
 }
 
 // devGroup is the drawer's Dev line: each server's port, name and dot; a
-// fallback port is marked ~. Without servers it says why.
+// fallback port is marked ~. Without servers it says why. While an `up`
+// command the deck started runs and a port does not answer yet, it says
+// "starting…"; when the command ended with no port answering, "up exited".
 func devGroup(t deck.Thread) group {
+	var state item
+	if u := t.DevUp; u != nil {
+		all, some := true, false
+		for _, s := range t.DevServers {
+			all = all && s.Running
+			some = some || s.Running
+		}
+		switch {
+		case u.Alive && (!all || len(t.DevServers) == 0):
+			state = span("starting…", warnStyle)
+		case !u.Alive && !some:
+			state = span("up exited · see the log", dim)
+		}
+	}
 	if len(t.DevServers) == 0 {
-		return words(t.DevNote, dim)
+		// While the command starts, "not started" is old news; a
+		// problem (invalid manifest, no worktree) still shows.
+		if state.text == "starting…" && (t.DevNote == "" || strings.HasPrefix(t.DevNote, "not started") || strings.HasPrefix(t.DevNote, "the state file")) {
+			return group{items: []item{state}}
+		}
+		g := words(t.DevNote, dim)
+		if state.text != "" {
+			g.items = append(g.items, span("·", dim), state)
+		}
+		return g
 	}
 	g := group{sep: "   "}
 	for _, s := range t.DevServers {
@@ -362,6 +390,9 @@ func devGroup(t deck.Thread) group {
 	}
 	if t.DevServers[0].Fallback {
 		g.items = append(g.items, span("herdr port token", dim))
+	}
+	if state.text != "" {
+		g.items = append(g.items, state)
 	}
 	return g
 }
@@ -510,6 +541,7 @@ var helpLines = [][2]string{
 	{"o", "open the first localhost link whose dev server is running"},
 	{"↵", "focus the thread's herdr pane"},
 	{"e", "open the thread's worktree in the editor"},
+	{"u", "start the thread's dev servers: the dev manifest's up command, detached"},
 	{"r", "the thread's report, full height"},
 	{"z", "drawer: normal, full height, hidden"},
 	{"pgup pgdn", "scroll the drawer"},

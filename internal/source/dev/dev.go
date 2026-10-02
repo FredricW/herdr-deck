@@ -9,6 +9,8 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"sync"
+	"time"
 
 	"github.com/FredricW/herdr-deck/internal/deck"
 )
@@ -16,6 +18,16 @@ import (
 // Reader fills in each thread's dev servers and localhost links.
 type Reader struct {
 	Prober Prober
+	// Logs is the folder for the logs and pid files of the `up` commands
+	// the deck starts; "" turns `up` off.
+	Logs string
+	// Start runs an `up` command detached and returns its pid; nil runs it
+	// for real. Alive tells whether a pid still runs; nil asks the system.
+	// Tests replace both, so no dev server is ever started.
+	Start func(Command) (int, error)
+	Alive func(pid int, started time.Time) bool
+
+	upMu sync.Mutex // one Up at a time, so a key pressed twice starts once
 }
 
 // NewReader returns a Reader that probes real ports.
@@ -45,6 +57,7 @@ func (r *Reader) Apply(ctx context.Context, snap *deck.Snapshot) {
 		if t.Status == deck.StatusDone || t.Worktree == "" {
 			continue
 		}
+		r.applyUp(snap.Project.Slug, t)
 		if fi, err := os.Stat(t.Worktree); err != nil || !fi.IsDir() {
 			t.DevNote = "worktree not found"
 			continue

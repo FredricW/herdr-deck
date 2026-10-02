@@ -230,7 +230,8 @@ checkout:
   "links": [
     { "title": "Frontend", "url": "http://localhost:$PORT_frontend", "needs": "frontend" },
     { "title": "API docs", "url": "http://localhost:$PORT_api/docs", "needs": ["api"] }
-  ]
+  ],
+  "up": "scripts/dev-up --name $DIRNAME"
 }
 ```
 
@@ -249,6 +250,19 @@ checkout:
   or has no port yet, shows `○`, and `o` skips it. A link whose URL uses a
   port that is not known yet is left out until it is.
   Without `links`, each server gets `http://localhost:<port>`.
+- `up` (optional) is a shell command that starts the worktree's dev
+  servers; `u` runs it for the selected thread. It runs in the worktree with
+  `/bin/sh -c`, after the deck fills in the same variables as `state.file`
+  (values go in as they are, so quote paths that may hold spaces). Every
+  other `$` is a mistake the deck reports, so write `$$` for one the shell
+  should see (`$$HOME`). The command runs detached, in its own process
+  group, so it keeps running when the deck quits or restarts; its output is
+  appended to `$XDG_STATE_HOME/herdr-deck/logs/<project>-<thread>.log`, else
+  `~/.local/state/herdr-deck/logs/…`. The drawer shows that log and
+  `starting…` until every port answers, or `up exited` when the command
+  ended with no port answering. `u` does not start it again while a port
+  answers or the command it started still runs. Without `up`, `u` says how
+  to add one.
 
 When the manifest gives no port for a worktree, the deck falls back to the
 herdr workspace token `port` of the workspace opened on that worktree (a
@@ -268,6 +282,7 @@ carries on.
 | `o` | open the row's first localhost link whose dev server is running |
 | `enter` | focus the thread's herdr pane; on an inbox item, its thread's pane, else the coordinator's |
 | `e` | open the thread's worktree in the editor (VS Code unless configured) |
+| `u` | start the thread's dev servers: the dev manifest's `up` command, detached (see Dev servers) |
 | `r` | the thread's report, full height |
 | `z` | drawer: normal, full height, hidden |
 | `pgup` / `pgdn` | scroll the drawer |

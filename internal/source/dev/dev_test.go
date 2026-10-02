@@ -192,6 +192,8 @@ func TestApplyInvalid(t *testing.T) {
 		{"unknown var", `{"state": {"file": "$HOME/s.json", "ports": {"api": "api_port"}}}`, "", "state.file: unknown $HOME"},
 		{"link var", `{"state": {"ports": {"api": 8000}}, "links": [{"url": "http://localhost:$PORT_api/$metadata"}]}`, "", "links[0]: unknown $metadata (write $$ for a literal $)"},
 		{"bad state", `{"state": {"file": "s.json", "ports": {"api": "api_port"}}}`, "[1, 2", "s.json: unexpected end of JSON input"},
+		{"up var", `{"state": {"ports": {"api": 8000}}, "up": "PORT=$HOME make dev"}`, "", "up: unknown $HOME (write $$ for a literal $)"},
+		{"up port", `{"state": {"ports": {"api": 8000}}, "up": "serve --port $PORT_api"}`, "", "up: unknown $PORT_api"},
 	} {
 		t.Run(c.name, func(t *testing.T) {
 			main, wt := repo(t)

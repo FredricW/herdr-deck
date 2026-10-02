@@ -117,7 +117,9 @@ func run(args []string) error {
 
 	src := live.New(root, slug, cfg.LinearWorkspace)
 	src.Herdr = herdr.NewReader(client.Socket)
-	src.Dev = dev.NewReader()
+	devs := dev.NewReader()
+	devs.Logs = config.LogDir(os.Getenv)
+	src.Dev = devs
 	go plugin.MarkSelf(context.Background(), plugin.Socket{Client: client}, os.Getenv, slug)
 	// Config problems show in the Sources view with the sources' own.
 	opt.Load = func(ctx context.Context) deck.Snapshot {
@@ -126,6 +128,7 @@ func run(args []string) error {
 		return snap
 	}
 	opt.FocusPane = func(id string) error { return client.Focus(context.Background(), id) }
+	opt.StartDev = func(t deck.Thread) (string, error) { return devs.Up(context.Background(), slug, t) }
 	p := tea.NewProgram(ui.New(deck.Snapshot{Project: deck.Project{Slug: slug}}, opt))
 
 	ctx, cancel := context.WithCancel(context.Background())

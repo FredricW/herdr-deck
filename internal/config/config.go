@@ -115,6 +115,20 @@ func Path(flag string, getenv func(string) string) (path string, named bool) {
 	return filepath.Join(home, ".config", "herdr-deck", "config.toml"), false
 }
 
+// LogDir is where the deck keeps the logs of the commands it starts:
+// $XDG_STATE_HOME/herdr-deck/logs, else ~/.local/state/herdr-deck/logs. A
+// relative $XDG_STATE_HOME is ignored. It returns "" when no home is known.
+func LogDir(getenv func(string) string) string {
+	if x := getenv("XDG_STATE_HOME"); x != "" && filepath.IsAbs(x) {
+		return filepath.Join(x, "herdr-deck", "logs")
+	}
+	home := homeDir(getenv)
+	if home == "" {
+		return ""
+	}
+	return filepath.Join(home, ".local", "state", "herdr-deck", "logs")
+}
+
 // Load reads the file at path. A missing file gives an empty File and no
 // problems, unless it was named explicitly. A file that does not parse
 // gives an empty File. Each top-level key decodes on its own, so a bad
