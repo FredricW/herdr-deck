@@ -37,6 +37,7 @@ const (
 	EnvDiffTool        = "HERDR_DECK_DIFF_TOOL"
 	EnvDiffTerminal    = "HERDR_DECK_DIFF_TERMINAL"
 	EnvReuseTabs       = "HERDR_DECK_REUSE_BROWSER_TABS"
+	EnvFigmaDesktop    = "HERDR_DECK_FIGMA_DESKTOP"
 )
 
 // Default editor and diff tool commands. The diff tool is hunk when it is
@@ -71,6 +72,7 @@ type File struct {
 	Editor          *Program  `toml:"editor"`
 	Diff            *Program  `toml:"diff"`
 	ReuseTabs       *bool     `toml:"reuse_browser_tabs"`
+	FigmaDesktop    *bool     `toml:"figma_desktop"`
 }
 
 // Program is a table such as [editor]: a command line with placeholders,
@@ -157,6 +159,7 @@ func Load(path string, named bool) (File, []string) {
 		"editor":             func(p toml.Primitive) error { return decode(md, p, &f.Editor) },
 		"diff":               func(p toml.Primitive) error { return decode(md, p, &f.Diff) },
 		"reuse_browser_tabs": func(p toml.Primitive) error { return decode(md, p, &f.ReuseTabs) },
+		"figma_desktop":      func(p toml.Primitive) error { return decode(md, p, &f.FigmaDesktop) },
 	}
 	var problems []string
 	failed := map[string]bool{}
@@ -224,6 +227,10 @@ type Settings struct {
 	// ReuseTabs opens a web link by focusing a browser tab that already
 	// shows it, where the browser allows (launch.Browser).
 	ReuseTabs bool
+	// FigmaDesktop opens Figma links in the Figma desktop app: the deck's
+	// own, and those herdr hands the plugin (a Ctrl+click, the open-link
+	// action).
+	FigmaDesktop bool
 	// Problems are one line each about the file or a bad value that was
 	// skipped. They never stop the deck.
 	Problems []string
@@ -289,6 +296,17 @@ func Resolve(fl Flags, getenv func(string) string, lookPath func(string) (string
 		if home := homeDir(getenv); home != "" {
 			s.ProjectsRoot = filepath.Join(home, ".herdr-projects")
 		}
+	}
+
+	if v := getenv(EnvFigmaDesktop); v != "" {
+		if b, err := strconv.ParseBool(v); err == nil {
+			s.FigmaDesktop = b
+		} else {
+			s.Problems = append(s.Problems, fmt.Sprintf("$%s: %q is not true or false; ignored", EnvFigmaDesktop, v))
+			s.FigmaDesktop = f.FigmaDesktop != nil && *f.FigmaDesktop
+		}
+	} else if f.FigmaDesktop != nil {
+		s.FigmaDesktop = *f.FigmaDesktop
 	}
 
 	var err error

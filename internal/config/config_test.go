@@ -399,3 +399,30 @@ func TestResolveReuseTabs(t *testing.T) {
 		})
 	}
 }
+
+func TestResolveFigmaDesktop(t *testing.T) {
+	tests := []struct {
+		name, file, env string
+		want            bool
+		problems        int
+	}{
+		{"default off", "", "", false, 0},
+		{"file", "figma_desktop = true\n", "", true, 0},
+		{"env beats file", "figma_desktop = true\n", "false", false, 0},
+		{"bad env falls back to the file", "figma_desktop = true\n", "yes please", true, 1},
+		{"bad file value", "figma_desktop = \"yes\"\n", "", false, 1},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			getenv, home := env(t, map[string]string{EnvFigmaDesktop: tt.env})
+			write(t, filepath.Join(home, ".config", "herdr-deck", "config.toml"), tt.file)
+			s, err := Resolve(Flags{}, getenv, noHunk)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if s.FigmaDesktop != tt.want || len(s.Problems) != tt.problems {
+				t.Errorf("FigmaDesktop = %v, problems %q; want %v and %d problems", s.FigmaDesktop, s.Problems, tt.want, tt.problems)
+			}
+		})
+	}
+}

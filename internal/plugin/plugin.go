@@ -26,15 +26,23 @@ import (
 type Env struct {
 	Getenv func(string) string
 	Root   string // the herdr-projects root, as configured
+	// Links and OpenURL are for the open-link action.
+	Links   LinkSettings
+	OpenURL func(url string) error
 }
 
-// Run runs the plugin command named by args[0]: "toggle" or
-// "agent-detected".
+// Run runs the plugin command named by args[0]: "toggle", "agent-detected"
+// or "open-link" (which takes optional text to open).
 func Run(ctx context.Context, h Host, env Env, args []string) error {
+	if len(args) > 1 && args[0] == "open-link" {
+		return OpenLink(ctx, h, env, args[1:])
+	}
 	if len(args) != 1 {
-		return errors.New("usage: herdr-deck plugin toggle|agent-detected")
+		return errors.New("usage: herdr-deck plugin toggle|agent-detected|open-link [text]")
 	}
 	switch args[0] {
+	case "open-link":
+		return OpenLink(ctx, h, env, nil)
 	case "toggle":
 		return Toggle(ctx, h, env, focusedPane(env.Getenv))
 	case "agent-detected":

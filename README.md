@@ -57,6 +57,23 @@ What the plugin does (`herdr-plugin.toml`):
   ```
 
   and reload with `herdr server reload-config`. Pick any free key.
+- **Figma links and Linear IDs in any pane** (`herdr-deck.open-link`).
+  Ctrl+click a Figma link anywhere in herdr (Ctrl on macOS too) and it opens
+  in the Figma desktop app when `figma_desktop = true` is set in the deck's
+  config file, else in the browser. herdr only makes http(s) URLs clickable,
+  so a bare Linear ID such as `ABC-123` works through a selection instead:
+  double-click the ID, then press a key bound to the action, and it opens in
+  your `linear_workspace` by the same rules the deck links it. The first
+  link or ID in a longer selection opens. Without a workspace nothing opens
+  and a herdr notification says why.
+
+  ```toml
+  [[keys.command]]
+  key = "prefix+l"
+  type = "plugin_action"
+  command = "herdr-deck.open-link"
+  description = "open the selected Linear ID or link"
+  ```
 
 The deck marks its pane with the token `herdr_deck=<slug>` (source
 `herdr-deck`); that is how the plugin finds it again. `herdr plugin log list
@@ -120,6 +137,9 @@ variable, the config file, the built-in default.
 # Linear workspace that bare IDs such as ABC-123 link into.
 linear_workspace = "acme"
 
+# Open Ctrl+clicked Figma links in herdr in the Figma desktop app.
+figma_desktop = false
+
 # How often the deck reloads when no file change says to; 1s to 10m.
 refresh_interval = "5s"
 
@@ -150,6 +170,7 @@ terminal = true
 | Setting | Flag | Environment variable | Default |
 |---|---|---|---|
 | `linear_workspace` | `--linear-workspace` | `HERDR_DECK_LINEAR_WORKSPACE` | none |
+| `figma_desktop` | none | `HERDR_DECK_FIGMA_DESKTOP` | `false` |
 | `refresh_interval` | `--refresh-interval` | `HERDR_DECK_REFRESH_INTERVAL` | `5s` |
 | `projects_root` | `--projects-root` | `HERDR_PROJECTS_ROOT` | `~/.herdr-projects` |
 | `reuse_browser_tabs` | `--reuse-browser-tabs` | `HERDR_DECK_REUSE_BROWSER_TABS` | `true` |
@@ -310,8 +331,9 @@ drawer.
   on macOS) and runs the editor and diff tool, as desktop apps or in a new
   herdr pane.
 - `internal/project`: works out the project slug.
-- `internal/plugin`: the herdr plugin's toggle action and auto-open hook
-  (`herdr-deck plugin toggle|agent-detected`, run by herdr).
+- `internal/plugin`: the herdr plugin's toggle and open-link actions and
+  auto-open hook (`herdr-deck plugin toggle|open-link|agent-detected`, run
+  by herdr).
 - `internal/ui`: the Bubble Tea model; renders a `deck.Snapshot` and nothing else.
   Its rendering is pinned by `internal/ui/testdata/*.golden` (every state at
   60 and 80 columns); `go test ./internal/ui -update` rewrites them.
