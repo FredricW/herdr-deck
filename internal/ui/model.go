@@ -32,6 +32,10 @@ type Options struct {
 	// FocusPane focuses a herdr pane by id. Tests replace it so no real
 	// pane is ever focused.
 	FocusPane func(paneID string) error
+	// StartDev runs the dev manifest's `up` command for a thread's
+	// worktree and returns the line the footer shows. Tests replace it so
+	// no dev server is ever started.
+	StartDev func(t deck.Thread) (string, error)
 	// Now is the clock for ages; Location the zone clock times show in.
 	Now      func() time.Time
 	Location *time.Location
@@ -51,6 +55,10 @@ type (
 		what string
 		err  error
 		verb string // "open" when empty
+	}
+	devUpMsg struct {
+		status string
+		err    error
 	}
 )
 
@@ -260,6 +268,14 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		} else {
 			m.status = past + " " + msg.what
 		}
+	case devUpMsg:
+		if msg.err != nil {
+			m.status = "could not start dev servers: " + msg.err.Error()
+		} else {
+			m.status = msg.status
+		}
+		// The drawer shows the log and that the servers are starting.
+		return m, m.refresh()
 	case tea.KeyPressMsg:
 		return m.handleKey(msg)
 	case tea.MouseClickMsg:
@@ -303,6 +319,8 @@ func (m Model) handleKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		return m, m.focusPane()
 	case key.Matches(msg, m.keys.Editor):
 		return m, m.openEditor()
+	case key.Matches(msg, m.keys.DevUp):
+		return m, m.startDev()
 	case key.Matches(msg, m.keys.Report):
 		m.toggleReport()
 	case key.Matches(msg, m.keys.Drawer):
@@ -535,6 +553,34 @@ func (m *Model) openEditor() tea.Cmd {
 	}
 	path := t.Worktree
 	return func() tea.Msg { return openedMsg{what: tilde(path), err: open(path)} }
+}
+
+// startDev runs the dev manifest's `up` command for the selected thread's
+// worktree.
+func (m *Model) startDev() tea.Cmd {
+	r, _ := m.selected()
+	t, ok := r.thread()
+	switch {
+	case r.kind != rowWork || !ok:
+		m.status = "no thread on this row"
+		return nil
+	case t.Worktree == "":
+		m.status = "no worktree on this row"
+		return nil
+	case t.Status == deck.StatusDone:
+		m.status = t.ID + " is done"
+		return nil
+	}
+	start := m.opt.StartDev
+	if start == nil {
+		m.status = "starting dev servers is off"
+		return nil
+	}
+	m.status = "starting " + t.ID + "'s dev servers…"
+	return func() tea.Msg {
+		status, err := start(t)
+		return devUpMsg{status: status, err: err}
+	}
 }
 
 // focusPane focuses the herdr pane of the selected row's thread; on an inbox

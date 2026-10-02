@@ -68,6 +68,22 @@ func TestPath(t *testing.T) {
 	}
 }
 
+func TestLogDir(t *testing.T) {
+	state := t.TempDir()
+	getenv, home := env(t, nil)
+	if got, want := LogDir(getenv), filepath.Join(home, ".local", "state", "herdr-deck", "logs"); got != want {
+		t.Errorf("LogDir = %q, want %q", got, want)
+	}
+	getenv, _ = env(t, map[string]string{"XDG_STATE_HOME": state})
+	if got, want := LogDir(getenv), filepath.Join(state, "herdr-deck", "logs"); got != want {
+		t.Errorf("LogDir with XDG_STATE_HOME = %q, want %q", got, want)
+	}
+	getenv, home = env(t, map[string]string{"XDG_STATE_HOME": "rel/state"})
+	if got, want := LogDir(getenv), filepath.Join(home, ".local", "state", "herdr-deck", "logs"); got != want {
+		t.Errorf("LogDir with a relative XDG_STATE_HOME = %q, want %q", got, want)
+	}
+}
+
 func TestResolveMissingFileIsSilent(t *testing.T) {
 	getenv, home := env(t, nil)
 	s, err := Resolve(Flags{}, getenv, noHunk)

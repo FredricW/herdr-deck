@@ -165,8 +165,13 @@ Keys:
   with `terminal = true` opens in a new herdr pane instead. `$VISUAL` and
   `$EDITOR` are still not read implicitly. `r`: the
   thread's report in the drawer at full height. `!`: sources. `?`: help.
-- `u` (later): run the manifest's `up` command for the worktree, detached,
-  logs to a file.
+- `u`: run the manifest's `up` command for the worktree, detached (own
+  session and process group), logging to
+  `$XDG_STATE_HOME/herdr-deck/logs/<slug>-<thread>.log` (else
+  `~/.local/state/…`), with a `.pid` file beside it so a restarted deck
+  still knows the command runs. Not started again while a manifest port
+  answers or that pid is alive; the drawer shows the log and `starting…`
+  until the ports answer.
 - Open URLs with `open` (macOS) / `xdg-open`.
 
 Mouse: a click selects a row, a click on a drawer link opens it, and clicks on
@@ -332,12 +337,12 @@ marked parallel.
    focused deck.
 8. **Polish / later.** Done: the config file (see Configuration), with a
    configurable editor and diff tool, a blank line between the list's
-   groups, and browser tab reuse (`launch.Browser`: on macOS, AppleScript
+   groups, browser tab reuse (`launch.Browser`: on macOS, AppleScript
    finds a tab of the default browser showing the same page, as `pageKey`
    defines it, and focuses it; else `open`/`xdg-open`; the README's
-   "Browser tabs" has the rules). Still to do: Linear issue status next
-   to IDs (GraphQL; key from env or `op`), `u` to start dev servers, link
-   handlers, multi-project view.
+   "Browser tabs" has the rules), and `u` starts dev servers (the
+   manifest's `up`). Still to do: Linear issue status next to IDs
+   (GraphQL; key from env or `op`), link handlers, multi-project view.
 
 ## Definition of done (v1 = milestones 1–7)
 

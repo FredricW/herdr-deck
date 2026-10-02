@@ -9,6 +9,7 @@ type keyMap struct {
 	Notion, PR     key.Binding
 	Localhost      key.Binding
 	Pane, Editor   key.Binding
+	DevUp          key.Binding
 	Report, Drawer key.Binding
 	Sources, Help  key.Binding
 	PageDown       key.Binding
@@ -28,6 +29,7 @@ func defaultKeys() keyMap {
 		Localhost: key.NewBinding(key.WithKeys("o")),
 		Pane:      key.NewBinding(key.WithKeys("enter")),
 		Editor:    key.NewBinding(key.WithKeys("e")),
+		DevUp:     key.NewBinding(key.WithKeys("u")),
 		Report:    key.NewBinding(key.WithKeys("r")),
 		Drawer:    key.NewBinding(key.WithKeys("z")),
 		Sources:   key.NewBinding(key.WithKeys("!")),

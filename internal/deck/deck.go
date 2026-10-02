@@ -96,6 +96,9 @@ type Thread struct {
 	// PortToken is the herdr workspace token `port` of the thread's
 	// worktree, or 0: the dev-server port used when the manifest gives none.
 	PortToken int
+	// DevUp is the dev manifest's `up` command the deck started for the
+	// worktree; nil when it started none.
+	DevUp *DevUp
 }
 
 // Pane is a thread's herdr pane as herdr shows it now.
@@ -124,6 +127,12 @@ type DevServer struct {
 	// Fallback is set when the port is herdr's workspace token, not the
 	// manifest's: a guess at where the worktree's server listens.
 	Fallback bool
+}
+
+// DevUp is an `up` command the deck started in a thread's worktree.
+type DevUp struct {
+	Log   string // the file the command writes its output to
+	Alive bool   // the command's process still runs
 }
 
 // InboxItem is one unhandled item in the project's inbox.

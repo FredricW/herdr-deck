@@ -25,6 +25,9 @@ const ManifestPath = ".herdr-deck/dev.json"
 type Manifest struct {
 	State State      `json:"state"`
 	Links []LinkSpec `json:"links"`
+	// Up is a shell command that starts the worktree's dev servers, run
+	// in the worktree by `u`; "" when the manifest gives none.
+	Up string `json:"up"`
 }
 
 // State names the per-worktree state file and the ports in it.
@@ -148,6 +151,9 @@ func (m Manifest) check() error {
 	}
 	if err := checkVars(m.State.File, nil); err != nil {
 		return fmt.Errorf("state.file: %w", err)
+	}
+	if err := checkVars(m.Up, nil); err != nil {
+		return fmt.Errorf("up: %w", err)
 	}
 	return nil
 }
