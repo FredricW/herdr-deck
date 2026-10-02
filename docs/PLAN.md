@@ -111,7 +111,10 @@ A compact list on top and a detail drawer below; mockups of every state at
   links), dev (one dot per dev.json port). At 60 the thread and PR columns
   fold into status.
 - **Needs you on top.** Threads waiting on you and unhandled inbox items move
-  into a red *Needs you* group at the top of the list. If the cursor has not
+  into a red *Needs you* group at the top of the list. A thread is waiting on
+  you when herdr-projects says so, or when its agent has been `blocked` on a
+  question or permission prompt for 30 s (milestone 5); an agent that is
+  working, idle, done or waiting on its own sub-agents never counts. If the cursor has not
   been moved by hand, it jumps there so the drawer shows the thread's
   `next[]`.
 - **Folding.** `space` on a list heading folds or unfolds the list. A folded
@@ -220,10 +223,23 @@ marked parallel.
    first; fall back to polling). Pane focus on `enter`. "Needs you" from live
    agent state.
    Done: `internal/source/herdr` reads the snapshot on every reload and
-   streams events that trigger reloads. An agent `blocked` for 5 s makes its
-   thread need the user (herdr-projects waits 30 s); a `working` agent
-   overrides a stale needs-you unless the thread failed; otherwise the
-   herdr-projects group stands. `enter` runs `pane.focus` over the socket.
+   streams events that trigger reloads. "Needs you" from live state follows
+   herdr-projects' own rule (`src/thread.rs`, `group`, row 4): an agent
+   `blocked` for 30 s (`BLOCKED_DEBOUNCE_SECS`) makes its thread need the
+   user, so the deck only runs ahead of herdr-projects' ~15 s ticker, never
+   against it. A shorter block is ambiguous and the herdr-projects group
+   stands. A `working` agent overrides a stale needs-you unless the thread
+   failed; `idle`, `done` and `unknown` leave the group as it is. `enter`
+   runs `pane.focus` over the socket.
+   Fixed in t-0009: the threshold was 5 s, and a thread waiting on its own
+   background /code-review showed under Needs you while herdr-projects kept
+   it working. herdr 0.9.3 detects the agent's state from its screen
+   (`herdr agent explain <pane>` names the rule; the Claude rules are in
+   `~/.local/state/herdr/agent-detection/remote/claude.toml`). Claude's
+   "Waiting for N background agents to finish" line is `working`
+   (`background_agents_working`), and the snapshot has no field that says
+   which rule fired, so a short `blocked` (a dialog that closes again) cannot
+   be told from a real question in time. Hence the debounce.
 6. **Dev servers.** Reader for the `.herdr-deck/dev.json` manifest + port
    probe; per-thread localhost links with running dots; `port` token fallback.
    Done: `internal/source/dev` runs after herdr's reader (which sets each
