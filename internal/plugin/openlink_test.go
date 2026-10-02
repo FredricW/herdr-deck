@@ -27,6 +27,12 @@ func TestLinkURL(t *testing.T) {
 		{"Figma in the desktop app", figma, desktop, "figma://design/AbC123/Admin?node-id=1-2", ""},
 		{"selected Figma link", "mockup: " + figma, desktop, "figma://design/AbC123/Admin?node-id=1-2", ""},
 		{"other URL as it is", "https://example.com/a?b=1", desktop, "https://example.com/a?b=1", ""},
+		{"ID in code", "fixed in `ABC-123`", acme, "https://linear.app/acme/issue/ABC-123", ""},
+		{"ID under Remember", "## Remember\n- ABC-123 needs a migration", acme, "https://linear.app/acme/issue/ABC-123", ""},
+		{"URL before an ID", "see https://example.com/x for ABC-1", acme, "https://example.com/x", ""},
+		{"ID before a URL", "ABC-1: https://example.com/x", acme, "https://linear.app/acme/issue/ABC-1", ""},
+		{"ID inside a URL is not first", "https://example.com/ABC-1", acme, "https://example.com/ABC-1", ""},
+		{"trailing period", figma + ".", desktop, "figma://design/AbC123/Admin?node-id=1-2", ""},
 		{"nothing", "  ", acme, "", "no link"},
 	}
 	for _, tt := range tests {

@@ -63,24 +63,21 @@ func linkText(getenv func(string) string) string {
 	return c.SelectedText
 }
 
-// LinkURL is the URL to open for text. A lone http(s) URL opens as it is;
-// otherwise the first link the deck's scraper finds in text does, so a
-// selected ABC-123 opens in the Linear workspace by the same rules the deck
-// links it. With FigmaDesktop a Figma link becomes its figma:// URL.
+// LinkURL is the URL to open for text: its first link or Linear ID, by the
+// rules the deck links them with, so a selected ABC-123 opens in the Linear
+// workspace. With FigmaDesktop a Figma link becomes its figma:// URL.
 func LinkURL(text string, s LinkSettings) (string, error) {
 	text = strings.TrimSpace(text)
 	if text == "" {
 		return "", errors.New("no link: Ctrl+click a link, or select a Linear ID before running the action")
 	}
-	found := tasks.Scrape(text, s.LinearWorkspace)
-	if isURL(text) && (len(found) == 0 || found[0].URL != text) {
-		return text, nil // a URL of a kind the deck does not know
-	}
-	if len(found) == 0 {
+	l, known, ok := tasks.Pick(text, s.LinearWorkspace)
+	switch {
+	case !ok:
 		return "", fmt.Errorf("no link or Linear ID in %q", clip(text, 40))
-	}
-	l := found[0]
-	if l.Kind == deck.LinkLinear && l.URL == "" {
+	case !known:
+		return l.URL, nil // a site the deck does not know
+	case l.Kind == deck.LinkLinear && l.URL == "":
 		return "", fmt.Errorf("%s: no Linear workspace set; set linear_workspace in the deck's config file or $%s", l.Label, config.EnvLinearWorkspace)
 	}
 	if s.FigmaDesktop {
@@ -89,11 +86,6 @@ func LinkURL(text string, s LinkSettings) (string, error) {
 		}
 	}
 	return l.URL, nil
-}
-
-// isURL reports whether s is one http(s) URL and nothing else.
-func isURL(s string) bool {
-	return (strings.HasPrefix(s, "https://") || strings.HasPrefix(s, "http://")) && !strings.ContainsAny(s, " \t\n")
 }
 
 // clip shortens s to n runes for a message.
