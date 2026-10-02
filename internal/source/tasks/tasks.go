@@ -22,7 +22,7 @@ type Options struct {
 	// them without a URL.
 	LinearWorkspace string
 	// ThreadText returns the text of a thread's brief and report, scraped
-	// for links of tasks that name the thread. Nil scrapes nothing extra.
+	// for links of tasks the thread belongs to. Nil scrapes nothing extra.
 	ThreadText func(id string) string
 }
 
@@ -177,10 +177,7 @@ func (p *parser) endList() {
 // parentheses and trailing IDs dropped, and the rest of the line is a note.
 func (p *parser) task(it item) deck.Task {
 	all := strings.Join(append([]string{it.text}, it.notes...), "\n")
-	t := deck.Task{
-		Threads: unique(threadID.FindAllString(all, -1)),
-		Links:   Scrape(all, p.opt.LinearWorkspace),
-	}
+	t := deck.Task{Links: Scrape(all, p.opt.LinearWorkspace)}
 
 	text := it.text
 	notes := it.notes
@@ -190,6 +187,7 @@ func (p *parser) task(it item) deck.Task {
 		t.Done = m[1] != " "
 		text = text[len(m[0]):]
 	}
+	t.Threads = owners(text, strict)
 	fallback := strings.TrimSpace(text)
 	text = suffix.ReplaceAllString(text, "")
 	if strict {
@@ -222,6 +220,19 @@ func (p *parser) task(it item) deck.Task {
 		}
 	}
 	return t
+}
+
+// owners returns the threads a task's line names as its own: the strict
+// suffix's ids, else every id on the line. Ids in the notes only mention a
+// thread ("after t-0002 lands"), so they are not the task's and would pull in
+// that thread's links.
+func owners(line string, strict bool) []string {
+	if strict {
+		if m := suffix.FindString(line); m != "" {
+			line = m
+		}
+	}
+	return unique(threadID.FindAllString(line, -1))
 }
 
 // abbreviations end in a dot without ending a sentence.

@@ -50,8 +50,8 @@ func TestStrictFile(t *testing.T) {
 	if m3.Notes == "" {
 		t.Error("M3 lost its indented note")
 	}
-	// A thread id in a note links the task too.
-	if m4 := f.Lists[0].Tasks[2]; m4.Title != "M4 Live UI" || !reflect.DeepEqual(m4.Threads, []string{"t-0002"}) {
+	// A thread id in a note only mentions that thread: it is not the task's.
+	if m4 := f.Lists[0].Tasks[2]; m4.Title != "M4 Live UI" || m4.Threads != nil {
 		t.Errorf("M4 = %+v", m4)
 	}
 }
@@ -233,5 +233,62 @@ func TestPreambleBeforeLooseItem(t *testing.T) {
 	}
 	if len(f.Lists) != 2 || f.Lists[0].Note != "" || f.Lists[0].Tasks[0].Title != "loose item" {
 		t.Errorf("lists = %+v", f.Lists)
+	}
+}
+
+func TestOnlyOwningThreadsLink(t *testing.T) {
+	text := map[string]string{
+		"t-0001": "Fixes ABC-1.",
+		"t-0002": "Fixes ABC-2.",
+		"t-0003": "Fixes ABC-3.",
+	}
+	src := "## L\n" +
+		"- [ ] Strict (sam) · t-0001\n  after t-0002 lands\n" +
+		"- Loose: thread t-0002, with t-0003\n  see t-0001 for context\n" +
+		"- [ ] Strict without suffix, thread t-0003\n"
+	f := Parse(src, Options{ThreadText: func(id string) string { return text[id] }})
+	for i, want := range []struct {
+		threads, links []string
+	}{
+		{[]string{"t-0001"}, []string{"ABC-1"}},
+		{[]string{"t-0002", "t-0003"}, []string{"ABC-2", "ABC-3"}},
+		{[]string{"t-0003"}, []string{"ABC-3"}},
+	} {
+		task := f.Lists[0].Tasks[i]
+		if !reflect.DeepEqual(task.Threads, want.threads) || !reflect.DeepEqual(labels(task.Links), want.links) {
+			t.Errorf("task %d: threads %q links %q, want %q %q", i, task.Threads, labels(task.Links), want.threads, want.links)
+		}
+	}
+}
+
+func TestScrapeSkipsCodeAndRemember(t *testing.T) {
+	report := "PR: https://github.com/acme/webshop/pull/9\n\n" +
+		"## Report\n\n" +
+		"Fixed ABC-7. A bare `ABC-12` no longer doubles, and ``ABC-13 `x` `` neither.\n" +
+		"An unclosed ` keeps ABC-8.\n\n" +
+		"```go\nid := \"ABC-14\"\n```\n\n" +
+		"~~~\nABC-15\n~~~\n\n" +
+		"## Remember\n\n" +
+		"- IDs right after a dash are skipped, so P-ABC-49 is not ABC-49; ABC-110 is not ABC-1100.\n" +
+		"- Docs: https://linear.app/acme/issue/ABC-16\n\n" +
+		"### Detail\n\nABC-17 here too.\n\n" +
+		"## Next\n\n- Ship ABC-9\n"
+	got := labels(Scrape(report, "acme"))
+	want := []string{"PR #9", "ABC-7", "ABC-8", "ABC-16", "ABC-9"}
+	if !reflect.DeepEqual(got, want) {
+		t.Errorf("got %q\nwant %q", got, want)
+	}
+}
+
+// A brief in the shape herdr-projects writes: the task named no ticket, but
+// the copied project memory is full of example IDs in code and Remember-like
+// prose. Only the task's own ticket links.
+func TestScrapeBriefShape(t *testing.T) {
+	brief := "Fix the login page for ABC-301.\n\n" +
+		"# Project memory\n\n" +
+		"- Test fixtures use made-up tickets like `ABC-123`.\n\n" +
+		"## Remember\n\n- The scanner must skip `P-ABC-49` and keep ABC-110 apart from ABC-1100.\n"
+	if got := labels(Scrape(brief, "")); !reflect.DeepEqual(got, []string{"ABC-301"}) {
+		t.Errorf("got %q", got)
 	}
 }
