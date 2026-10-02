@@ -400,6 +400,48 @@ func TestResolveReuseTabs(t *testing.T) {
 	}
 }
 
+func TestResolveSwitches(t *testing.T) {
+	off, on := false, true
+	tests := []struct {
+		name       string
+		flag       *bool
+		vars       map[string]string
+		file       string
+		want       bool
+		problemHas string
+	}{
+		{"default on", nil, nil, "", true, ""},
+		{"file", nil, nil, "update_check = false\nauto_restart = false\n", false, ""},
+		{"env beats file", nil, map[string]string{EnvUpdateCheck: "true", EnvAutoRestart: "1"}, "update_check = false\nauto_restart = false\n", true, ""},
+		{"flag beats env", &off, map[string]string{EnvUpdateCheck: "true", EnvAutoRestart: "true"}, "", false, ""},
+		{"flag on", &on, nil, "update_check = false\nauto_restart = false\n", true, ""},
+		{"bad env falls back to file", nil, map[string]string{EnvUpdateCheck: "maybe", EnvAutoRestart: "maybe"}, "update_check = false\nauto_restart = false\n", false, `"maybe" is not true or false`},
+		{"bad file value", nil, nil, "update_check = \"no\"\nauto_restart = 0\n", true, "update_check"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			getenv, home := env(t, tt.vars)
+			if tt.file != "" {
+				write(t, filepath.Join(home, ".config", "herdr-deck", "config.toml"), tt.file)
+			}
+			s, err := Resolve(Flags{UpdateCheck: tt.flag, AutoRestart: tt.flag}, getenv, noHunk)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if s.UpdateCheck != tt.want || s.AutoRestart != tt.want {
+				t.Errorf("UpdateCheck, AutoRestart = %v, %v; want %v", s.UpdateCheck, s.AutoRestart, tt.want)
+			}
+			got := strings.Join(s.Problems, "\n")
+			if tt.problemHas == "" && got != "" {
+				t.Errorf("problems = %q, want none", got)
+			}
+			if !strings.Contains(got, tt.problemHas) {
+				t.Errorf("problems = %q, want one containing %q", got, tt.problemHas)
+			}
+		})
+	}
+}
+
 func TestResolveFigmaDesktop(t *testing.T) {
 	tests := []struct {
 		name, file, env string
@@ -424,5 +466,16 @@ func TestResolveFigmaDesktop(t *testing.T) {
 				t.Errorf("FigmaDesktop = %v, problems %q; want %v and %d problems", s.FigmaDesktop, s.Problems, tt.want, tt.problems)
 			}
 		})
+	}
+}
+
+func TestCacheDir(t *testing.T) {
+	getenv, home := env(t, nil)
+	if got, want := CacheDir(getenv), filepath.Join(home, ".cache", "herdr-deck"); got != want {
+		t.Errorf("CacheDir = %q, want %q", got, want)
+	}
+	getenv, _ = env(t, map[string]string{"XDG_CACHE_HOME": "/var/cache/me"})
+	if got, want := CacheDir(getenv), filepath.Join("/var/cache/me", "herdr-deck"); got != want {
+		t.Errorf("CacheDir = %q, want %q", got, want)
 	}
 }

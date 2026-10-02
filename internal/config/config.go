@@ -38,6 +38,8 @@ const (
 	EnvDiffTerminal    = "HERDR_DECK_DIFF_TERMINAL"
 	EnvReuseTabs       = "HERDR_DECK_REUSE_BROWSER_TABS"
 	EnvFigmaDesktop    = "HERDR_DECK_FIGMA_DESKTOP"
+	EnvUpdateCheck     = "HERDR_DECK_UPDATE_CHECK"
+	EnvAutoRestart     = "HERDR_DECK_AUTO_RESTART"
 )
 
 // Default editor and diff tool commands. The diff tool is hunk when it is
@@ -73,6 +75,8 @@ type File struct {
 	Diff            *Program  `toml:"diff"`
 	ReuseTabs       *bool     `toml:"reuse_browser_tabs"`
 	FigmaDesktop    *bool     `toml:"figma_desktop"`
+	UpdateCheck     *bool     `toml:"update_check"`
+	AutoRestart     *bool     `toml:"auto_restart"`
 }
 
 // Program is a table such as [editor]: a command line with placeholders,
@@ -131,6 +135,20 @@ func LogDir(getenv func(string) string) string {
 	return filepath.Join(home, ".local", "state", "herdr-deck", "logs")
 }
 
+// CacheDir is where the deck keeps throwaway state, such as the last update
+// check: $XDG_CACHE_HOME/herdr-deck, else ~/.cache/herdr-deck (on macOS
+// too). It returns "" when no home is known.
+func CacheDir(getenv func(string) string) string {
+	if x := getenv("XDG_CACHE_HOME"); x != "" && filepath.IsAbs(x) {
+		return filepath.Join(x, "herdr-deck")
+	}
+	home := homeDir(getenv)
+	if home == "" {
+		return ""
+	}
+	return filepath.Join(home, ".cache", "herdr-deck")
+}
+
 // Load reads the file at path. A missing file gives an empty File and no
 // problems, unless it was named explicitly. A file that does not parse
 // gives an empty File. Each top-level key decodes on its own, so a bad
@@ -160,6 +178,8 @@ func Load(path string, named bool) (File, []string) {
 		"diff":               func(p toml.Primitive) error { return decode(md, p, &f.Diff) },
 		"reuse_browser_tabs": func(p toml.Primitive) error { return decode(md, p, &f.ReuseTabs) },
 		"figma_desktop":      func(p toml.Primitive) error { return decode(md, p, &f.FigmaDesktop) },
+		"update_check":       func(p toml.Primitive) error { return decode(md, p, &f.UpdateCheck) },
+		"auto_restart":       func(p toml.Primitive) error { return decode(md, p, &f.AutoRestart) },
 	}
 	var problems []string
 	failed := map[string]bool{}
@@ -205,11 +225,13 @@ type Flags struct {
 	ProjectsRoot    string
 	Editor          string
 	DiffTool        string
-	// EditorTerminal, DiffTerminal and ReuseTabs are nil when the flag was
-	// not given.
+	// EditorTerminal, DiffTerminal, ReuseTabs, UpdateCheck and AutoRestart
+	// are nil when the flag was not given.
 	EditorTerminal *bool
 	DiffTerminal   *bool
 	ReuseTabs      *bool
+	UpdateCheck    *bool
+	AutoRestart    *bool
 }
 
 // Settings are the resolved values the deck runs with.
@@ -231,6 +253,10 @@ type Settings struct {
 	// own, and those herdr hands the plugin (a Ctrl+click, the open-link
 	// action).
 	FigmaDesktop bool
+	// UpdateCheck shows "update available" in the header; AutoRestart
+	// restarts the deck when its binary is replaced.
+	UpdateCheck bool
+	AutoRestart bool
 	// Problems are one line each about the file or a bad value that was
 	// skipped. They never stop the deck.
 	Problems []string
@@ -345,6 +371,8 @@ func Resolve(fl Flags, getenv func(string) string, lookPath func(string) (string
 		}
 	}
 
+	s.UpdateCheck = resolveBool(fl.UpdateCheck, EnvUpdateCheck, f.UpdateCheck, true, getenv, &s.Problems)
+	s.AutoRestart = resolveBool(fl.AutoRestart, EnvAutoRestart, f.AutoRestart, true, getenv, &s.Problems)
 	// The Sources view is narrow: show the file as ~/… where it fits.
 	if home := homeDir(getenv); home != "" && strings.HasPrefix(s.Path, home+string(filepath.Separator)) {
 		short := "~" + strings.TrimPrefix(s.Path, home)
@@ -425,6 +453,24 @@ func resolveProgram(ps programSources, getenv func(string) string, problems *[]s
 		panic("config: bad default " + ps.what + " command: " + err.Error())
 	}
 	return pick(argv), nil
+}
+
+// resolveBool settles an on/off setting: flag > env > file > default. A bad
+// environment value is a problem and the file or default is used.
+func resolveBool(flag *bool, env string, file *bool, def bool, getenv func(string) string, problems *[]string) bool {
+	if flag != nil {
+		return *flag
+	}
+	if v := getenv(env); v != "" {
+		if b, err := strconv.ParseBool(v); err == nil {
+			return b
+		}
+		*problems = append(*problems, fmt.Sprintf("$%s: %q is not true or false; ignored", env, v))
+	}
+	if file != nil {
+		return *file
+	}
+	return def
 }
 
 // fileInterval is the file's refresh_interval when it is valid, else the

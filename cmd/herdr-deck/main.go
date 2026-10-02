@@ -6,9 +6,13 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"io"
 	"os"
 	"os/exec"
+	"path/filepath"
+	"runtime/debug"
 	"slices"
+	"sync/atomic"
 	"time"
 
 	tea "charm.land/bubbletea/v2"
@@ -18,11 +22,13 @@ import (
 	"github.com/FredricW/herdr-deck/internal/launch"
 	"github.com/FredricW/herdr-deck/internal/plugin"
 	"github.com/FredricW/herdr-deck/internal/project"
+	"github.com/FredricW/herdr-deck/internal/restart"
 	"github.com/FredricW/herdr-deck/internal/source/dev"
 	"github.com/FredricW/herdr-deck/internal/source/fake"
 	"github.com/FredricW/herdr-deck/internal/source/herdr"
 	"github.com/FredricW/herdr-deck/internal/source/live"
 	"github.com/FredricW/herdr-deck/internal/ui"
+	"github.com/FredricW/herdr-deck/internal/update"
 )
 
 // debounce is how long the project folder must be quiet after a change
@@ -39,8 +45,13 @@ func main() {
 }
 
 func run(args []string) error {
-	if len(args) > 0 && args[0] == "plugin" {
-		return runPlugin(args[1:])
+	if len(args) > 0 {
+		switch args[0] {
+		case "plugin":
+			return runPlugin(args[1:])
+		case "update":
+			return runUpdate(args[1:])
+		}
 	}
 	fs := flag.NewFlagSet("herdr-deck", flag.ContinueOnError)
 	var fl config.Flags
@@ -54,6 +65,8 @@ func run(args []string) error {
 	fs.StringVar(&fl.DiffTool, "diff-tool", "", "command that shows a worktree's diff: {path}, {base}, optional {file} (default: $"+config.EnvDiffTool+", else [diff] command, else hunk or git diff)")
 	diffTerm := fs.Bool("diff-terminal", false, "the diff tool is a terminal program (default: $"+config.EnvDiffTerminal+", else [diff] terminal)")
 	reuseTabs := fs.Bool("reuse-browser-tabs", true, "open a web link in a browser tab that already shows it, on macOS (default: $"+config.EnvReuseTabs+", else reuse_browser_tabs in the config file, else true)")
+	updateCheck := fs.Bool("update-check", true, "check for a newer deck and show it in the header (default: $"+config.EnvUpdateCheck+", else update_check in the config file, else true)")
+	autoRestart := fs.Bool("auto-restart", true, "restart the deck in place when its binary is replaced (default: $"+config.EnvAutoRestart+", else auto_restart in the config file, else true)")
 	demo := fs.Bool("fake", false, "show built-in sample data instead of the project")
 	showVersion := fs.Bool("version", false, "print the version and commit, then exit")
 	if err := fs.Parse(args); err != nil {
@@ -72,6 +85,10 @@ func run(args []string) error {
 			fl.DiffTerminal = diffTerm
 		case "reuse-browser-tabs":
 			fl.ReuseTabs = reuseTabs
+		case "update-check":
+			fl.UpdateCheck = updateCheck
+		case "auto-restart":
+			fl.AutoRestart = autoRestart
 		}
 	})
 	cfg, err := config.Resolve(fl, os.Getenv, exec.LookPath)
@@ -130,17 +147,123 @@ func run(args []string) error {
 	}
 	opt.FocusPane = func(id string) error { return client.Focus(context.Background(), id) }
 	opt.StartDev = func(t deck.Thread) (string, error) { return devs.Up(context.Background(), slug, t) }
-	p := tea.NewProgram(ui.New(deck.Snapshot{Project: deck.Project{Slug: slug}}, opt))
+	if cfg.UpdateCheck {
+		opt.CheckUpdate = updateHint(config.CacheDir(os.Getenv))
+	}
+	// The binary's path is taken now, before an update can move it.
+	var exe string
+	if cfg.AutoRestart && restart.Supported {
+		if exe, err = restart.Executable(os.Getenv); err == nil {
+			if w, err := restart.New(exe); err == nil {
+				opt.BinaryChanged = w.Changed
+			}
+		}
+	}
 
+	// The program changes when a failed restart starts the deck again.
+	var cur atomic.Pointer[tea.Program]
+	refresh := func() {
+		if p := cur.Load(); p != nil {
+			p.Send(ui.RefreshMsg{})
+		}
+	}
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	// Without a watch (no project folder yet) the tick still reloads.
-	_ = live.Watch(ctx, src.Projects.Dir(), debounce, func() { p.Send(ui.RefreshMsg{}) })
+	_ = live.Watch(ctx, src.Projects.Dir(), debounce, refresh)
 	// herdr's events reload too; without herdr this waits quietly.
-	go client.Watch(ctx, herdr.WatchOptions{}, func() { p.Send(ui.RefreshMsg{}) })
+	go client.Watch(ctx, herdr.WatchOptions{}, refresh)
 
-	_, err = p.Run()
-	return err
+	model := ui.New(deck.Snapshot{Project: deck.Project{Slug: slug}}, opt)
+	for {
+		p := tea.NewProgram(model)
+		cur.Store(p)
+		final, err := p.Run()
+		if err != nil {
+			return err
+		}
+		m, ok := final.(ui.Model)
+		if !ok || !m.Restart() {
+			return nil
+		}
+		// Bubble Tea has restored the terminal; the new binary takes over
+		// this process, pane and all. Exec returns only on failure: then
+		// the old deck carries on and says so.
+		err = restart.Exec(exe)
+		opt.BinaryChanged = nil
+		opt.RestartFailed = err.Error()
+		model = ui.New(m.Snapshot(), opt)
+	}
+}
+
+// running is this binary's version and commit, for update checks.
+func running() update.Running {
+	info, _ := debug.ReadBuildInfo()
+	v, rev, _ := buildVersion(version, info)
+	return update.Running{Version: v, Commit: rev}
+}
+
+// newUpdater runs real git, go and herdr commands; out gets their output.
+func newUpdater(out io.Writer) update.Updater {
+	return update.Updater{
+		Exec:    update.OSExec{Stdout: out, Stderr: os.Stderr},
+		Herdr:   os.Getenv("HERDR_BIN_PATH"),
+		Running: running(),
+		Out:     out,
+	}
+}
+
+// updateHint is the deck's update check, sharing one cache file between
+// decks. A failure only shows in the Sources view.
+func updateHint(cacheDir string) func(context.Context) ui.Update {
+	c := update.Checker{Updater: newUpdater(io.Discard)}
+	if cacheDir != "" {
+		c.CachePath = filepath.Join(cacheDir, "update.json")
+	}
+	return func(ctx context.Context) ui.Update {
+		ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
+		defer cancel()
+		st, err := c.Check(ctx)
+		switch {
+		case err != nil:
+			return ui.Update{Problem: err.Error()}
+		case st.Newer:
+			return ui.Update{Available: st.Label()}
+		}
+		return ui.Update{}
+	}
+}
+
+// runUpdate is `herdr-deck update [--check]`.
+func runUpdate(args []string) error {
+	fs := flag.NewFlagSet("herdr-deck update", flag.ContinueOnError)
+	fs.Usage = func() {
+		fmt.Fprintln(fs.Output(), "Usage: herdr-deck update [--check]")
+		fmt.Fprintln(fs.Output(), "\nUpdates the herdr plugin: a GitHub install is reinstalled by herdr at the newest\nrelease tag; a linked checkout on its default branch is pulled and rebuilt.\nRunning decks restart with the new binary.")
+		fs.PrintDefaults()
+	}
+	check := fs.Bool("check", false, "only say whether a newer version exists")
+	if err := fs.Parse(args); err != nil {
+		return err
+	}
+	if fs.NArg() > 0 {
+		return fmt.Errorf("update: unexpected argument %q", fs.Arg(0))
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Minute)
+	defer cancel()
+	u := newUpdater(os.Stdout)
+	st, err := u.Check(ctx)
+	if errors.Is(err, update.ErrNotInstalled) {
+		return fmt.Errorf("%w; install it with `herdr plugin install FredricW/herdr-deck`, or update a `go install` with `go install github.com/FredricW/herdr-deck/cmd/herdr-deck@latest`", err)
+	}
+	if err != nil {
+		return err
+	}
+	if *check {
+		fmt.Println(st.Summary())
+		return nil
+	}
+	return u.Apply(ctx, st)
 }
 
 // runPlugin runs a command herdr-plugin.toml gives herdr: the toggle and

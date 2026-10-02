@@ -45,6 +45,31 @@ type Options struct {
 	// Version is shown dim at the right of the footer when the key help
 	// leaves room for it; empty shows nothing.
 	Version string
+	// BinaryChanged says whether the deck's binary was replaced and a new
+	// one is ready. It runs off the UI goroutine on every Tick; when it
+	// says yes the program quits and Restart reports true. Nil never
+	// restarts.
+	BinaryChanged func(context.Context) bool
+	// CheckUpdate looks for a newer deck. It runs off the UI goroutine at
+	// start and every UpdateEvery (zero is DefaultUpdateEvery). Nil shows
+	// no hint.
+	CheckUpdate func(context.Context) Update
+	UpdateEvery time.Duration
+	// RestartFailed says why an earlier restart did not work; the header
+	// and the Sources view show it.
+	RestartFailed string
+}
+
+// DefaultUpdateEvery is how often CheckUpdate runs.
+const DefaultUpdateEvery = time.Hour
+
+// Update is the outcome of an update check.
+type Update struct {
+	// Available names the newer version (a tag or a short commit); ""
+	// when there is none.
+	Available string
+	// Problem says why the check failed. It shows only in Sources.
+	Problem string
 }
 
 // RefreshMsg asks the model to reload its snapshot, e.g. after the project
@@ -52,9 +77,12 @@ type Options struct {
 type RefreshMsg struct{}
 
 type (
-	tickMsg     struct{}
-	snapshotMsg deck.Snapshot
-	openedMsg   struct {
+	tickMsg       struct{}
+	updateTickMsg struct{}
+	binaryMsg     bool
+	updateMsg     Update
+	snapshotMsg   deck.Snapshot
+	openedMsg     struct {
 		what string
 		err  error
 		verb string // "open" when empty
@@ -108,6 +136,10 @@ type Model struct {
 	loading     bool
 	pending     bool // a reload was asked for while one ran
 	sourcesSeen bool // the Sources view came up by itself once
+
+	checkingBinary bool   // a BinaryChanged call is running
+	restart        bool   // quit to run the new binary
+	update         Update // the last update check
 }
 
 // New returns a model showing snap until Options.Load delivers a fresh one.
@@ -117,6 +149,9 @@ func New(snap deck.Snapshot, opt Options) Model {
 	}
 	if opt.Tick == 0 {
 		opt.Tick = DefaultTick
+	}
+	if opt.UpdateEvery == 0 {
+		opt.UpdateEvery = DefaultUpdateEvery
 	}
 	m := Model{
 		opt:      opt,
@@ -198,6 +233,9 @@ func (m Model) offGap(i, dir int) int {
 	return i
 }
 
+// Restart says the model quit because a new binary is ready to run.
+func (m Model) Restart() bool { return m.restart }
+
 // Snapshot returns the data the model shows.
 func (m Model) Snapshot() deck.Snapshot { return m.snap }
 
@@ -212,10 +250,35 @@ func (m Model) selected() (row, bool) {
 }
 
 func (m Model) Init() tea.Cmd {
-	if m.opt.Load == nil {
-		return tea.RequestBackgroundColor
+	cmds := []tea.Cmd{tea.RequestBackgroundColor}
+	if m.opt.Load != nil {
+		cmds = append(cmds, m.load(), m.tick())
+	} else if m.opt.BinaryChanged != nil {
+		cmds = append(cmds, m.tick())
 	}
-	return tea.Batch(m.load(), m.tick(), tea.RequestBackgroundColor)
+	if m.opt.CheckUpdate != nil {
+		cmds = append(cmds, m.checkUpdate())
+	}
+	return tea.Batch(cmds...)
+}
+
+func (m Model) checkUpdate() tea.Cmd {
+	check := m.opt.CheckUpdate
+	return func() tea.Msg { return updateMsg(check(context.Background())) }
+}
+
+func (m Model) updateTick() tea.Cmd {
+	return tea.Tick(m.opt.UpdateEvery, func(time.Time) tea.Msg { return updateTickMsg{} })
+}
+
+// checkBinary asks whether a new binary is ready, one call at a time.
+func (m *Model) checkBinary() tea.Cmd {
+	if m.opt.BinaryChanged == nil || m.checkingBinary || m.restart {
+		return nil
+	}
+	m.checkingBinary = true
+	changed := m.opt.BinaryChanged
+	return func() tea.Msg { return binaryMsg(changed(context.Background())) }
 }
 
 func (m Model) load() tea.Cmd {
@@ -250,7 +313,18 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tea.BackgroundColorMsg:
 		m.light = !msg.IsDark()
 	case tickMsg:
-		return m, tea.Batch(m.refresh(), m.tick())
+		return m, tea.Batch(m.refresh(), m.checkBinary(), m.tick())
+	case binaryMsg:
+		m.checkingBinary = false
+		if msg {
+			m.restart = true
+			return m, tea.Quit
+		}
+	case updateTickMsg:
+		return m, m.checkUpdate()
+	case updateMsg:
+		m.update = Update(msg)
+		return m, m.updateTick()
 	case RefreshMsg:
 		return m, m.refresh()
 	case snapshotMsg:
