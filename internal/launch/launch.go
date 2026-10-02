@@ -161,15 +161,14 @@ func Split(s string) ([]string, error) {
 	var cur strings.Builder
 	inWord := false
 	for i := 0; i < len(s); i++ {
-		c := s[i]
-		switch {
-		case c == ' ' || c == '\t' || c == '\n':
+		switch c := s[i]; c {
+		case ' ', '\t', '\n':
 			if inWord {
 				argv = append(argv, cur.String())
 				cur.Reset()
 				inWord = false
 			}
-		case c == '\'':
+		case '\'':
 			j := strings.IndexByte(s[i+1:], '\'')
 			if j < 0 {
 				return nil, errors.New("unterminated ' quote")
@@ -177,7 +176,7 @@ func Split(s string) ([]string, error) {
 			cur.WriteString(s[i+1 : i+1+j])
 			i += j + 1
 			inWord = true
-		case c == '"':
+		case '"':
 			i++
 			for ; i < len(s) && s[i] != '"'; i++ {
 				if s[i] == '\\' && i+1 < len(s) && (s[i+1] == '"' || s[i+1] == '\\') {
@@ -189,7 +188,7 @@ func Split(s string) ([]string, error) {
 				return nil, errors.New("unterminated \" quote")
 			}
 			inWord = true
-		case c == '\\':
+		case '\\':
 			if i+1 >= len(s) {
 				return nil, errors.New("trailing \\")
 			}
