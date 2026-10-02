@@ -286,9 +286,35 @@ secrets there; a later settings page will edit it.
 - Plugin mode: the hooks resolve the projects root from the same file and
   pass `$HERDR_DECK_CONFIG` on to decks they open when it is set; the deck
   finds the default path itself.
-- Planned keys (not implemented): the update-available hint, auto-restart.
-  New keys are new optional fields, so an older deck only reports a newer
+- `update_check` (the header's update hint) and `auto_restart` (re-exec
+  when the binary is replaced), both on by default. New keys are new optional fields, so an older deck only reports a newer
   file's keys as unknown.
+
+## Updates
+
+Option A of the research doc: herdr builds from source, no release binaries.
+
+- `herdr-deck update [--check]` (`internal/update`) reads `herdr plugin list
+  --plugin herdr-deck --json`. A GitHub install compares the newest `vX.Y.Z`
+  tag (`git ls-remote --tags`) with the running version and runs `herdr
+  plugin install <repo> --ref <tag> --yes`. A linked checkout compares
+  origin's default branch (`git ls-remote --symref origin HEAD`) with the
+  running commit; it pulls (`--ff-only`) only on that branch with no tracked
+  changes, then builds to a temp file in `bin/` and renames it over
+  `bin/herdr-deck`. `--check` only reports.
+- The header hint (`↑ <tag or commit>`) comes from `update.Checker`: one
+  cache file shared by all decks (`$XDG_CACHE_HOME/herdr-deck/update.json`,
+  else `~/.cache/herdr-deck/`), so the remote is asked at most once an
+  hour. The check runs off the UI goroutine at start and hourly; failures
+  show only in Sources. Git never prompts (`GIT_TERMINAL_PROMPT=0`, ssh
+  `BatchMode`).
+- Restart in place (`internal/restart`): the binary path is resolved once
+  at start. On each refresh tick the deck stats it; a file that differs
+  (inode, size or mtime), has stayed the same for 2 s and answers
+  `--version` makes Bubble Tea quit, then `syscall.Exec` runs it with the
+  same args and env (same pid, so the herdr pane stays). If Exec fails the
+  old deck starts again and the header says `↻ restart failed`. Not on
+  Windows.
 
 ## Milestones
 
