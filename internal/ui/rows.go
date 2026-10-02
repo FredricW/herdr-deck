@@ -14,6 +14,7 @@ const (
 	rowHeading rowKind = iota // a list heading, or the pinned Needs you group
 	rowWork                   // a task with its threads, or a thread no task names
 	rowInbox                  // an unhandled inbox item
+	rowGap                    // the blank line between two groups
 )
 
 // The lists the deck makes itself, next to TASKS.md's own.
@@ -23,7 +24,8 @@ const (
 	listResolved = "Resolved"
 )
 
-// row is one line of the list.
+// row is one line of the list. Gaps are rows too, so a row index is always a
+// line of the list: scrolling and clicks need no other mapping.
 type row struct {
 	kind rowKind
 	key  string // identifies the row across refreshes
@@ -47,6 +49,8 @@ func (r row) title() string {
 	switch {
 	case r.kind == rowHeading:
 		return r.list
+	case r.kind == rowGap:
+		return ""
 	case r.inbox != nil:
 		return "inbox: " + inboxText(*r.inbox)
 	case r.task != nil:
@@ -127,8 +131,9 @@ func inboxText(it deck.InboxItem) string {
 
 // buildRows lays out the list: the Needs you group (threads waiting on the
 // user and unhandled inbox items) pinned on top, then TASKS.md's lists in
-// order, then the threads no task names. folds holds the user's fold
-// toggles by list name; lists without one use foldedByDefault.
+// order, then the threads no task names, with a gap between two groups.
+// folds holds the user's fold toggles by list name; lists without one use
+// foldedByDefault.
 func buildRows(snap deck.Snapshot, folds map[string]bool) []row {
 	byID := make(map[string]deck.Thread, len(snap.Threads))
 	for _, t := range snap.Threads {
@@ -212,6 +217,9 @@ func buildRows(snap deck.Snapshot, folds map[string]bool) []row {
 		folded, ok := folds[l.name]
 		if !ok {
 			folded = foldedByDefault(l.name)
+		}
+		if len(rows) > 0 {
+			rows = append(rows, row{kind: rowGap, key: "gap:" + l.name})
 		}
 		h := row{kind: rowHeading, list: l.name, key: "head:" + l.name, count: len(l.rows), folded: folded, foldable: true}
 		if folded {
