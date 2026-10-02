@@ -1,6 +1,7 @@
 package projects
 
 import (
+	"errors"
 	"os"
 	"path/filepath"
 
@@ -40,7 +41,8 @@ func (r Reader) readProject(note func(string, ...any)) deck.Project {
 
 // short drops the path from a file error; the note already names the file.
 func short(err error) error {
-	if pe, ok := err.(*os.PathError); ok {
+	var pe *os.PathError
+	if errors.As(err, &pe) {
 		return pe.Err
 	}
 	return err

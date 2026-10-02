@@ -11,8 +11,17 @@ linters:
     - unconvert
     - usestdlibvars
   settings:
-    misspell:
-      locale: US
+    errorlint:
+      # Wrapping one error and printing another ("%w: %v") is deliberate.
+      errorf: false
+  exclusions:
+    presets:
+      # Unchecked Close, Flush, os.Remove(All), fmt.Print* and the like.
+      - std-error-handling
+    rules:
+      # Test helpers write to pipes and sockets they own.
+      - path: _test\.go
+        linters: [errcheck]
 
 formatters:
   enable:
