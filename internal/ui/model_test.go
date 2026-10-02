@@ -222,6 +222,11 @@ func selectedTitle(m Model) string {
 func starting(alive bool) deck.Snapshot {
 	s := calm()
 	s.Threads[1].DevUp = &deck.DevUp{Log: "/var/state/herdr-deck/logs/admin-rebuild-t-0002.log", Alive: alive}
+	// Without Linear states the drawer has room for the Dev and Log lines.
+	links := s.TaskLists[0].Tasks[0].Links
+	for i := range links {
+		links[i].Issue = nil
+	}
 	return s
 }
 
