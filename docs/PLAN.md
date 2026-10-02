@@ -199,10 +199,13 @@ live under that home, apart from the user's own herdr):
   on its own pane at start. herdr's state has no plugin-ownership field (a
   plugin pane only has the manifest title as `label`).
 - `[[actions]] id="toggle"`, `contexts=["workspace"]` runs `herdr-deck
-  plugin toggle`: it closes the deck in the focused pane's tab, else opens
-  one to the right of the focused pane (`HERDR_PLUGIN_CONTEXT_JSON`'s
-  `focused_pane_id`) for the project of its folder, its `hp_project` token,
-  or `$HERDR_DECK_PROJECT`; with none it shows a herdr notification. Bind it
+  plugin toggle`. On the focused pane (`HERDR_PLUGIN_CONTEXT_JSON`'s
+  `focused_pane_id`): when it is a deck, close it and focus the pane left of
+  it (`pane.neighbor` before the close, then `pane.focus`; herdr picks when
+  that fails); else when its tab has a deck, focus that deck; else open a
+  focused deck to its right for the project of its folder, its `hp_project`
+  token, or `$HERDR_DECK_PROJECT`; with none it shows a herdr notification.
+  The auto-open hook never takes the focus. Bind it
   with `[[keys.command]] type="plugin_action" command="herdr-deck.toggle"` —
   **ask the user before editing their herdr config**.
 - `[[events]] on="pane.agent_detected"` runs `herdr-deck plugin
@@ -321,6 +324,9 @@ marked parallel.
    `pane.agent_detected` hook (`herdr-deck plugin toggle|agent-detected`);
    coordinators only, one deck per workspace, sized with
    `layout.set_split_ratio`. Details in "herdr integration" above.
+   Later (user, 2026-10-03): the toggle focuses the deck it opens, focuses
+   a deck that is not focused instead of closing it, and closes only a
+   focused deck.
 8. **Polish / later.** Done: the config file (see Configuration), with a
    configurable editor and diff tool. Still to do: Linear issue status next
    to IDs (GraphQL; key from env or `op`), `u` to start dev servers, link

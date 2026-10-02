@@ -23,6 +23,10 @@ type Host interface {
 	// Open opens a deck pane and returns its id.
 	Open(ctx context.Context, o Open) (string, error)
 	Close(ctx context.Context, paneID string) error
+	// Focus focuses a pane.
+	Focus(ctx context.Context, paneID string) error
+	// LeftOf is the pane left of paneID, or "" when there is none.
+	LeftOf(ctx context.Context, paneID string) (string, error)
 	// Mark sets Token on a pane.
 	Mark(ctx context.Context, paneID, slug string) error
 	// Layout is the layout of the tab that holds paneID.
@@ -37,6 +41,7 @@ type Open struct {
 	Target string            // the pane the deck opens to the right of
 	Cwd    string            // the project folder
 	Env    map[string]string // HERDR_DECK_PROJECT, HERDR_PROJECTS_ROOT, HERDR_DECK_CONFIG
+	Focus  bool              // focus the deck; false keeps focus on Target
 }
 
 // Socket is the Host that talks to a running herdr over its socket.
@@ -64,13 +69,27 @@ func (s Socket) Open(ctx context.Context, o Open) (string, error) {
 		"target_pane_id": o.Target,
 		"cwd":            o.Cwd,
 		"env":            o.Env,
-		"focus":          false,
+		"focus":          o.Focus,
 	}, &res)
 	return res.PluginPane.Pane.ID, err
 }
 
 func (s Socket) Close(ctx context.Context, paneID string) error {
 	return s.Client.Call(ctx, "plugin.pane.close", map[string]string{"pane_id": paneID}, nil)
+}
+
+func (s Socket) Focus(ctx context.Context, paneID string) error {
+	return s.Client.Focus(ctx, paneID)
+}
+
+func (s Socket) LeftOf(ctx context.Context, paneID string) (string, error) {
+	var res struct {
+		Neighbor struct {
+			ID string `json:"neighbor_pane_id"` // null when there is none
+		} `json:"neighbor"`
+	}
+	err := s.Client.Call(ctx, "pane.neighbor", map[string]string{"pane_id": paneID, "direction": "left"}, &res)
+	return res.Neighbor.ID, err
 }
 
 func (s Socket) Mark(ctx context.Context, paneID, slug string) error {

@@ -112,13 +112,16 @@ func AgentDetected(ctx context.Context, h Host, env Env, ev Event) (string, erro
 			return "", nil
 		}
 	}
-	return open(ctx, h, env, pane.ID, slug)
+	// Never focus it: the coordinator is just starting and has the user's
+	// attention.
+	return open(ctx, h, env, pane.ID, slug, false)
 }
 
-// Toggle closes the deck in the focused pane's tab, or opens one to the
-// right of the focused pane. The deck shows the project the pane works in:
-// its folder under the projects root, else its herdr-projects hp_project
-// token, else $HERDR_DECK_PROJECT.
+// Toggle closes the deck when it is the focused pane, focuses the deck in
+// the focused pane's tab, or else opens a focused deck to the right of the
+// focused pane. The deck shows the project the pane works in: its folder
+// under the projects root, else its herdr-projects hp_project token, else
+// $HERDR_DECK_PROJECT.
 func Toggle(ctx context.Context, h Host, env Env, focused string) error {
 	if focused == "" {
 		return errors.New("toggle: no focused pane")
@@ -132,11 +135,11 @@ func Toggle(ctx context.Context, h Host, env Env, focused string) error {
 		return fmt.Errorf("toggle: pane %s not found", focused)
 	}
 	if pane.Tokens[Token] != "" {
-		return h.Close(ctx, pane.ID)
+		return closeDeck(ctx, h, pane.ID)
 	}
 	for _, p := range st.Panes {
 		if p.TabID == pane.TabID && p.Tokens[Token] != "" {
-			return h.Close(ctx, p.ID)
+			return h.Focus(ctx, p.ID)
 		}
 	}
 	slug := paneSlug(pane, env)
@@ -144,8 +147,21 @@ func Toggle(ctx context.Context, h Host, env Env, focused string) error {
 		_ = h.Notify(ctx, "Deck: no project here", "Toggle it in a herdr-projects project's pane, or set "+project.EnvProject+".")
 		return fmt.Errorf("toggle: pane %s is not in a herdr-projects project", pane.ID)
 	}
-	_, err = open(ctx, h, env, pane.ID, slug)
+	_, err = open(ctx, h, env, pane.ID, slug, true)
 	return err
+}
+
+// closeDeck closes a deck and hands focus back to the pane it sat next to.
+// When that fails, herdr picks the pane to focus.
+func closeDeck(ctx context.Context, h Host, deck string) error {
+	next, _ := h.LeftOf(ctx, deck)
+	if err := h.Close(ctx, deck); err != nil {
+		return err
+	}
+	if next != "" {
+		_ = h.Focus(ctx, next)
+	}
+	return nil
 }
 
 // MarkSelf sets Token on the deck's own pane when herdr started the deck as
@@ -161,7 +177,8 @@ func MarkSelf(ctx context.Context, h Host, getenv func(string) string, slug stri
 }
 
 // open opens a deck for slug right of target, marks it and sizes its split.
-func open(ctx context.Context, h Host, env Env, target, slug string) (string, error) {
+// focus says whether the deck takes focus from target.
+func open(ctx context.Context, h Host, env Env, target, slug string, focus bool) (string, error) {
 	vars := map[string]string{project.EnvProject: slug}
 	if env.Root != "" {
 		vars[config.EnvProjectsRoot] = env.Root
@@ -171,7 +188,7 @@ func open(ctx context.Context, h Host, env Env, target, slug string) (string, er
 	if c := env.Getenv(config.EnvPath); c != "" {
 		vars[config.EnvPath] = c
 	}
-	deck, err := h.Open(ctx, Open{Target: target, Cwd: filepath.Join(env.Root, slug), Env: vars})
+	deck, err := h.Open(ctx, Open{Target: target, Cwd: filepath.Join(env.Root, slug), Env: vars, Focus: focus})
 	if err != nil {
 		return "", err
 	}
