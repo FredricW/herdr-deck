@@ -20,6 +20,10 @@ import (
 
 var update = flag.Bool("update", false, "rewrite testdata/*.golden from the current rendering")
 
+// testVersion stands in for the build's version so the goldens do not
+// depend on it.
+const testVersion = "v9.9.9"
+
 var now = time.Date(2026, 10, 2, 14, 41, 0, 0, time.UTC)
 
 // opened records what the model asked to open; nothing is ever opened.
@@ -34,6 +38,7 @@ func newModel(t *testing.T, snap deck.Snapshot, w, h int) (Model, *opened) {
 		OpenURL:    func(u string) error { o.urls = append(o.urls, u); return nil },
 		OpenEditor: func(p string) error { o.dirs = append(o.dirs, p); return nil },
 		FocusPane:  func(id string) error { o.panes = append(o.panes, id); return nil },
+		Version:    testVersion,
 	})
 	m, _ = press(m, tea.WindowSizeMsg{Width: w, Height: h})
 	return m, o
@@ -727,5 +732,33 @@ func TestSelectionHighlight(t *testing.T) {
 	m, _ = press(m, keys("l")...)
 	if !strings.Contains(m.View().Content, "▶\x1b[m\x1b[48;5;254m") {
 		t.Errorf("the chooser's line is not highlighted:\n%q", m.View().Content)
+	}
+}
+
+func TestFooterVersionYieldsToHelp(t *testing.T) {
+	const help = "1-9 link  l f n g o first  ↵ pane  z drawer  ? help"
+	for _, tt := range []struct {
+		name, version string
+		shown         bool
+	}{
+		{"fits", testVersion, true},
+		{"too long", "v1.2.3-45-gabcdef0", false},
+		{"empty", "", false},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			m, _ := newModel(t, calm(), 60, 20)
+			m.opt.Version = tt.version
+			lines := strings.Split(screen(m), "\n")
+			foot := lines[len(lines)-1]
+			if !strings.Contains(foot, help) {
+				t.Errorf("footer %q lost key help %q", foot, help)
+			}
+			if got := tt.version != "" && strings.HasSuffix(foot, tt.version); got != tt.shown {
+				t.Errorf("footer %q: version shown = %v, want %v", foot, got, tt.shown)
+			}
+			if w := ansi.StringWidth(foot); w > 60 {
+				t.Errorf("footer is %d wide", w)
+			}
+		})
 	}
 }

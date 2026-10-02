@@ -35,6 +35,9 @@ type Options struct {
 	// Now is the clock for ages; Location the zone clock times show in.
 	Now      func() time.Time
 	Location *time.Location
+	// Version is shown dim at the right of the footer when the key help
+	// leaves room for it; empty shows nothing.
+	Version string
 }
 
 // RefreshMsg asks the model to reload its snapshot, e.g. after the project

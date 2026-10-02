@@ -48,7 +48,7 @@ func run(args []string) error {
 		return nil
 	}
 
-	opt := ui.Options{OpenURL: launch.URL, OpenEditor: launch.Editor}
+	opt := ui.Options{OpenURL: launch.URL, OpenEditor: launch.Editor, Version: shortVersionString()}
 	if *demo {
 		slug := *slugFlag
 		if slug == "" {
