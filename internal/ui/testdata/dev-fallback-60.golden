@@ -4,9 +4,9 @@
   In progress
   ◐ Users page                  Building overv…  L4
   ◐ Templates page              Writing tests    L F    ●●●
- ▸◇ Document select for summa…  #2320 review     L F3   ●○
+  ◇ Document select for summa…  #2320 review     L F3   ●○
   On hold until Monday 2026-10-05
-  ○ Subscriptions list          idle             L N    ~○
+ ▸○ Subscriptions list          idle             L N    ~○
   + Backlog (3)
 
 
@@ -15,14 +15,14 @@
 
 
 
-─ Document select for summary · t-0004 ─────────────────────
- Status  ready for review
- Linear  1 ABC-1191
-▶Figma   2 598-48083  3 1138-88367  4 635-76529
-         d desktop app  a all
- GitHub  5 PR #2320 · review required · 2c
- Open    6 Frontend ●  7 API docs ○
- Dev     :5174 frontend ●   :8002 api ○
+─ Subscriptions list · t-0001 ──────────────────────────────
+ Status  idle
+ Linear  1 ABC-1472
+ Notion  2 Findings
+ Open    3 ~:14437 ○
+ Dev     ~:14437 port ○   herdr port token
+
+
 
 ────────────────────────────────────────────────────────────
- Figma: 2-4 open  d desktop  a all  f first  esc cancel
+ 1-9 link  l f n g o first  ↵ pane  z drawer  ? help

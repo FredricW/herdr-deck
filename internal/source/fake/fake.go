@@ -29,6 +29,7 @@ func Snapshot(slug string, now time.Time) deck.Snapshot {
 			Dir:   "/projects/" + slug,
 		},
 		ReadAt: now,
+		Notes:  []string{"dev servers: billing has no .herdr-deck/dev.json; only herdr's port token, if any"},
 		TaskLists: []deck.TaskList{
 			{
 				Name: "In progress",
@@ -70,13 +71,18 @@ func Snapshot(slug string, now time.Time) deck.Snapshot {
 			{
 				ID: "t-0001", Title: "Subscriptions /admin/plans", Status: deck.StatusUnknown,
 				StateLine: "idle", PaneID: "w1Y:p1", Branch: "hp/admin-rebuild/t-0001-subscriptions",
+				// No manifest port: herdr's workspace token is the fallback.
+				PortToken:  14437,
+				DevServers: []deck.DevServer{{Name: "port", Port: 14437, Fallback: true}},
+				Links:      []deck.Link{{Kind: deck.LinkLocalhost, Label: "~:14437", URL: "http://localhost:14437", Down: true}},
 			},
 			{
 				ID: "t-0002", Title: "Members /admin/users", Status: deck.StatusNeedsYou,
 				StateLine: "needs you · ~95%", Activity: "Waiting for you", PaneID: "w1Z:p1",
 				Worktree: "/src/worktrees/t-0002", Branch: "hp/admin-rebuild/t-0002-members-admin-users",
-				Next:   []string{"Approve phase 1 (ABC-1256 overview)", "Say whether to start ABC-1257 and ABC-1250"},
-				Report: "## Report\n\nPhase 1 is done: layout and overview.\n\n## Next\n\n- Approve phase 1 (ABC-1256 overview)\n",
+				Next:    []string{"Approve phase 1 (ABC-1256 overview)", "Say whether to start ABC-1257 and ABC-1250"},
+				Report:  "## Report\n\nPhase 1 is done: layout and overview.\n\n## Next\n\n- Approve phase 1 (ABC-1256 overview)\n",
+				DevNote: "not started: no .dev/t-0002/state.json",
 			},
 			{
 				ID: "t-0003", Title: "Templates /templates", Status: deck.StatusWorking,
@@ -87,7 +93,7 @@ func Snapshot(slug string, now time.Time) deck.Snapshot {
 					{Name: "api", Port: 8011, Running: true},
 					{Name: "pg", Port: 5441, Running: true},
 				},
-				Links: []deck.Link{{Kind: deck.LinkLocalhost, Label: ":5181 frontend", URL: "http://localhost:5181"}},
+				Links: []deck.Link{{Kind: deck.LinkLocalhost, Label: "Frontend", URL: "http://localhost:5181"}},
 			},
 			{
 				ID: "t-0004", Title: "Summary select documents", Status: deck.StatusReview,
@@ -98,7 +104,8 @@ func Snapshot(slug string, now time.Time) deck.Snapshot {
 				},
 				Links: []deck.Link{
 					{Kind: deck.LinkGitHub, Label: "PR #2320", URL: "https://github.com/acme/webshop/pull/2320"},
-					{Kind: deck.LinkLocalhost, Label: ":5174 frontend", URL: "http://localhost:5174"},
+					{Kind: deck.LinkLocalhost, Label: "Frontend", URL: "http://localhost:5174"},
+					{Kind: deck.LinkLocalhost, Label: "API docs", URL: "http://localhost:8002/docs", Down: true},
 				},
 				DevServers: []deck.DevServer{
 					{Name: "frontend", Port: 5174, Running: true},

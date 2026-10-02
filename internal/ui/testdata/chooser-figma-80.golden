@@ -6,7 +6,7 @@
   ◐ Templates page               t-0003  Writing tests               L F    ●●●
  ▸◇ Document select for summary  t-0004  review required     #2320   L F3   ●○
   On hold until Monday 2026-10-05
-  ○ Subscriptions list           t-0001  idle                        L N
+  ○ Subscriptions list           t-0001  idle                        L N    ~○
   + Backlog (3)
 
 
@@ -22,7 +22,7 @@
 ▶Figma    2 598-48083   3 1138-88367   4 635-76529
           d desktop app  a all
  GitHub   5 PR #2320 · review required · 2 comments
- Open     6 :5174 frontend
+ Open     6 Frontend ●   7 API docs ○
  Branch   hp/admin-rebuild/t-0004-summary
 ────────────────────────────────────────────────────────────────────────────────
  Figma: 2-4 open  d desktop  a all  f first  esc cancel

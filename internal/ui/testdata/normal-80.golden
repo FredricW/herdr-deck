@@ -6,7 +6,7 @@
   ◐ Templates page               t-0003  Writing tests               L F    ●●●
   ◇ Document select for summary  t-0004  review required     #2320   L F3   ●○
   On hold until Monday 2026-10-05
-  ○ Subscriptions list           t-0001  idle                        L N
+  ○ Subscriptions list           t-0001  idle                        L N    ~○
   + Backlog (3)
 
 
@@ -23,6 +23,6 @@
  Linear   1 ABC-1246   2 ABC-1256   3 ABC-1257   4 ABC-1250
  Report   threads/t-0002.md · r shows it
  Branch   hp/admin-rebuild/t-0002-members-admin-users
- Dev      not read yet (dev servers come in milestone 6)
+ Dev      not started: no .dev/t-0002/state.json
 ────────────────────────────────────────────────────────────────────────────────
  1-9 link  l f n g o first  ↵ pane  e edit  z drawer  ? help

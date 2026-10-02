@@ -14,6 +14,7 @@ import (
 	"github.com/FredricW/herdr-deck/internal/deck"
 	"github.com/FredricW/herdr-deck/internal/launch"
 	"github.com/FredricW/herdr-deck/internal/project"
+	"github.com/FredricW/herdr-deck/internal/source/dev"
 	"github.com/FredricW/herdr-deck/internal/source/fake"
 	"github.com/FredricW/herdr-deck/internal/source/herdr"
 	"github.com/FredricW/herdr-deck/internal/source/live"
@@ -64,6 +65,7 @@ func run(args []string) error {
 
 	src := live.New(root, slug, *linear)
 	src.Herdr = herdr.NewReader(herdr.SocketPath(os.Getenv))
+	src.Dev = dev.NewReader()
 	client := src.Herdr.Client
 	opt.Load = src.Read
 	opt.FocusPane = func(id string) error { return client.Focus(context.Background(), id) }

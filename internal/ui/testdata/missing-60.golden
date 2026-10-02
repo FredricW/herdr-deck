@@ -6,7 +6,7 @@
   ◐ Templates page              Writing tests    L F    ●●●
   ◇ Document select for summa…  #2320 review     L F3   ●○
   On hold until Monday 2026-10-05
-  ○ Subscriptions list          idle             L N
+  ○ Subscriptions list          idle             L N    ~○
   + Backlog (3)
 
 
@@ -20,9 +20,9 @@
  ! thread list: herdr-projects: no session; showing
    threads/*.toml as last recorded
  ! threads as of 14:23, when herdr-projects last wrote them
+ · dev servers: billing has no .herdr-deck/dev.json; only
+   herdr's port token, if any
  ✓ everything else read 14:41
-
- ! or esc returns
 
 ────────────────────────────────────────────────────────────
  esc back  pgup pgdn scroll  z drawer  ? help  q quit

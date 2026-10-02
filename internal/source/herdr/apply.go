@@ -3,6 +3,7 @@ package herdr
 import (
 	"context"
 	"errors"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -57,6 +58,7 @@ func (r *Reader) apply(snap *deck.Snapshot, st State, now time.Time) {
 	}
 	for i := range snap.Threads {
 		t := &snap.Threads[i]
+		t.PortToken = portToken(st, t.Worktree)
 		p, ok := threadPane(st, slug, *t)
 		if !ok {
 			continue
@@ -166,6 +168,25 @@ func coordinatorPane(st State, slug, dir string) (Pane, bool) {
 		}
 	}
 	return Pane{}, false
+}
+
+// portToken is the `port` token of the workspace opened on the worktree, or
+// 0. A worktree plugin sets it (e.g. from a hash of the branch) as the port
+// its dev server should use; the deck falls back to it when the worktree's
+// manifest gives no port.
+func portToken(st State, worktree string) int {
+	if worktree == "" {
+		return 0
+	}
+	for _, w := range st.Workspaces {
+		if w.Worktree == nil || !samePath(w.Worktree.Path, worktree) {
+			continue
+		}
+		if n, err := strconv.Atoi(strings.TrimSpace(w.Tokens["port"])); err == nil && n > 0 && n < 65536 {
+			return n
+		}
+	}
+	return 0
 }
 
 func lastField(group string) string {

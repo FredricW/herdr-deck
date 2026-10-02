@@ -142,6 +142,34 @@ func TestSnapshot(t *testing.T) {
 	if st.Panes[1].Agent != "" || st.Panes[1].Tokens != nil {
 		t.Errorf("a shell pane has no agent or tokens: %+v", st.Panes[1])
 	}
+	wt := "/home/dev/worktrees/herdr-deck/hp-herdr-deck-t-0006-m5-herdr-live-state"
+	if n := portToken(st, wt); n != 14437 {
+		t.Errorf("port token of %s = %d, want 14437", wt, n)
+	}
+	if n := portToken(st, "/home/dev/src/herdr-deck"); n != 0 {
+		t.Errorf("a workspace without a port token gave %d", n)
+	}
+}
+
+func TestApplyPortToken(t *testing.T) {
+	st := liveState()
+	st.Workspaces = []Workspace{
+		{ID: "w2A", Tokens: map[string]string{"port": "14437"}},
+		{ID: "w2B", Tokens: map[string]string{"port": " 14438 "}},
+		{ID: "w2C", Tokens: map[string]string{"port": "not a port"}},
+		{ID: "w2D", Tokens: map[string]string{"port": "99999"}},
+	}
+	for i, wt := range []string{"/wt/t-0006/", "/wt/t-0007", "/wt/t-0008", "/wt/t-0005"} {
+		st.Workspaces[i].Worktree = &Checkout{Path: wt}
+	}
+	snap := projectSnap()
+	(&Reader{}).apply(&snap, st, t0)
+	want := map[string]int{"t-0005": 0, "t-0006": 14437, "t-0007": 14438, "t-0008": 0, "t-0001": 0}
+	for _, th := range snap.Threads {
+		if th.PortToken != want[th.ID] {
+			t.Errorf("%s: port token %d, want %d", th.ID, th.PortToken, want[th.ID])
+		}
+	}
 }
 
 func TestFocus(t *testing.T) {

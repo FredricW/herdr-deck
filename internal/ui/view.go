@@ -423,12 +423,16 @@ func badgeCells(links []deck.Link, width int) []cell {
 }
 
 // devCells is the DEV column: one dot per dev server port, green when it
-// listens. Milestone 6 fills in the servers.
+// listens; a fallback port (herdr's port token) is marked ~.
 func devCells(r row, width int) []cell {
 	var cells []cell
 	used := 0
 	for _, t := range r.threads {
 		for _, s := range t.DevServers {
+			if s.Fallback && used+2 <= width {
+				cells = append(cells, cell{text: "~", style: dim})
+				used++
+			}
 			if used >= width {
 				break
 			}

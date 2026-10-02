@@ -231,7 +231,7 @@ func (m Model) rowDrawer(r row, links []deck.Link, width int, choosing deck.Link
 	if hasThread && t.Branch != "" && !narrow {
 		d.field("Branch", false, words(t.Branch, plain))
 	}
-	if hasThread {
+	if hasThread && (len(t.DevServers) > 0 || t.DevNote != "") {
 		d.field("Dev", false, devGroup(t))
 	}
 	return d
@@ -292,6 +292,9 @@ func (m Model) linkFields(d *drawer, links []deck.Link, choosing deck.LinkKind, 
 			if pr.PR != nil && l.URL == pr.PR.URL {
 				label += prDetails(*pr.PR, d.width < wideMin)
 			}
+			if kind == deck.LinkLocalhost {
+				label += " " + devDot(!l.Down)
+			}
 			g.items = append(g.items, item{text: label, style: plain, link: i})
 			unlinked = unlinked || l.URL == ""
 		}
@@ -343,19 +346,32 @@ func prDetails(pr deck.PullRequest, narrow bool) string {
 	return " · " + strings.Join(parts, " · ")
 }
 
+// devGroup is the drawer's Dev line: each server's port, name and dot; a
+// fallback port is marked ~. Without servers it says why.
 func devGroup(t deck.Thread) group {
 	if len(t.DevServers) == 0 {
-		return words("not read yet (dev servers come in milestone 6)", dim)
+		return words(t.DevNote, dim)
 	}
 	g := group{sep: "   "}
 	for _, s := range t.DevServers {
-		dot := dim.Render("○")
-		if s.Running {
-			dot = okStyle.Render("●")
+		text := fmt.Sprintf(":%d %s %s", s.Port, s.Name, devDot(s.Running))
+		if s.Fallback {
+			text = "~" + text
 		}
-		g.items = append(g.items, span(fmt.Sprintf(":%d %s %s", s.Port, s.Name, dot), plain))
+		g.items = append(g.items, span(text, plain))
+	}
+	if t.DevServers[0].Fallback {
+		g.items = append(g.items, span("herdr port token", dim))
 	}
 	return g
+}
+
+// devDot is green ● for a listening port, dim ○ otherwise.
+func devDot(up bool) string {
+	if up {
+		return okStyle.Render("●")
+	}
+	return dim.Render("○")
 }
 
 // threadStatusLine is the drawer's Status: the state line, plus the activity
@@ -457,6 +473,9 @@ func (m Model) sourcesDrawer(width int) *drawer {
 	if !m.snap.ThreadsAsOf.IsZero() {
 		d.styledField("!", warnStyle.Bold(true), false, words("threads as of "+m.snap.ThreadsAsOf.In(m.loc()).Format("15:04")+", when herdr-projects last wrote them", plain))
 	}
+	for _, n := range m.snap.Notes {
+		d.styledField("·", dim, false, words(n, dim))
+	}
 	ok := "every source"
 	if len(m.snap.Missing) > 0 {
 		ok = "everything else"
@@ -487,7 +506,8 @@ var helpLines = [][2]string{
 	{"j k", "move; the drawer follows"},
 	{"space", "fold or unfold the list under the cursor"},
 	{"1-9", "open the drawer's numbered link"},
-	{"l f n g o", "open the first Linear, Figma, Notion, PR or localhost link; with several, pick one: a digit, a all, d Figma desktop app, the letter again the first, esc cancels"},
+	{"l f n g", "open the first Linear, Figma, Notion or PR link; with several, pick one: a digit, a all, d Figma desktop app, the letter again the first, esc cancels"},
+	{"o", "open the first localhost link whose dev server is running"},
 	{"↵", "focus the thread's herdr pane"},
 	{"e", "open the thread's worktree in VS Code"},
 	{"r", "the thread's report, full height"},
