@@ -65,10 +65,12 @@ Accept both shapes. For each list item under a `##` heading:
 - title = the line text minus checkbox, owner and thread suffix;
 - done = `[x]`; list = the heading;
 - thread ids = the threads the task belongs to: the ids in a strict
-  `· t-0007` suffix, else every `t-\d{4}` on the bullet line. Ids in the
-  indented notes only mention another thread ("after t-0002 lands") and do
-  not link it, or that thread's links would show on this task;
-- links (from the line, its notes, and the task's threads' `.task.md`/`.md`):
+  `· t-0007` suffix, else every `t-\d{4}` on the bullet line, plus the
+  suffix ids of sub-items in its notes (`  - [ ] Part · t-0005`). Other ids
+  in the indented notes only mention another thread ("after t-0002 lands")
+  and do not link it, or that thread's links would show on this task;
+- links (from the line, its notes, and the task's threads' `.task.md`/`.md`,
+  each file scraped on its own):
   - Linear: `\b[A-Z][A-Z0-9]{1,5}-\d+\b` → `https://linear.app/<workspace>/issue/<ID>`.
     There is no default workspace: it comes from `--linear-workspace` or
     `$HERDR_DECK_LINEAR_WORKSPACE`. Without one, IDs still show but say a

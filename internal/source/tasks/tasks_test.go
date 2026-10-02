@@ -1,6 +1,8 @@
 package tasks
 
 import (
+	"os"
+	"path/filepath"
 	"reflect"
 	"testing"
 
@@ -201,8 +203,8 @@ func TestExplicitLinearURLWins(t *testing.T) {
 		t.Errorf("got %+v", got)
 	}
 	// Across sources: the task line names the ID, the thread file has the URL.
-	f := Parse("## L\n- Fix ACME-5: t-0001\n", Options{ThreadText: func(string) string {
-		return "https://linear.app/acme/issue/ACME-5/slug"
+	f := Parse("## L\n- Fix ACME-5: t-0001\n", Options{ThreadText: func(string) []string {
+		return []string{"https://linear.app/acme/issue/ACME-5/slug"}
 	}})
 	if l := f.Lists[0].Tasks[0].Links; len(l) != 1 || l[0].URL != "https://linear.app/acme/issue/ACME-5" {
 		t.Errorf("links = %+v", l)
@@ -237,22 +239,25 @@ func TestPreambleBeforeLooseItem(t *testing.T) {
 }
 
 func TestOnlyOwningThreadsLink(t *testing.T) {
-	text := map[string]string{
-		"t-0001": "Fixes ABC-1.",
-		"t-0002": "Fixes ABC-2.",
-		"t-0003": "Fixes ABC-3.",
+	text := map[string][]string{
+		"t-0001": {"Fixes ABC-1."},
+		"t-0002": {"Fixes ABC-2."},
+		"t-0003": {"Fixes ABC-3."},
+		"t-0004": {"Fixes ABC-4."},
 	}
 	src := "## L\n" +
 		"- [ ] Strict (sam) · t-0001\n  after t-0002 lands\n" +
 		"- Loose: thread t-0002, with t-0003\n  see t-0001 for context\n" +
-		"- [ ] Strict without suffix, thread t-0003\n"
-	f := Parse(src, Options{ThreadText: func(id string) string { return text[id] }})
+		"- [ ] Strict without suffix, thread t-0003\n" +
+		"- [ ] Parent (sam) · t-0003\n  - [ ] Part · t-0004\n  - Part after t-0001\n"
+	f := Parse(src, Options{ThreadText: func(id string) []string { return text[id] }})
 	for i, want := range []struct {
 		threads, links []string
 	}{
 		{[]string{"t-0001"}, []string{"ABC-1"}},
 		{[]string{"t-0002", "t-0003"}, []string{"ABC-2", "ABC-3"}},
 		{[]string{"t-0003"}, []string{"ABC-3"}},
+		{[]string{"t-0003", "t-0004"}, []string{"ABC-3", "ABC-4"}},
 	} {
 		task := f.Lists[0].Tasks[i]
 		if !reflect.DeepEqual(task.Threads, want.threads) || !reflect.DeepEqual(labels(task.Links), want.links) {
@@ -290,5 +295,23 @@ func TestScrapeBriefShape(t *testing.T) {
 		"## Remember\n\n- The scanner must skip `P-ABC-49` and keep ABC-110 apart from ABC-1100.\n"
 	if got := labels(Scrape(brief, "")); !reflect.DeepEqual(got, []string{"ABC-301"}) {
 		t.Errorf("got %q", got)
+	}
+}
+
+// Each thread file is scraped on its own: a brief ending in a Remember
+// section or an unclosed fence does not hide the report's tickets.
+func TestThreadFilesScrapeApart(t *testing.T) {
+	dir := t.TempDir()
+	for name, text := range map[string]string{
+		"t-0001.task.md": "Do the thing.\n\n## Remember\n\n- Examples like ABC-123.\n\n```\nABC-124\n",
+		"t-0001.md":      "PR: https://github.com/acme/webshop/pull/9\nFixed ABC-7.\n\n### Detail\n\nAnd ABC-8.\n",
+	} {
+		if err := os.WriteFile(filepath.Join(dir, name), []byte(text), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	got := labels(ScrapeAll(ThreadFiles(dir)("t-0001"), ""))
+	if want := []string{"PR #9", "ABC-7", "ABC-8"}; !reflect.DeepEqual(got, want) {
+		t.Errorf("got %q, want %q", got, want)
 	}
 }

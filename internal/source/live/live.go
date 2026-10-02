@@ -58,7 +58,7 @@ func (s Source) Read(ctx context.Context) deck.Snapshot {
 	// task names still offers them.
 	for i := range snap.Threads {
 		t := &snap.Threads[i]
-		for _, l := range tasks.Scrape(threadText(t.ID), s.LinearWorkspace) {
+		for _, l := range tasks.ScrapeAll(threadText(t.ID), s.LinearWorkspace) {
 			t.Links = deck.AppendLink(t.Links, l)
 		}
 	}

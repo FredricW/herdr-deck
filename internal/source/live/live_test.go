@@ -164,7 +164,9 @@ func TestWatchDebouncesAndFollowsNewFolders(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	changed := make(chan struct{}, 10)
-	if err := Watch(ctx, dir, 50*time.Millisecond, func() { changed <- struct{}{} }); err != nil {
+	// The debounce leaves room for a slow CI runner under -race to pause
+	// between the burst's writes without that reading as two bursts.
+	if err := Watch(ctx, dir, 250*time.Millisecond, func() { changed <- struct{}{} }); err != nil {
 		t.Fatal(err)
 	}
 	wait := func(what string) {
@@ -180,7 +182,7 @@ func TestWatchDebouncesAndFollowsNewFolders(t *testing.T) {
 		select {
 		case <-changed:
 			t.Fatalf("a second change was reported after %s", what)
-		case <-time.After(200 * time.Millisecond):
+		case <-time.After(500 * time.Millisecond):
 		}
 	}
 
