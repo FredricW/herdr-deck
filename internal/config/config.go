@@ -248,7 +248,12 @@ func Resolve(fl Flags, getenv func(string) string, lookPath func(string) (string
 
 	switch {
 	case fl.ProjectsRoot != "":
-		s.ProjectsRoot = expandHome(fl.ProjectsRoot, getenv)
+		// A relative flag is relative to the working directory.
+		p, err := filepath.Abs(expandHome(fl.ProjectsRoot, getenv))
+		if err != nil {
+			return s, fmt.Errorf("--projects-root: %w", err)
+		}
+		s.ProjectsRoot = p
 	case getenv(EnvProjectsRoot) != "":
 		s.ProjectsRoot = getenv(EnvProjectsRoot)
 	default:

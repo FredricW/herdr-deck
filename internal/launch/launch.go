@@ -237,8 +237,10 @@ func braces(names []string) string {
 }
 
 // ShellLine quotes argv for the interactive shell of a new pane: words with
-// anything but safe characters go in single quotes. The quoting is the same
-// in sh, bash, zsh and fish.
+// anything but safe characters go in single quotes. A ' or \ is written
+// outside the quotes, escaped with \: fish treats both as escapes inside
+// single quotes, POSIX shells neither, so this reads the same in sh, bash,
+// zsh and fish.
 func ShellLine(argv []string) string {
 	q := make([]string, len(argv))
 	for i, a := range argv {
@@ -253,5 +255,6 @@ func shellQuote(s string) string {
 	if safeWord.MatchString(s) {
 		return s
 	}
-	return "'" + strings.ReplaceAll(s, "'", `'\''`) + "'"
+	r := strings.NewReplacer(`'`, `'\''`, `\`, `'\\'`)
+	return "'" + r.Replace(s) + "'"
 }

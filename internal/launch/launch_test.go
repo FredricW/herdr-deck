@@ -86,8 +86,8 @@ func TestRunner(t *testing.T) {
 }
 
 func TestShellLine(t *testing.T) {
-	got := ShellLine([]string{"nvim", "/w/my thread", "it's", "a-b_c.go"})
-	if want := `nvim '/w/my thread' 'it'\''s' a-b_c.go`; got != want {
+	got := ShellLine([]string{"nvim", "/w/my thread", "it's", `a\b`, "a-b_c.go"})
+	if want := `nvim '/w/my thread' 'it'\''s' 'a'\\'b' a-b_c.go`; got != want {
 		t.Errorf("ShellLine = %s, want %s", got, want)
 	}
 }

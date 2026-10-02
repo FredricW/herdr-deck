@@ -336,3 +336,15 @@ terminal = "yes"
 		t.Errorf("a bad --editor must be an error, got %v", err)
 	}
 }
+
+func TestResolveRelativeProjectsRootFlag(t *testing.T) {
+	getenv, _ := env(t, nil)
+	s, err := Resolve(Flags{ProjectsRoot: "rel/projects"}, getenv, noHunk)
+	if err != nil {
+		t.Fatal(err)
+	}
+	cwd, _ := os.Getwd()
+	if want := filepath.Join(cwd, "rel", "projects"); s.ProjectsRoot != want {
+		t.Errorf("ProjectsRoot = %q, want %q", s.ProjectsRoot, want)
+	}
+}
