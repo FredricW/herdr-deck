@@ -1,0 +1,34 @@
+id = "herdr-deck"
+name = "Deck"
+version = "0.1.0"
+min_herdr_version = "0.9.3"
+description = "A status pane next to each herdr-projects coordinator: tasks, threads, links and dev servers."
+platforms = ["macos", "linux"]
+
+# Needs Go 1.27 or newer. The version stamped into the binary is this
+# manifest's version; keep the two in step (CI checks the tag against it).
+[[build]]
+command = ["go", "build", "-ldflags", "-X main.version=0.1.0", "-o", "bin/herdr-deck", "./cmd/herdr-deck"]
+
+# The deck itself. Opened by the toggle action and the auto-open hook, which
+# pass the project through HERDR_DECK_PROJECT and start it in the project
+# folder.
+[[panes]]
+id = "deck"
+title = "Deck"
+placement = "split"
+command = ["bin/herdr-deck"]
+
+# Opens a deck to the right of the focused pane, or closes the deck in this
+# tab. Bind it with [[keys.command]] type = "plugin_action",
+# command = "herdr-deck.toggle".
+[[actions]]
+id = "toggle"
+title = "Deck: show or hide"
+contexts = ["workspace"]
+command = ["bin/herdr-deck", "plugin", "toggle"]
+
+# A coordinator started: open a deck next to it unless its workspace has one.
+[[events]]
+on = "pane.agent_detected"
+command = ["bin/herdr-deck", "plugin", "agent-detected"]

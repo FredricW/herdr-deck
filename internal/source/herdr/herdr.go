@@ -1,7 +1,8 @@
 // Package herdr reads herdr's live state over its Unix socket: the panes, the
 // agents in them and their tokens, and a stream of events that says when
 // they change. Against herdr it only reads and subscribes; the one command
-// that acts is Focus, which the deck runs when the user presses enter.
+// that acts is Focus, which the deck runs when the user presses enter. The
+// herdr plugin hooks (internal/plugin) send their few commands through Call.
 //
 // The socket speaks newline-delimited JSON: a request is
 // {"id", "method", "params"} and its reply {"id", "result"} or
@@ -47,6 +48,7 @@ func SocketPath(getenv func(string) string) string {
 type Pane struct {
 	ID          string            `json:"pane_id"`
 	WorkspaceID string            `json:"workspace_id"`
+	TabID       string            `json:"tab_id"`
 	Cwd         string            `json:"cwd"`
 	Agent       string            `json:"agent"`        // e.g. "claude", or "" for a plain shell
 	AgentStatus string            `json:"agent_status"` // idle, working, blocked, done, unknown
@@ -96,6 +98,12 @@ func (c Client) Snapshot(ctx context.Context) (State, error) {
 // pane.focus).
 func (c Client) Focus(ctx context.Context, paneID string) error {
 	return c.call(ctx, "pane.focus", map[string]string{"pane_id": paneID}, nil)
+}
+
+// Call sends one request and decodes its reply's result into out (unless
+// out is nil). A herdr error reply is returned as an error.
+func (c Client) Call(ctx context.Context, method string, params, out any) error {
+	return c.call(ctx, method, params, out)
 }
 
 func (c Client) dial(ctx context.Context) (net.Conn, error) {

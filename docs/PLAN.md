@@ -178,29 +178,51 @@ items handled.
 
 ## herdr integration
 
-Ship a `herdr-plugin.toml` in the repo root:
+Ship a `herdr-plugin.toml` in the repo root. Verified in milestone 7 against
+herdr 0.9.3, on a separate headless herdr server (`HOME=<scratch> herdr
+server` with its own `HERDR_SOCKET_PATH`: plugins, config and sockets then
+live under that home, apart from the user's own herdr):
 
-- `[[build]]`: `go build -o bin/herdr-deck ./cmd/herdr-deck`.
-- `[[panes]] id="deck" placement="split"`, command = `bin/herdr-deck`; the
-  project slug comes from the pane's cwd (`~/.herdr-projects/<slug>`) or
-  `$HERDR_DECK_PROJECT` (`internal/project`; `--project` wins over both).
-- `[[actions]] id="toggle"`, `contexts=["workspace"]`: opens the deck in a
-  split to the right of the focused pane
-  (`herdr plugin pane open --plugin herdr-deck --entrypoint deck --placement split --direction right --target-pane <pane> --no-focus`),
-  or closes it if one is open. Bind it in `~/.config/herdr/config.toml` with
-  `[[keys.command]] type="plugin_action"` — **ask the user before editing
-  their herdr config**.
-- `[[events]] on="pane.agent_detected"` (or `workspace.created`): when the new
-  agent's cwd is a herdr-projects project folder and no deck pane exists in
-  that workspace, open one next to it. Unknown event names only warn, so test
-  which event fires reliably for a coordinator start.
-- Size the split after opening (`layout.set_split_ratio` over the socket, or
-  `pane resize`); `plugin pane open` takes no ratio.
+- `[[build]]`: `go build -ldflags "-X main.version=<version>" -o
+  bin/herdr-deck ./cmd/herdr-deck`. argv has no variables, so the version is
+  written twice in the manifest; a test fails when they differ.
+- `[[panes]] id="deck" placement="split"`, command = `bin/herdr-deck`. herdr
+  runs plugin commands in the plugin folder, so the hooks open the deck with
+  `cwd` = the project folder and `HERDR_DECK_PROJECT` (and
+  `HERDR_PROJECTS_ROOT`) in its environment. A plugin pane's `HERDR_PANE_ID`
+  is its own pane.
+- Deck panes are marked with the pane token `herdr_deck=<slug>` (source
+  `herdr-deck`): the hook sets it right after opening, and the deck sets it
+  on its own pane at start. herdr's state has no plugin-ownership field (a
+  plugin pane only has the manifest title as `label`).
+- `[[actions]] id="toggle"`, `contexts=["workspace"]` runs `herdr-deck
+  plugin toggle`: it closes the deck in the focused pane's tab, else opens
+  one to the right of the focused pane (`HERDR_PLUGIN_CONTEXT_JSON`'s
+  `focused_pane_id`) for the project of its folder, its `hp_project` token,
+  or `$HERDR_DECK_PROJECT`; with none it shows a herdr notification. Bind it
+  with `[[keys.command]] type="plugin_action" command="herdr-deck.toggle"` —
+  **ask the user before editing their herdr config**.
+- `[[events]] on="pane.agent_detected"` runs `herdr-deck plugin
+  agent-detected`. It fires when herdr sees an agent start in a pane, also
+  one started by typing in an existing shell; `workspace.created` fires
+  earlier, while the pane is still a shell, so it can't tell a coordinator.
+  The hook gets the pane in `HERDR_PANE_ID` and
+  `HERDR_PLUGIN_EVENT_JSON` = `{"event":"pane_agent_detected","data":{"pane_id",
+  "workspace_id","agent"}}`. It opens a deck when the pane's cwd is exactly
+  `<root>/<slug>` with a PROJECT.md (symlinks resolved: herdr reports
+  physical paths) and no pane of the workspace has the deck token. Threads
+  run in worktrees or `<slug>/threads/…`, so only coordinators match. A file
+  lock in `HERDR_PLUGIN_STATE_DIR` keeps two hooks from both opening one.
+- Sizing: `plugin.pane.open` takes no ratio, so the hook finds the new split
+  in `layout.export`'s tree (its path is a list of booleans, `true` = second
+  child) and calls `layout.set_split_ratio`. The deck gets 40 % of the
+  split, 60–80 columns, and the left pane keeps at least 60; below that they
+  share it evenly.
 - Optional later: `[[link_handlers]]` so `ABC-123` and Figma URLs are
   clickable in any pane, coordinator included.
 
-Install locally with `herdr plugin` (check `herdr plugin --help` for the
-link/install-from-path command); don't publish anywhere.
+Install with `herdr plugin install FredricW/herdr-deck`, or `herdr plugin
+link <checkout>` for development (link never builds); see the README.
 
 ## Milestones
 
@@ -255,6 +277,10 @@ marked parallel.
    not listen; `Snapshot.Notes` holds Sources lines that are not missing data.
 7. **herdr plugin.** `herdr-plugin.toml`, toggle action, auto-open event,
    split sizing. Document install in README.
+   Done: `internal/plugin` holds the toggle action and the
+   `pane.agent_detected` hook (`herdr-deck plugin toggle|agent-detected`);
+   coordinators only, one deck per workspace, sized with
+   `layout.set_split_ratio`. Details in "herdr integration" above.
 8. **Polish / later.** Linear issue status next to IDs (GraphQL; key from
    env or `op`), `u` to start dev servers, link handlers, multi-project view.
 

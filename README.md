@@ -7,10 +7,61 @@ a Go + Charm TUI that runs in a split next to a project's coordinator and shows
 its tasks, threads and their status, Linear / Notion / Figma / GitHub links and
 running dev servers.
 
-Work in progress: the deck reads a project's files, thread list, herdr's
-live state and each worktree's dev servers, and refreshes as they change; the
-herdr plugin is still to come. See [docs/PLAN.md](docs/PLAN.md) for the plan and
-milestones.
+The deck reads a project's files, thread list, herdr's live state and each
+worktree's dev servers, and refreshes as they change. As a herdr plugin it
+opens next to each coordinator by itself. See [docs/PLAN.md](docs/PLAN.md)
+for the plan and milestones.
+
+## Install as a herdr plugin
+
+Needs herdr 0.9.3 or newer and Go 1.27 or newer: herdr builds the deck from
+source when it installs the plugin.
+
+```sh
+herdr plugin install FredricW/herdr-deck            # add --ref v0.1.0 to pin a release
+```
+
+For local development, link a checkout instead. `link` never builds, so
+build first and again after each change:
+
+```sh
+make build
+herdr plugin link "$PWD"
+```
+
+What the plugin does (`herdr-plugin.toml`):
+
+- **Opens a deck next to each coordinator.** When herdr detects an agent
+  whose working directory is a project folder (`<root>/<slug>` with a
+  `PROJECT.md`, as `herdr-projects open` starts it), a deck opens in a split
+  to its right, about 40 % of the width (60–80 columns), without taking the
+  focus. A workspace gets one deck: a second coordinator in it, or the same
+  one restarting, opens no other. Thread agents run in worktrees or under
+  `<slug>/threads/` and never get a deck of their own.
+- **Toggle** (`herdr-deck.toggle`) closes the deck in the focused pane's
+  tab, or opens one to the right of the focused pane, any pane. The project
+  is the one the pane works in: its folder under the projects root, else the
+  herdr-projects `hp_project` token on the pane (thread panes have it), else
+  `$HERDR_DECK_PROJECT`. Run it with `herdr plugin action invoke
+  herdr-deck.toggle`, or bind it to a key in `~/.config/herdr/config.toml`:
+
+  ```toml
+  [[keys.command]]
+  key = "prefix+d"
+  type = "plugin_action"
+  command = "herdr-deck.toggle"
+  description = "toggle the deck"
+  ```
+
+  and reload with `herdr server reload-config`. Pick any free key.
+
+The deck marks its pane with the token `herdr_deck=<slug>` (source
+`herdr-deck`); that is how the plugin finds it again. `herdr plugin log list
+--plugin herdr-deck` shows what the hooks did and why one failed.
+
+To update, install again (`herdr plugin install FredricW/herdr-deck`). To
+remove it, `herdr plugin uninstall herdr-deck`, or `herdr plugin unlink
+herdr-deck` for a linked checkout, and delete the keybinding.
 
 ## Build and run
 
@@ -130,6 +181,8 @@ drawer.
   watches the project folder, `fake` is sample data for tests and `--fake`.
 - `internal/launch`: opens URLs (`open` / `xdg-open`) and VS Code.
 - `internal/project`: works out the project slug and the projects root.
+- `internal/plugin`: the herdr plugin's toggle action and auto-open hook
+  (`herdr-deck plugin toggle|agent-detected`, run by herdr).
 - `internal/ui`: the Bubble Tea model; renders a `deck.Snapshot` and nothing else.
   Its rendering is pinned by `internal/ui/testdata/*.golden` (every state at
   60 and 80 columns); `go test ./internal/ui -update` rewrites them.
