@@ -3,7 +3,6 @@ package project
 
 import (
 	"errors"
-	"os"
 	"path/filepath"
 	"strings"
 )
@@ -11,19 +10,6 @@ import (
 // EnvProject names the environment variable that selects the project when
 // --project is not given.
 const EnvProject = "HERDR_DECK_PROJECT"
-
-// Root returns the herdr-projects root: $HERDR_PROJECTS_ROOT, else
-// ~/.herdr-projects.
-func Root(getenv func(string) string) (string, error) {
-	if r := getenv("HERDR_PROJECTS_ROOT"); r != "" {
-		return r, nil
-	}
-	home, err := os.UserHomeDir()
-	if err != nil {
-		return "", err
-	}
-	return filepath.Join(home, ".herdr-projects"), nil
-}
 
 // ErrNoProject means no project was named and the working directory is not
 // inside a project folder.

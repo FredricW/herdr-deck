@@ -309,3 +309,22 @@ func TestParseEvent(t *testing.T) {
 		t.Errorf("bad json: %v", err)
 	}
 }
+
+func TestOpenPassesConfigPath(t *testing.T) {
+	root := projectsRoot(t)
+	h := &fakeHost{st: herdr.State{Panes: []herdr.Pane{
+		{ID: "w1:p1", WorkspaceID: "w1", TabID: "w1:t1", Cwd: filepath.Join(root, "admin-rebuild"), Agent: "claude"},
+	}}}
+	getenv := func(k string) string {
+		if k == "HERDR_DECK_CONFIG" {
+			return "/etc/deck.toml"
+		}
+		return ""
+	}
+	if _, err := AgentDetected(context.Background(), h, Env{Getenv: getenv, Root: root}, Event{PaneID: "w1:p1", Agent: "claude"}); err != nil {
+		t.Fatal(err)
+	}
+	if len(h.opened) != 1 || h.opened[0].Env["HERDR_DECK_CONFIG"] != "/etc/deck.toml" {
+		t.Errorf("opened %+v, want HERDR_DECK_CONFIG passed on", h.opened)
+	}
+}

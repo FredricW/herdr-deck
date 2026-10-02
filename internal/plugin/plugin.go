@@ -17,6 +17,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/FredricW/herdr-deck/internal/config"
 	"github.com/FredricW/herdr-deck/internal/project"
 	"github.com/FredricW/herdr-deck/internal/source/herdr"
 )
@@ -163,7 +164,12 @@ func MarkSelf(ctx context.Context, h Host, getenv func(string) string, slug stri
 func open(ctx context.Context, h Host, env Env, target, slug string) (string, error) {
 	vars := map[string]string{project.EnvProject: slug}
 	if env.Root != "" {
-		vars["HERDR_PROJECTS_ROOT"] = env.Root
+		vars[config.EnvProjectsRoot] = env.Root
+	}
+	// A deck pane need not inherit the hook's environment, so a config file
+	// named there is passed on; the default path the deck finds itself.
+	if c := env.Getenv(config.EnvPath); c != "" {
+		vars[config.EnvPath] = c
 	}
 	deck, err := h.Open(ctx, Open{Target: target, Cwd: filepath.Join(env.Root, slug), Env: vars})
 	if err != nil {

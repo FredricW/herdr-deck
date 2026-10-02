@@ -36,7 +36,7 @@ type Host interface {
 type Open struct {
 	Target string            // the pane the deck opens to the right of
 	Cwd    string            // the project folder
-	Env    map[string]string // HERDR_DECK_PROJECT and HERDR_PROJECTS_ROOT
+	Env    map[string]string // HERDR_DECK_PROJECT, HERDR_PROJECTS_ROOT, HERDR_DECK_CONFIG
 }
 
 // Socket is the Host that talks to a running herdr over its socket.

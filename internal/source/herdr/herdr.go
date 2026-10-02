@@ -1,7 +1,8 @@
 // Package herdr reads herdr's live state over its Unix socket: the panes, the
 // agents in them and their tokens, and a stream of events that says when
-// they change. Against herdr it only reads and subscribes; the one command
-// that acts is Focus, which the deck runs when the user presses enter. The
+// they change. Against herdr it only reads and subscribes; the commands that
+// act are Focus, which the deck runs when the user presses enter, and
+// RunInPane, which opens a terminal editor or diff tool beside it. The
 // herdr plugin hooks (internal/plugin) send their few commands through Call.
 //
 // The socket speaks newline-delimited JSON: a request is
@@ -98,6 +99,34 @@ func (c Client) Snapshot(ctx context.Context) (State, error) {
 // pane.focus).
 func (c Client) Focus(ctx context.Context, paneID string) error {
 	return c.call(ctx, "pane.focus", map[string]string{"pane_id": paneID}, nil)
+}
+
+// RunInPane splits a new pane below target, focuses it and types line into
+// its shell, followed by Enter (methods pane.split and pane.send_input). The
+// new pane starts in cwd.
+func (c Client) RunInPane(ctx context.Context, target, cwd, line string) error {
+	var res struct {
+		Pane struct {
+			ID string `json:"pane_id"`
+		} `json:"pane"`
+	}
+	err := c.call(ctx, "pane.split", map[string]any{
+		"target_pane_id": target,
+		"direction":      "down",
+		"cwd":            cwd,
+		"focus":          true,
+	}, &res)
+	if err != nil {
+		return err
+	}
+	if res.Pane.ID == "" {
+		return errors.New("pane.split returned no pane id")
+	}
+	return c.call(ctx, "pane.send_input", map[string]any{
+		"pane_id": res.Pane.ID,
+		"text":    line,
+		"keys":    []string{"Enter"},
+	}, nil)
 }
 
 // Call sends one request and decodes its reply's result into out (unless

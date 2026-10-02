@@ -157,8 +157,11 @@ Keys:
 - `enter`: on a thread row, focus its herdr pane (`herdr pane focus
   <pane_id>`); on an inbox row, the subject thread's pane (else the
   coordinator's).
-- `e`: open the worktree in VS Code (`code <path>`). Milestone 4 left
-  `$VISUAL` out: a terminal editor would take over the deck's own pane. `r`: the
+- `e`: open the worktree in the configured editor, `code {path}` by
+  default. Milestone 4 left `$VISUAL` out because a terminal editor would
+  take over the deck's own pane; since the config file (below), an editor
+  with `terminal = true` opens in a new herdr pane instead. `$VISUAL` and
+  `$EDITOR` are still not read implicitly. `r`: the
   thread's report in the drawer at full height. `!`: sources. `?`: help.
 - `u` (later): run the manifest's `up` command for the worktree, detached,
   logs to a file.
@@ -224,6 +227,43 @@ live under that home, apart from the user's own herdr):
 Install with `herdr plugin install FredricW/herdr-deck`, or `herdr plugin
 link <checkout>` for development (link never builds); see the README.
 
+## Configuration
+
+Settings live in `$XDG_CONFIG_HOME/herdr-deck/config.toml`, else
+`~/.config/herdr-deck/config.toml` (macOS too, not Application Support);
+`--config` or `$HERDR_DECK_CONFIG` names another file. Each setting comes
+from the flag, else the environment variable, else the file, else the
+default (`internal/config`). The deck only reads the file and never writes
+secrets there; a later settings page will edit it.
+
+- Keys: `linear_workspace`, `refresh_interval` (Go duration, 1s–10m, default
+  5s), `projects_root`, `[editor]` and `[diff]`. The README has the full
+  table and an example.
+- `[editor]` and `[diff]` are a command plus `terminal`. Commands are split
+  into argv like a POSIX shell but never run through one. Placeholders:
+  `{path}` (both; appended to the editor when absent), `{base}` and `{file}`
+  (diff; without a file a lone `{file}` argument and a `--` before it are
+  dropped). A terminal program opens in a new herdr pane below the deck
+  (`pane.split` with `cwd` = the worktree, then `pane.send_input` types the
+  quoted command and Enter); outside herdr the status line says it needs
+  herdr. The source that gives a command also decides its `terminal`, or a
+  higher one does.
+- The diff tool is only defined for now (`config.Settings.Diff`,
+  `launch.DiffArgv`); a later "Diff section" task uses it. Default `hunk
+  diff {base} -- {file}` (working tree against the base ref, uncommitted
+  changes included) when `hunk` is on PATH, else `git -C {path} diff
+  --merge-base {base} -- {file}`, which pages itself in the pane.
+- A missing file is silent. A file that does not parse is ignored as a
+  whole; an unknown key or bad value is skipped on its own. Either way the
+  problem is listed in `Snapshot.Missing` (the `!` view) or, for the plugin
+  commands, on stderr (herdr's plugin log). A bad flag value is an error.
+- Plugin mode: the hooks resolve the projects root from the same file and
+  pass `$HERDR_DECK_CONFIG` on to decks they open when it is set; the deck
+  finds the default path itself.
+- Planned keys (not implemented): the update-available hint, auto-restart.
+  New keys are new optional fields, so an older deck only reports a newer
+  file's keys as unknown.
+
 ## Milestones
 
 Each milestone is one thread / one PR, landed before the next starts unless
@@ -281,8 +321,10 @@ marked parallel.
    `pane.agent_detected` hook (`herdr-deck plugin toggle|agent-detected`);
    coordinators only, one deck per workspace, sized with
    `layout.set_split_ratio`. Details in "herdr integration" above.
-8. **Polish / later.** Linear issue status next to IDs (GraphQL; key from
-   env or `op`), `u` to start dev servers, link handlers, multi-project view.
+8. **Polish / later.** Done: the config file (see Configuration), with a
+   configurable editor and diff tool. Still to do: Linear issue status next
+   to IDs (GraphQL; key from env or `op`), `u` to start dev servers, link
+   handlers, multi-project view.
 
 ## Definition of done (v1 = milestones 1–7)
 

@@ -87,16 +87,84 @@ The project slug comes from, in order:
 1. `--project <slug>`;
 2. `$HERDR_DECK_PROJECT`;
 3. the working directory, when it is `<root>/<slug>` or below it, where
-   `<root>` is `$HERDR_PROJECTS_ROOT` or `~/.herdr-projects`.
+   `<root>` is the projects root (see below).
 
-Bare Linear IDs such as `ABC-123` link into a Linear workspace you name, with
-`--linear-workspace <slug>` or `$HERDR_DECK_LINEAR_WORKSPACE` (the flag wins).
-There is no default: without one, the IDs still show, but the drawer and the
-`!` sources view say a workspace must be set, and opening one says so too.
-Full Linear URLs always open.
+The slug is per pane, so it has no config-file key.
+
+Bare Linear IDs such as `ABC-123` link into the Linear workspace you set
+(`linear_workspace`, below). There is no default: without one, the IDs still
+show, but the drawer and the `!` sources view say a workspace must be set,
+and opening one says so too. Full Linear URLs always open.
 
 The deck reloads when a file in the project folder (or its `threads/`,
-`inbox/` or `.state/`) changes, and every 5 seconds. It never writes there.
+`inbox/` or `.state/`) changes, and every `refresh_interval` (5 seconds by
+default). It never writes there.
+
+## Configuration
+
+The deck reads `$XDG_CONFIG_HOME/herdr-deck/config.toml`, else
+`~/.config/herdr-deck/config.toml` (on macOS too). `--config <path>` or
+`$HERDR_DECK_CONFIG` names another file. Decks the herdr plugin opens read
+the same file, so settings there reach them even though they do not see your
+shell's environment.
+
+Each setting comes from, in order: the command-line flag, the environment
+variable, the config file, the built-in default.
+
+```toml
+# ~/.config/herdr-deck/config.toml
+
+# Linear workspace that bare IDs such as ABC-123 link into.
+linear_workspace = "acme"
+
+# How often the deck reloads when no file change says to; 1s to 10m.
+refresh_interval = "5s"
+
+# The herdr-projects root; ~ is your home folder.
+projects_root = "~/.herdr-projects"
+
+# What `e` opens a thread's worktree with. {path} is the worktree folder;
+# without it the folder is added at the end. Not run through a shell: quote
+# arguments with spaces. terminal = true opens it in a new herdr pane below
+# the deck, in the worktree, instead of starting a desktop app.
+[editor]
+command = "code {path}"   # e.g. "zed {path}", "cursor {path}"
+terminal = false          # e.g. command = "nvim {path}" with terminal = true
+
+# The diff tool, for showing a thread's changes (the deck does not use it
+# yet). {path} is the worktree, {base} the branch it is compared against,
+# {file} one file; without a file an argument that is just {file} is left
+# out, with a "--" right before it. It runs in the worktree.
+[diff]
+command = "hunk diff {base} -- {file}"
+terminal = true
+```
+
+| Setting | Flag | Environment variable | Default |
+|---|---|---|---|
+| `linear_workspace` | `--linear-workspace` | `HERDR_DECK_LINEAR_WORKSPACE` | none |
+| `refresh_interval` | `--refresh-interval` | `HERDR_DECK_REFRESH_INTERVAL` | `5s` |
+| `projects_root` | `--projects-root` | `HERDR_PROJECTS_ROOT` | `~/.herdr-projects` |
+| `[editor] command` | `--editor` | `HERDR_DECK_EDITOR` | `code {path}` |
+| `[editor] terminal` | `--editor-terminal` | `HERDR_DECK_EDITOR_TERMINAL` | `false` |
+| `[diff] command` | `--diff-tool` | `HERDR_DECK_DIFF_TOOL` | `hunk diff {base} -- {file}`, or `git -C {path} diff --merge-base {base} -- {file}` without hunk |
+| `[diff] terminal` | `--diff-terminal` | `HERDR_DECK_DIFF_TERMINAL` | `true` |
+
+A command and its `terminal` option go together: the source that gives the
+command also decides `terminal` (or one above it does), so `--editor "zed
+{path}"` does not open in a pane because the file says `terminal = true` for
+nvim. Without a `terminal` value, the editor is a desktop app and the diff
+tool a terminal program. A terminal program needs herdr; outside herdr, `e`
+says so in the status line.
+
+The deck does not read `$VISUAL` or `$EDITOR`. To use yours, put it in the
+file, e.g. `command = "nvim {path}"` with `terminal = true`.
+
+The deck only reads this file and never writes secrets to it. A missing
+file is fine. A file that does not parse, an unknown key or a bad value
+never stops the deck: the `!` sources view lists the problem (the plugin
+commands print it to herdr's plugin log), and that setting falls back to
+the next source. A bad flag value is an error.
 
 ## Dev servers
 
@@ -157,7 +225,7 @@ carries on.
 | `l` `f` `n` `g` | open the row's Linear / Figma / Notion / PR link; with several, pick one with a digit, `a` for all, `d` for the Figma desktop app, the same letter for the first, `esc` to cancel |
 | `o` | open the row's first localhost link whose dev server is running |
 | `enter` | focus the thread's herdr pane; on an inbox item, its thread's pane, else the coordinator's |
-| `e` | open the thread's worktree in VS Code |
+| `e` | open the thread's worktree in the editor (VS Code unless configured) |
 | `r` | the thread's report, full height |
 | `z` | drawer: normal, full height, hidden |
 | `pgup` / `pgdn` | scroll the drawer |
@@ -179,8 +247,11 @@ drawer.
   TASKS.md and scrapes links, `herdr` reads herdr's live panes and events,
   `dev` reads dev-server manifests and probes ports, `live` combines them and
   watches the project folder, `fake` is sample data for tests and `--fake`.
-- `internal/launch`: opens URLs (`open` / `xdg-open`) and VS Code.
-- `internal/project`: works out the project slug and the projects root.
+- `internal/config`: finds and reads `config.toml` and resolves each setting
+  (flag > environment > file > default).
+- `internal/launch`: opens URLs (`open` / `xdg-open`) and runs the editor and
+  diff tool, as desktop apps or in a new herdr pane.
+- `internal/project`: works out the project slug.
 - `internal/plugin`: the herdr plugin's toggle action and auto-open hook
   (`herdr-deck plugin toggle|agent-detected`, run by herdr).
 - `internal/ui`: the Bubble Tea model; renders a `deck.Snapshot` and nothing else.
