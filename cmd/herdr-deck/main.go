@@ -13,6 +13,7 @@ import (
 
 	"github.com/FredricW/herdr-deck/internal/deck"
 	"github.com/FredricW/herdr-deck/internal/launch"
+	"github.com/FredricW/herdr-deck/internal/plugin"
 	"github.com/FredricW/herdr-deck/internal/project"
 	"github.com/FredricW/herdr-deck/internal/source/dev"
 	"github.com/FredricW/herdr-deck/internal/source/fake"
@@ -35,6 +36,9 @@ func main() {
 }
 
 func run(args []string) error {
+	if len(args) > 0 && args[0] == "plugin" {
+		return runPlugin(args[1:])
+	}
 	fs := flag.NewFlagSet("herdr-deck", flag.ContinueOnError)
 	slugFlag := fs.String("project", "", "project slug (default: $"+project.EnvProject+", else the project folder containing the working directory)")
 	linear := fs.String("linear-workspace", os.Getenv(deck.EnvLinearWorkspace), "Linear workspace slug that bare issue IDs link into (default: $"+deck.EnvLinearWorkspace+")")
@@ -72,6 +76,7 @@ func run(args []string) error {
 	src.Herdr = herdr.NewReader(herdr.SocketPath(os.Getenv))
 	src.Dev = dev.NewReader()
 	client := src.Herdr.Client
+	go plugin.MarkSelf(context.Background(), plugin.Socket{Client: client}, os.Getenv, slug)
 	opt.Load = src.Read
 	opt.FocusPane = func(id string) error { return client.Focus(context.Background(), id) }
 	p := tea.NewProgram(ui.New(deck.Snapshot{Project: deck.Project{Slug: slug}}, opt))
@@ -85,4 +90,17 @@ func run(args []string) error {
 
 	_, err = p.Run()
 	return err
+}
+
+// runPlugin runs a command herdr-plugin.toml gives herdr: the toggle action
+// or the auto-open hook. herdr logs its output (`herdr plugin log list`).
+func runPlugin(args []string) error {
+	root, err := project.Root(os.Getenv)
+	if err != nil {
+		return err
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+	defer cancel()
+	h := plugin.Socket{Client: herdr.Client{Socket: herdr.SocketPath(os.Getenv)}}
+	return plugin.Run(ctx, h, plugin.Env{Getenv: os.Getenv, Root: root}, args)
 }
