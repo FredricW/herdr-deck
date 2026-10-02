@@ -66,6 +66,10 @@ func Scrape(text, workspace string) []deck.Link {
 			masked[i] = ' '
 		}
 	}
+	// Bare IDs in code and in a report's Remember section are examples and
+	// lessons, not this thread's tickets.
+	blankCode(masked)
+	blankRemember(masked)
 	for _, m := range linearID.FindAllSubmatchIndex(masked, -1) {
 		id := string(masked[m[2]:m[3]])
 		if !isTicket(id) {
@@ -80,6 +84,128 @@ func Scrape(text, workspace string) []deck.Link {
 		links = appendLink(links, f.link, workspace)
 	}
 	return links
+}
+
+var (
+	fence         = regexp.MustCompile("^ {0,3}(`{3,}|~{3,})")
+	atxHeading    = regexp.MustCompile(`^ {0,3}(#{1,6})(?:\s|$)`)
+	rememberTitle = regexp.MustCompile(`(?i)^ {0,3}#{1,6}\s+remember\b`)
+)
+
+// blankCode blanks fenced code blocks and inline code spans in b, keeping
+// newlines so positions still line up. An unclosed span is plain text.
+func blankCode(b []byte) {
+	open := "" // the fence of the block being blanked
+	inline := make([]byte, len(b))
+	copy(inline, b)
+	eachLine(b, func(start, end int) {
+		line := string(b[start:end])
+		if open != "" {
+			if m := fence.FindStringSubmatch(line); m != nil && m[1][0] == open[0] && len(m[1]) >= len(open) && strings.TrimSpace(line[len(m[0]):]) == "" {
+				open = ""
+			}
+			blank(b, start, end)
+			blank(inline, start, end)
+			return
+		}
+		if m := fence.FindStringSubmatch(line); m != nil && (m[1][0] == '~' || !strings.Contains(line[len(m[0]):], "`")) {
+			open = m[1]
+			blank(b, start, end)
+			blank(inline, start, end)
+		}
+	})
+	// Inline spans: a run of n backticks up to the next run of exactly n in
+	// the same paragraph.
+	for i := 0; i < len(inline); {
+		if inline[i] != '`' {
+			i++
+			continue
+		}
+		n := run(inline, i)
+		closeAt := -1
+		for j := i + n; j < len(inline); {
+			if inline[j] == '\n' && blankLineAt(inline, j+1) {
+				break
+			}
+			if inline[j] != '`' {
+				j++
+				continue
+			}
+			if m := run(inline, j); m == n {
+				closeAt = j
+				break
+			} else {
+				j += m
+			}
+		}
+		if closeAt < 0 {
+			i += n
+			continue
+		}
+		blank(b, i, closeAt+n)
+		i = closeAt + n
+	}
+}
+
+// blankRemember blanks every "## Remember" section in b, from its heading to
+// the next heading of the same or a higher level.
+func blankRemember(b []byte) {
+	level := 0 // the Remember heading's level while inside one
+	eachLine(b, func(start, end int) {
+		if m := atxHeading.FindSubmatch(b[start:end]); m != nil {
+			switch {
+			case rememberTitle.Match(b[start:end]):
+				if level == 0 || len(m[1]) <= level {
+					level = len(m[1])
+				}
+			case level > 0 && len(m[1]) <= level:
+				level = 0
+			}
+		}
+		if level > 0 {
+			blank(b, start, end)
+		}
+	})
+}
+
+// eachLine calls fn with the bounds of each line in b, without its newline.
+func eachLine(b []byte, fn func(start, end int)) {
+	for start := 0; start <= len(b); {
+		end := start
+		for end < len(b) && b[end] != '\n' {
+			end++
+		}
+		fn(start, end)
+		start = end + 1
+	}
+}
+
+// blankLineAt reports whether the line starting at b[i] is empty or spaces.
+func blankLineAt(b []byte, i int) bool {
+	for ; i < len(b) && b[i] != '\n'; i++ {
+		if b[i] != ' ' && b[i] != '\t' {
+			return false
+		}
+	}
+	return true
+}
+
+// run returns the length of the run of backticks at b[i].
+func run(b []byte, i int) int {
+	n := 0
+	for i+n < len(b) && b[i+n] == '`' {
+		n++
+	}
+	return n
+}
+
+// blank turns b[start:end] into spaces, keeping newlines.
+func blank(b []byte, start, end int) {
+	for i := start; i < end; i++ {
+		if b[i] != '\n' {
+			b[i] = ' '
+		}
+	}
 }
 
 // appendLink adds l unless an equal link is already there. Linear links are

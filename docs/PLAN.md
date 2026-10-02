@@ -64,14 +64,22 @@ Accept both shapes. For each list item under a `##` heading:
 
 - title = the line text minus checkbox, owner and thread suffix;
 - done = `[x]`; list = the heading;
-- thread ids = every `t-\d{4}` in the line and its indented notes;
-- links (from the line, its notes, and the linked threads' `.task.md`/`.md`):
+- thread ids = the threads the task belongs to: the ids in a strict
+  `· t-0007` suffix, else every `t-\d{4}` on the bullet line, plus the
+  suffix ids of sub-items in its notes (`  - [ ] Part · t-0005`). Other ids
+  in the indented notes only mention another thread ("after t-0002 lands")
+  and do not link it, or that thread's links would show on this task;
+- links (from the line, its notes, and the task's threads' `.task.md`/`.md`,
+  each file scraped on its own):
   - Linear: `\b[A-Z][A-Z0-9]{1,5}-\d+\b` → `https://linear.app/<workspace>/issue/<ID>`.
     There is no default workspace: it comes from `--linear-workspace` or
     `$HERDR_DECK_LINEAR_WORKSPACE`. Without one, IDs still show but say a
     workspace must be set instead of opening. A branch name gives a ticket
     too (`dev/abc-123-users` → ABC-123). Word boundaries on both sides, so
-    ABC-110 ≠ ABC-1100 and P-ABC-49 is not ABC-49.
+    ABC-110 ≠ ABC-1100 and P-ABC-49 is not ABC-49. Bare IDs inside code
+    (backtick spans, fenced blocks) and in a `## Remember` section are
+    examples or lessons, so they do not link; a full Linear URL there still
+    does.
   - Figma: `figma.com/(design|file|proto)/…` URLs; label them with the file
     name and `node-id`, and offer the `figma://` desktop rewrite.
   - Notion: `notion.so/…` URLs.
@@ -263,9 +271,12 @@ marked parallel.
 
 ## Open questions for the user
 
-- Name: `herdr-deck` is a working title.
-- Whether the deck should also appear next to thread agents, or coordinators
-  only (assumed coordinators only).
-- CI, releases and self-update: options and a recommendation are in
-  [docs/research/ci-releases-selfupdate.md](research/ci-releases-selfupdate.md);
-  its last section lists the decisions to make.
+None. Settled:
+
+- Name: it stays `herdr-deck`.
+- The deck opens on its own next to coordinators only, never next to thread
+  agents; the toggle action still opens one anywhere.
+- `o` opens the first running localhost link directly, with no chooser.
+- CI, releases and self-update: the recommendations in
+  [docs/research/ci-releases-selfupdate.md](research/ci-releases-selfupdate.md)
+  (its last section) are accepted.
