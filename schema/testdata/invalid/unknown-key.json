@@ -1,0 +1,1 @@
+{"version": 1, "service": {"web": {"run": "npm run dev"}}}
