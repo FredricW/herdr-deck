@@ -314,7 +314,7 @@ func (m *Model) pickFocus(id, what string) tea.Cmd {
 func (m *Model) pickClick(y int) tea.Cmd {
 	rows := m.pickRows()
 	i := m.pick.off + y - pickTop
-	if y < pickTop || i < 0 || i >= len(rows) || !rows[i].selectable() {
+	if y < pickTop || y >= pickTop+m.pickH() || i < 0 || i >= len(rows) || !rows[i].selectable() {
 		return nil
 	}
 	m.pick.sel = rows[i].key

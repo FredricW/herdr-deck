@@ -1,6 +1,7 @@
 package ui
 
 import (
+	"fmt"
 	"slices"
 	"strings"
 	"testing"
@@ -259,5 +260,20 @@ func TestPickerWithoutProjects(t *testing.T) {
 	m, _ = press(m, tea.KeyPressMsg{Code: tea.KeyEnter})
 	if !strings.Contains(screen(m), "Projects are not read yet.") || !m.pick.open {
 		t.Errorf("open %v:\n%s", m.pick.open, screen(m))
+	}
+}
+
+func TestPickerClickBelowRowsDoesNothing(t *testing.T) {
+	s := withProjects()
+	// More projects than fit, so rows lie past the picker's last line.
+	for i := range 30 {
+		s.Projects = append(s.Projects, deck.ProjectInfo{Project: deck.Project{Slug: fmt.Sprintf("p-%02d", i)}, Status: "active"})
+	}
+	m, o, starts := pickModel(t, s)
+	for _, y := range []int{m.height - 2, m.height - 1} {
+		m, _ = press(m, click(10, y))
+	}
+	if len(o.panes)+len(*starts) > 0 || !m.pick.open {
+		t.Errorf("a click on the footer went somewhere: panes %v, starts %v, open %v", o.panes, *starts, m.pick.open)
 	}
 }
