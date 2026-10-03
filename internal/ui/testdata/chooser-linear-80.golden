@@ -20,9 +20,9 @@
  Status   working · ~60% · Building overview
  Note     Phase 1 = layout + overview (ABC-1256); report on 1257/1250 before
           starting them.
-▶Linear   1 ABC-1246   2 ABC-1256   3 ABC-1257   4 ABC-1250
+▶Linear   1 ABC-1246 done   2 ABC-1256 in progress   3 ABC-1257 todo
+          4 ABC-1250
           a all
  Report   threads/t-0002.md · r shows it
- Branch   hp/admin-rebuild/t-0002-members-admin-users
 ────────────────────────────────────────────────────────────────────────────────
  Linear: 1-4 open  a all  l first  esc cancel                             v9.9.9

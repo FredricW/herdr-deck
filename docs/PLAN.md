@@ -286,6 +286,8 @@ secrets there; a later settings page will edit it.
 - Plugin mode: the hooks resolve the projects root from the same file and
   pass `$HERDR_DECK_CONFIG` on to decks they open when it is set; the deck
   finds the default path itself.
+- `linear_status` (default true) and `linear_api_key_command`: see
+  "Linear issue status" below.
 - `update_check` (the header's update hint) and `auto_restart` (re-exec
   when the binary is replaced), both on by default. New keys are new
   optional fields, so an older deck only reports a newer file's keys as
@@ -319,6 +321,38 @@ Option A of the research doc: herdr builds from source, no release binaries.
   same args and env (same pid, so the herdr pane stays). If Exec fails the
   old deck starts again and the header says `↻ restart failed`. Not on
   Windows.
+
+## Linear issue status
+
+The drawer's Linear line shows each issue's state next to its ID (`1
+ABC-123 in progress`), coloured by Linear's state type: started cyan (a
+name with "review" magenta), triage yellow, unstarted and backlog plain,
+completed and canceled dim, the ID too. The list's LINKS column keeps its
+`L4` badge: six columns have no room for states. `internal/source/linear`:
+
+- One GraphQL request (`https://api.linear.app/graphql`) per 50 IDs: per
+  team key an aliased `issues(filter: { team: { key: { eq: $kN } }, number:
+  { in: $nN } }, includeArchived: true)`, keys and numbers as variables. An
+  ID Linear does not know is just missing from the nodes and has no state.
+  Not `issue(id:)`: it returns a non-null `Issue!`, so one unknown ID would
+  null the whole response.
+- `live.Source.Read` calls `Apply`, which lays the cache over every Linear
+  link and starts a background fetch for IDs missing or older than 3
+  minutes, one at a time. When it ends, `OnUpdate` sends a reload. A reload
+  never waits on the network.
+- Failures go to `Snapshot.Missing` as `Linear status: …`, and the next try
+  waits: a minute after an error, 5 minutes after a refused key (HTTP
+  401/403 or `AUTHENTICATION_ERROR`), until the reset time after a rate
+  limit (HTTP 429 or `RATELIMITED`, `X-RateLimit-Requests-Reset`). Without
+  a key the Sources view has a note, not a missing source.
+- Key: `$LINEAR_API_KEY`, else `linear_api_key_command` from the config
+  file (user's decision, 2026-10-03), split like the editor command and run
+  without a shell, with a 30 s timeout, at most once per deck start; a
+  refused key lets it run again. A failed command is not retried until the
+  deck restarts. The key is sent as `Authorization: <key>`, kept in memory
+  only and redacted from every error; a command's output is never echoed.
+- Tests use a fake `http.RoundTripper` and command runner; they never call
+  Linear.
 
 ## Milestones
 
@@ -386,9 +420,9 @@ marked parallel.
    finds a tab of the default browser showing the same page, as `pageKey`
    defines it, and focuses it; else `open`/`xdg-open`; the README's
    "Browser tabs" has the rules), `u` starts dev servers (the manifest's
-   `up`), and Figma link handlers with the open-link action (see herdr
-   integration). Still to do: Linear issue status next to IDs (GraphQL;
-   key from env or `op`), multi-project view.
+   `up`), Figma link handlers with the open-link action (see herdr
+   integration), and Linear issue status next to IDs (see "Linear issue
+   status" above). Still to do: multi-project view.
 
 ## Definition of done (v1 = milestones 1–7)
 

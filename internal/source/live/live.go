@@ -12,6 +12,7 @@ import (
 	"github.com/FredricW/herdr-deck/internal/deck"
 	"github.com/FredricW/herdr-deck/internal/source/dev"
 	"github.com/FredricW/herdr-deck/internal/source/herdr"
+	"github.com/FredricW/herdr-deck/internal/source/linear"
 	"github.com/FredricW/herdr-deck/internal/source/projects"
 	"github.com/FredricW/herdr-deck/internal/source/tasks"
 )
@@ -29,6 +30,9 @@ type Source struct {
 	// Dev reads each worktree's dev servers and probes their ports; nil
 	// leaves threads without them.
 	Dev *dev.Reader
+	// Linear adds each Linear link's issue status; nil leaves IDs without
+	// one.
+	Linear *linear.Reader
 	// Now stamps Snapshot.ReadAt; nil means time.Now.
 	Now func() time.Time
 }
@@ -67,6 +71,10 @@ func (s Source) Read(ctx context.Context) deck.Snapshot {
 		if id := unlinkedLinearID(snap); id != "" {
 			snap.Missing = append(snap.Missing, "Linear: no workspace set, so "+id+" and other bare IDs cannot open; set linear_workspace in the config file, --linear-workspace or $"+deck.EnvLinearWorkspace)
 		}
+	}
+
+	if s.Linear != nil {
+		s.Linear.Apply(&snap)
 	}
 
 	now := time.Now

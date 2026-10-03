@@ -40,6 +40,7 @@ const (
 	EnvFigmaDesktop    = "HERDR_DECK_FIGMA_DESKTOP"
 	EnvUpdateCheck     = "HERDR_DECK_UPDATE_CHECK"
 	EnvAutoRestart     = "HERDR_DECK_AUTO_RESTART"
+	EnvLinearStatus    = "HERDR_DECK_LINEAR_STATUS"
 )
 
 // Default editor and diff tool commands. The diff tool is hunk when it is
@@ -77,6 +78,11 @@ type File struct {
 	FigmaDesktop    *bool     `toml:"figma_desktop"`
 	UpdateCheck     *bool     `toml:"update_check"`
 	AutoRestart     *bool     `toml:"auto_restart"`
+	// LinearStatus turns the Linear issue status next to IDs on or off.
+	LinearStatus *bool `toml:"linear_status"`
+	// LinearAPIKeyCommand prints the Linear API key, e.g. `op read …`. The
+	// key itself never goes in this file.
+	LinearAPIKeyCommand *string `toml:"linear_api_key_command"`
 }
 
 // Program is a table such as [editor]: a command line with placeholders,
@@ -180,6 +186,10 @@ func Load(path string, named bool) (File, []string) {
 		"figma_desktop":      func(p toml.Primitive) error { return decode(md, p, &f.FigmaDesktop) },
 		"update_check":       func(p toml.Primitive) error { return decode(md, p, &f.UpdateCheck) },
 		"auto_restart":       func(p toml.Primitive) error { return decode(md, p, &f.AutoRestart) },
+		"linear_status":      func(p toml.Primitive) error { return decode(md, p, &f.LinearStatus) },
+		"linear_api_key_command": func(p toml.Primitive) error {
+			return decode(md, p, &f.LinearAPIKeyCommand)
+		},
 	}
 	var problems []string
 	failed := map[string]bool{}
@@ -257,6 +267,11 @@ type Settings struct {
 	// restarts the deck when its binary is replaced.
 	UpdateCheck bool
 	AutoRestart bool
+	// LinearStatus shows each Linear issue's status next to its ID.
+	LinearStatus bool
+	// LinearAPIKeyCommand is the argv of the command that prints the Linear
+	// API key, or nil. $LINEAR_API_KEY wins over it (internal/source/linear).
+	LinearAPIKeyCommand []string
 	// Problems are one line each about the file or a bad value that was
 	// skipped. They never stop the deck.
 	Problems []string
@@ -368,6 +383,28 @@ func Resolve(fl Flags, getenv func(string) string, lookPath func(string) (string
 	default:
 		if f.ReuseTabs != nil {
 			s.ReuseTabs = *f.ReuseTabs
+		}
+	}
+	s.LinearStatus = true
+	if v := getenv(EnvLinearStatus); v != "" {
+		if b, err := strconv.ParseBool(v); err == nil {
+			s.LinearStatus = b
+		} else {
+			s.Problems = append(s.Problems, fmt.Sprintf("$%s: %q is not true or false; ignored", EnvLinearStatus, v))
+			if f.LinearStatus != nil {
+				s.LinearStatus = *f.LinearStatus
+			}
+		}
+	} else if f.LinearStatus != nil {
+		s.LinearStatus = *f.LinearStatus
+	}
+	// The command takes no placeholders and runs as written, without a
+	// shell. Problems never quote it, in case a key was pasted there.
+	if f.LinearAPIKeyCommand != nil && strings.TrimSpace(*f.LinearAPIKeyCommand) != "" {
+		if argv, err := launch.ParseCommand(*f.LinearAPIKeyCommand); err == nil {
+			s.LinearAPIKeyCommand = argv
+		} else {
+			s.Problems = append(s.Problems, fmt.Sprintf("config: %s: linear_api_key_command does not parse; ignored", s.Path))
 		}
 	}
 

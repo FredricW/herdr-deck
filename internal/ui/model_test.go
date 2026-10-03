@@ -13,6 +13,7 @@ import (
 	"time"
 
 	tea "charm.land/bubbletea/v2"
+	"charm.land/lipgloss/v2"
 	"github.com/charmbracelet/x/ansi"
 
 	"github.com/FredricW/herdr-deck/internal/deck"
@@ -221,6 +222,11 @@ func selectedTitle(m Model) string {
 func starting(alive bool) deck.Snapshot {
 	s := calm()
 	s.Threads[1].DevUp = &deck.DevUp{Log: "/var/state/herdr-deck/logs/admin-rebuild-t-0002.log", Alive: alive}
+	// Without Linear states the drawer has room for the Dev and Log lines.
+	links := s.TaskLists[0].Tasks[0].Links
+	for i := range links {
+		links[i].Issue = nil
+	}
 	return s
 }
 
@@ -992,5 +998,37 @@ func TestRestartFailedHint(t *testing.T) {
 	m, _ = press(m, keys("!")...)
 	if s := screen(m); !strings.Contains(s, "restarting into it failed (exec format") {
 		t.Errorf("Sources view does not say why the restart failed:\n%s", s)
+	}
+}
+
+// A Linear link's status shows next to its ID, coloured by its type; a
+// done issue is dim as a whole.
+func TestLinearIssueStatus(t *testing.T) {
+	m, _ := newModel(t, calm(), 80, 28)
+	view := m.View().Content
+	if !strings.Contains(view, workStyle.Render("in progress")) {
+		t.Error("a started issue's state is not cyan")
+	}
+	if !strings.Contains(view, dim.Render("1 ABC-1246 "+dim.Render("done"))) {
+		t.Error("a done issue is not dim")
+	}
+
+	for _, tt := range []struct {
+		issue deck.Issue
+		style lipgloss.Style
+		text  string
+	}{
+		{deck.Issue{State: "In Progress", StateType: "started"}, workStyle, "in progress"},
+		{deck.Issue{State: "In Review", StateType: "started"}, reviewStyle, "in review"},
+		{deck.Issue{State: "Triage", StateType: "triage"}, warnStyle, "triage"},
+		{deck.Issue{State: "Todo", StateType: "unstarted"}, plain, "todo"},
+		{deck.Issue{State: "Backlog", StateType: "backlog"}, plain, "backlog"},
+		{deck.Issue{State: "Done", StateType: "completed"}, dim, "done"},
+		{deck.Issue{State: "Canceled", StateType: "canceled"}, dim, "canceled"},
+		{deck.Issue{State: "Waiting for QA sign-off", StateType: "started"}, workStyle, "waiting fo…"},
+	} {
+		if got := issueStyle(tt.issue).Render(shortState(tt.issue.State)); got != tt.style.Render(tt.text) {
+			t.Errorf("%+v renders %q, want %q", tt.issue, got, tt.style.Render(tt.text))
+		}
 	}
 }

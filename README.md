@@ -127,6 +127,47 @@ Bare Linear IDs such as `ABC-123` link into the Linear workspace you set
 show, but the drawer and the `!` sources view say a workspace must be set,
 and opening one says so too. Full Linear URLs always open.
 
+### Linear issue status
+
+With a Linear API key, the drawer shows each issue's state next to its ID:
+`1 ABC-123 in progress  2 ABC-124 todo`. Started states are cyan (in
+review magenta), triage yellow, and a done or canceled issue is dim as a
+whole. The deck asks Linear's GraphQL API for the IDs on screen in one
+batch, in the background, and keeps the answers for 3 minutes, so a reload
+never waits on the network. When Linear cannot be reached, refuses the key
+or rate-limits the deck, the IDs show without a state and the `!` sources
+view says why.
+
+The key comes from, in order:
+
+1. `$LINEAR_API_KEY`;
+2. `linear_api_key_command` in the config file: a command that prints the
+   key, such as 1Password's `op read`.
+
+Create a personal API key in Linear under *Settings → Account → Security &
+access*; read access is enough. Then either export it:
+
+```sh
+export LINEAR_API_KEY=lin_api_…   # e.g. in your shell's rc file
+```
+
+or keep it in 1Password and let the deck read it:
+
+```toml
+# ~/.config/herdr-deck/config.toml
+linear_api_key_command = "op read op://Private/Linear/credential"
+```
+
+Decks the herdr plugin opens do not see your shell's environment, so the
+command is the way to give them a key. It runs without a shell, at most
+once per deck start (again only after Linear refuses the key it gave), and
+is stopped after 30 seconds. The deck keeps the key in memory only: it
+never writes it to the config file, logs, the sources view or disk. Put
+the key itself in neither the config file nor the command line.
+
+`linear_status = false` (or `HERDR_DECK_LINEAR_STATUS=false`) turns the
+statuses off, and the deck then never calls Linear.
+
 The deck reloads when a file in the project folder (or its `threads/`,
 `inbox/` or `.state/`) changes, and every `refresh_interval` (5 seconds by
 default). It never writes there.
@@ -151,6 +192,13 @@ linear_workspace = "acme"
 # Open Figma links in the Figma desktop app: the deck's keys and clicks,
 # and Ctrl+clicked Figma links anywhere in herdr. false opens the browser.
 figma_desktop = false
+
+# Show each Linear issue's state next to its ID (needs an API key).
+linear_status = true
+
+# A command that prints the Linear API key; $LINEAR_API_KEY wins over it.
+# Run without a shell. Never put the key itself in this file.
+linear_api_key_command = "op read op://Private/Linear/credential"
 
 # How often the deck reloads when no file change says to; 1s to 10m.
 refresh_interval = "5s"
@@ -190,6 +238,8 @@ terminal = true
 |---|---|---|---|
 | `linear_workspace` | `--linear-workspace` | `HERDR_DECK_LINEAR_WORKSPACE` | none |
 | `figma_desktop` | none | `HERDR_DECK_FIGMA_DESKTOP` | `false` |
+| `linear_status` | none | `HERDR_DECK_LINEAR_STATUS` | `true` |
+| `linear_api_key_command` | none | (`LINEAR_API_KEY` holds the key itself and wins) | none |
 | `refresh_interval` | `--refresh-interval` | `HERDR_DECK_REFRESH_INTERVAL` | `5s` |
 | `projects_root` | `--projects-root` | `HERDR_PROJECTS_ROOT` | `~/.herdr-projects` |
 | `reuse_browser_tabs` | `--reuse-browser-tabs` | `HERDR_DECK_REUSE_BROWSER_TABS` | `true` |

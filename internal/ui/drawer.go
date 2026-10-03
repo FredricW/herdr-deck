@@ -298,7 +298,14 @@ func (m Model) linkFields(d *drawer, links []deck.Link, choosing deck.LinkKind, 
 			if kind == deck.LinkLocalhost {
 				label += " " + devDot(!l.Down)
 			}
-			g.items = append(g.items, item{text: label, style: plain, link: i})
+			style := plain
+			if l.Issue != nil {
+				label += " " + issueStyle(*l.Issue).Render(shortState(l.Issue.State))
+				if issueClosed(*l.Issue) {
+					style = dim
+				}
+			}
+			g.items = append(g.items, item{text: label, style: style, link: i})
 			unlinked = unlinked || l.URL == ""
 		}
 		if n == 0 {
