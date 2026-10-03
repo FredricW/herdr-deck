@@ -12,14 +12,14 @@
 
 
 
-
-
-
-─ Project ──────────────────────────────────────────────────
+────────────────────────────────────────────────────────────
+ Admin rebuild
+ project admin-rebuild
  Goal    Complete the Linear project 'Admin rebuild' page by
          page.
  Repos   /src/webshop
  Folder  /projects/admin-rebuild
+
 
 
 

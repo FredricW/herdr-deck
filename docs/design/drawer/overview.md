@@ -12,7 +12,7 @@ The tab bar's right end says what did not fit (`↓ Dev · Thread`); `pgdn`,
 the wheel or `z` reach it. Sections are separated by a blank line only when
 the whole tab fits.
 
-**Tab bar colours, in every frame:** the active tab bold bright white on a
+**Tab bar colours, in every frame:** the active tab bold near-black text on a
 blue background, the others plain text on dark grey (256-colour 237, 254 on
 a light terminal), one space between tabs. Plain text cannot show
 backgrounds, so each section below names the active tab.

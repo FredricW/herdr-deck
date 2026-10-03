@@ -23,6 +23,13 @@ func figma(node string) deck.Link {
 	return deck.Link{Kind: deck.LinkFigma, Label: node, URL: "https://www.figma.com/design/abc123/Document-select?node-id=" + node}
 }
 
+func pct(n int) *int { return &n }
+
+// ev is a Log event at now minus ago.
+func ev(now time.Time, ago time.Duration, kind deck.EventKind, text, detail, source string) deck.LogEvent {
+	return deck.LogEvent{At: now.Add(-ago), Kind: kind, Text: text, Detail: detail, Source: source}
+}
+
 // Snapshot returns the mockups' sample project, Admin rebuild, in the state
 // where t-0002 needs the user, for the given project slug. now anchors the
 // inbox timestamps.
@@ -76,25 +83,49 @@ func Snapshot(slug string, now time.Time) deck.Snapshot {
 		},
 		Threads: []deck.Thread{
 			{
-				ID: "t-0001", Title: "Subscriptions /admin/plans", Status: deck.StatusUnknown,
-				StateLine: "idle", PaneID: "w1Y:p1", Branch: "hp/admin-rebuild/t-0001-subscriptions",
+				ID: "t-0001", Title: "Subscriptions /admin/plans", Status: deck.StatusUnknown, Group: "idle",
+				StateLine: "idle", PaneID: "w1Y:p1", Branch: "hp/admin-rebuild/t-0001-subscriptions", Base: "origin/main",
+				Log: []deck.LogEvent{
+					ev(now, 26*time.Hour, deck.EventLaunched, "launched in pane w1Y:p1", "", "threads/t-0001.toml"),
+					ev(now, 26*time.Hour+time.Minute, deck.EventCreated, "created from origin/main", "", "threads/t-0001.toml"),
+				},
 				// No manifest port: herdr's workspace token is the fallback.
 				PortToken:  14437,
 				DevServers: []deck.DevServer{{Name: "port", Port: 14437, Fallback: true}},
 				Links:      []deck.Link{{Kind: deck.LinkLocalhost, Label: "~:14437", URL: "http://localhost:14437", Down: true}},
 			},
 			{
-				ID: "t-0002", Title: "Members /admin/users", Status: deck.StatusNeedsYou,
-				StateLine: "needs you · ~95%", Activity: "Waiting for you", PaneID: "w1Z:p1",
-				Worktree: "/src/worktrees/t-0002", Branch: "hp/admin-rebuild/t-0002-members-admin-users",
+				ID: "t-0002", Title: "Members /admin/users", Status: deck.StatusNeedsYou, Group: "waiting-on-you",
+				StateLine: "needs you · ~95%", Activity: "Waiting for you", PaneID: "w1Z:p1", Percent: pct(95),
+				Worktree: "/src/worktrees/t-0002", Branch: "hp/admin-rebuild/t-0002-members-admin-users", Base: "origin/main",
+				Created: now.Add(-22*time.Hour - 31*time.Minute), LaunchedAt: now.Add(-22*time.Hour - 30*time.Minute),
+				BriefSeenAt: now.Add(-22*time.Hour - 29*time.Minute), LastReportChange: now.Add(-5 * time.Minute),
+				Log: []deck.LogEvent{
+					func() deck.LogEvent {
+						e := ev(now, 3*time.Minute, deck.EventWaiting, "waiting on you", "pane w1Z:p1", "inbox/20261002T143012Z-thread-state-t-0002-7.md")
+						e.Unhandled = true
+						return e
+					}(),
+					ev(now, 5*time.Minute, deck.EventReport, "new report", "", "inbox/done/20261002T143600Z-thread-state-t-0002-6.md"),
+					ev(now, 61*time.Minute, deck.EventReport, "new report", "", "inbox/done/20261002T134000Z-thread-state-t-0002-5.md"),
+					ev(now, 5*time.Hour+29*time.Minute, deck.EventBlocked, "blocked on a prompt", "pane w1Z:p1", "inbox/done/20261002T091200Z-thread-state-t-0002-4.md"),
+					ev(now, 21*time.Hour+11*time.Minute, deck.EventReport, "new report", "", "inbox/done/20261001T173000Z-thread-state-t-0002-3.md"),
+					ev(now, 22*time.Hour+30*time.Minute, deck.EventLaunched, "launched in pane w1Z:p1", "", "threads/t-0002.toml"),
+					ev(now, 22*time.Hour+31*time.Minute, deck.EventCreated, "created from origin/main", "", "threads/t-0002.toml"),
+				},
 				Next:    []string{"Approve phase 1 (ABC-1256 overview)", "Say whether to start ABC-1257 and ABC-1250"},
 				Report:  "## Report\n\nPhase 1 is done: layout and overview.\n\n## Next\n\n- Approve phase 1 (ABC-1256 overview)\n",
 				DevNote: "not started: no .dev/t-0002/state.json",
 			},
 			{
-				ID: "t-0003", Title: "Templates /templates", Status: deck.StatusWorking,
-				StateLine: "working", Activity: "Writing tests", PaneID: "w20:p1",
-				Branch: "hp/admin-rebuild/t-0003-templates",
+				ID: "t-0003", Title: "Templates /templates", Status: deck.StatusWorking, Group: "working",
+				StateLine: "working · ~40%", Activity: "Writing tests", PaneID: "w20:p1", Percent: pct(40),
+				Branch: "hp/admin-rebuild/t-0003-templates", Base: "origin/main",
+				Log: []deck.LogEvent{
+					ev(now, 40*time.Minute, deck.EventReport, "new report", "", "inbox/done/20261002T140100Z-thread-state-t-0003-3.md"),
+					ev(now, 3*time.Hour, deck.EventLaunched, "launched in pane w20:p1", "", "threads/t-0003.toml"),
+					ev(now, 3*time.Hour+time.Minute, deck.EventCreated, "created from origin/main", "", "threads/t-0003.toml"),
+				},
 				DevServers: []deck.DevServer{
 					{Name: "frontend", Port: 5181, Running: true},
 					{Name: "api", Port: 8011, Running: true},
@@ -103,11 +134,20 @@ func Snapshot(slug string, now time.Time) deck.Snapshot {
 				Links: []deck.Link{{Kind: deck.LinkLocalhost, Label: "Frontend", URL: "http://localhost:5181"}},
 			},
 			{
-				ID: "t-0004", Title: "Summary select documents", Status: deck.StatusReview,
-				StateLine: "ready for review", PaneID: "w21:p1", Branch: "hp/admin-rebuild/t-0004-summary",
+				ID: "t-0004", Title: "Summary select documents", Status: deck.StatusReview, Group: "ready-for-review",
+				StateLine: "ready for review", PaneID: "w21:p1", Branch: "hp/admin-rebuild/t-0004-summary", Base: "origin/main",
 				PR: &deck.PullRequest{
 					URL: "https://github.com/acme/webshop/pull/2320", Number: 2320,
-					State: "OPEN", Review: "REVIEW_REQUIRED", Comments: 2,
+					State: "OPEN", Review: "REVIEW_REQUIRED", Comments: 2, Commenters: []string{"sam", "alex"},
+					CheckedAt: now.Add(-time.Minute),
+				},
+				Log: []deck.LogEvent{
+					ev(now, 25*time.Minute, deck.EventPRUpdated, "updated", "open · 2 comments", "inbox/done/20261002T141600Z-pr-t-0004-9.md"),
+					ev(now, 3*time.Hour+38*time.Minute, deck.EventPROpened, "opened", "", "inbox/done/20261002T110300Z-pr-t-0004-8.md"),
+					ev(now, 4*time.Hour+29*time.Minute, deck.EventWaiting, "waiting on you", "pane w21:p1", "inbox/done/20261002T101200Z-thread-state-t-0004-5.md"),
+					ev(now, 5*time.Hour+11*time.Minute, deck.EventRoutine, "prompted by routine pr-followup", "checks-failed", "inbox/done/20261002T093000Z-routine-pr-followup-4.md"),
+					ev(now, 5*time.Hour+46*time.Minute, deck.EventLaunched, "launched in pane w21:p1", "", "threads/t-0004.toml"),
+					ev(now, 5*time.Hour+47*time.Minute, deck.EventCreated, "created from origin/main", "", "threads/t-0004.toml"),
 				},
 				Links: []deck.Link{
 					{Kind: deck.LinkGitHub, Label: "PR #2320", URL: "https://github.com/acme/webshop/pull/2320"},
@@ -123,7 +163,11 @@ func Snapshot(slug string, now time.Time) deck.Snapshot {
 		Inbox: []deck.InboxItem{
 			{
 				ID: "20261002T143012Z-thread-state-t-0002-7", Kind: "thread-state", Thread: "t-0002", Subject: "t-0002",
-				Summary: "t-0002 is now Waiting on you", Created: now.Add(-3 * time.Minute),
+				Summary: "t-0002 is now Waiting on you", Event: "waiting on you", Created: now.Add(-3 * time.Minute),
+			},
+			{
+				ID: "20261002T142200Z-routine-pr-followup-6", Kind: "routine", Subject: "pr-followup",
+				Summary: "routine `pr-followup` found nothing to follow up", Event: "ran", Created: now.Add(-19 * time.Minute),
 			},
 		},
 	}

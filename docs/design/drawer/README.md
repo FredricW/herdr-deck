@@ -32,11 +32,15 @@ Made by the user on 2026-10-03.
   padding on each side (` Overview `, ` Files 11 `), no rule and no
   brackets, counts in the labels, and one space between tabs (touching
   tabs merge the inactive ones into one grey strip). The active tab is bold
-  bright white on **blue**, the inactive tabs plain text on dark grey (256-colour
+  near-black text (256-colour 234; 16 on a light terminal) on **blue**,
+  the inactive tabs plain text on dark grey (256-colour
   237, 254 on a light terminal), a tab without data dim on that grey. Blue
   is the one palette colour no status uses, so the active tab never reads
   as a status. Comparison in [variants.md](variants.md#tab-bar). This
-  replaces the earlier proposal of tabs on a rule (T1).
+  replaces the earlier proposal of tabs on a rule (T1). The text was
+  bright white at first; on 2026-10-03 the user switched it to dark text,
+  since white is unreadable on the pastel blue of themes such as
+  Catppuccin Mocha.
 - **Status pill:** P1, the status glyph plus a word (`● needs you`).
 - **Links:** L1, chips (`[1 ABC-1246 done]`), with the kind word only on
   the first chip of a run of one kind.
@@ -124,7 +128,7 @@ applied to the new parts:
 | Card title | bold |
 | Card second line | dim |
 | Pill, percent and bar | the status colour: needs you red bold, working cyan, review magenta, landing green, idle / no thread / done dim, inbox yellow; empty bar cells `▱` dim |
-| Active tab | blue background, bold bright white text |
+| Active tab | blue background, bold near-black text (256-colour 234; 16 on a light terminal) |
 | Inactive tabs | dark grey background (256-colour 237; 254 on a light terminal), plain text; a tab without data dim text |
 | The `↓` hint | dim |
 | Section rules | dim rule, bold name; *Next* red while the thread needs you |

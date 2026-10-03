@@ -17,7 +17,11 @@ type frame struct {
 	listTop, listH     int // the list's first screen line and height
 	drawerTop, drawerH int // the drawer's first content line and height
 	drawer             *drawer
-	bang               zone // the header's `! N`, if shown
+	// sepY is the rule above the drawer (its title rule in a full view),
+	// or -1; headTop the card's first line and headN how many of the
+	// card's and tab bar's lines show; tabY the tab bar's line, or -1.
+	sepY, headTop, headN, tabY int
+	bang                       zone // the header's `! N`, if shown
 	// attn is the screen line saying other projects need the user, or 0.
 	attn int
 }
@@ -42,22 +46,55 @@ func (m Model) effectiveSize() drawerSize {
 	return m.size
 }
 
-// layout works out the frame for the current size and state.
+// headSize is how many lines the drawer draws above its scrolling
+// content: a row's card and tab bar (or the report's line), a list
+// heading's card, or none for a full view under its title rule.
+func (m Model) headSize() int {
+	r, ok := m.selected()
+	switch {
+	case m.mode == modeReport && ok:
+		return 3
+	case m.mode != modeRow && m.mode != modeReport:
+		return 0
+	case !ok || r.kind == rowHeading:
+		return 2
+	}
+	return 3
+}
+
+// layout works out the frame for the current size and state. The drawer
+// takes half of the pane below the header at its normal size: the rule
+// above it, the card, the tab bar and the tab's content.
 func (m Model) layout() frame {
 	h := max(m.height, 8)
-	f := frame{listTop: 3}
+	f := frame{listTop: 3, sepY: -1, tabY: -1}
 	body := h - 4 // header, rule, footer rule, footer
+	head := m.headSize()
 	switch m.effectiveSize() {
 	case sizeHidden:
 		f.listH = body - 1 // column titles
 	case sizeFull:
 		f.listTop, f.listH = 2, 0
-		f.drawerTop, f.drawerH = 3, body-1 // drawer title rule
+		if head == 0 {
+			f.sepY, f.headTop = 2, 3
+		} else {
+			f.headTop = 2
+		}
+		f.headN = head
+		f.drawerTop = f.headTop + head
+		f.drawerH = h - 2 - f.drawerTop
 	default:
-		total := max(body*2/5, 6)
-		f.listH = max(body-1-total, 1)
-		f.drawerTop = f.listTop + f.listH + 1
-		f.drawerH = body - 1 - f.listH - 1
+		block := max(body/2, 6)
+		f.listH = max(body-1-block, 1)
+		block = body - 1 - f.listH
+		f.sepY = f.listTop + f.listH
+		f.headTop = f.sepY + 1
+		f.headN = min(head, max(block-2, 0))
+		f.drawerTop = f.headTop + f.headN
+		f.drawerH = block - 1 - f.headN
+	}
+	if head == 3 && f.headN == 3 && m.mode == modeRow {
+		f.tabY = f.headTop + 2
 	}
 	// Other projects' needs take the list's last line while it has two.
 	if f.listH >= 2 && m.otherNeeds() > 0 {
@@ -65,13 +102,13 @@ func (m Model) layout() frame {
 		f.attn = f.listTop + f.listH
 	}
 	if f.drawerH > 0 {
-		f.drawer = m.drawerFor(m.width)
+		f.drawer = m.drawerFor(m.width, f.drawerH)
 	}
 	f.bang = m.bangZone()
 	return f
 }
 
-func (m Model) drawerFor(width int) *drawer {
+func (m Model) drawerFor(width, h int) *drawer {
 	r, ok := m.selected()
 	switch m.mode {
 	case modeSources:
@@ -90,7 +127,7 @@ func (m Model) drawerFor(width int) *drawer {
 	if !ok {
 		return m.projectDrawer(row{}, width)
 	}
-	return m.rowDrawer(r, rowLinks(r, m.snap), width, m.choosing)
+	return m.rowDrawer(r, rowLinks(r), width, h)
 }
 
 func (m Model) render() string {
@@ -112,7 +149,13 @@ func (m Model) render() string {
 		lines = append(lines, attentionLine(m.otherNeeds(), w))
 	}
 	if f.drawer != nil {
-		lines = append(lines, drawerRule(f.drawer.title, w))
+		switch {
+		case f.drawer.title != "":
+			lines = append(lines, drawerRule(f.drawer.title, w))
+		case f.sepY >= 0:
+			lines = append(lines, rule)
+		}
+		lines = append(lines, f.drawer.head()[:f.headN]...)
 		dl := f.drawer.lines
 		off := clamp(m.drawerOff, 0, max(len(dl)-f.drawerH, 0))
 		for i := range f.drawerH {
@@ -269,8 +312,12 @@ func (m Model) rowLine(r row, sel bool, w int, asOf string) string {
 		return ""
 	}
 	mark := " "
+	markSt := plain
 	if sel {
 		mark = "▸"
+		if m.dfocus {
+			markSt = dim // the drawer has the focus
+		}
 	}
 	var cells []cell
 	switch r.kind {
@@ -283,24 +330,18 @@ func (m Model) rowLine(r row, sel bool, w int, asOf string) string {
 		if r.folded {
 			text = fmt.Sprintf("+ %s (%d)", r.list, r.count)
 		}
-		cells = append(cells, cell{text: " " + mark + text, style: st})
+		cells = append(cells, cell{text: " "}, cell{text: mark, style: markSt}, cell{text: text, style: st})
 		for _, g := range r.glyphs {
 			cells = append(cells, cell{text: " " + statusGlyph(g), style: statusStyle(g)})
+		}
+		if r.folded && r.updates > 0 {
+			cells = append(cells, cell{text: " ✉", style: inboxStyle})
 		}
 		left := renderCells(cells)
 		if asOf != "" {
 			return m.finish(spread(left, dim.Render(asOf)+" ", w), sel, w)
 		}
 		return m.finish(left, sel, w)
-	case rowInbox:
-		age := ""
-		if !r.inbox.Created.IsZero() {
-			age = ageText(m.opt.Now().Sub(r.inbox.Created))
-		}
-		prefix := renderCells([]cell{{text: " " + mark}, {text: "✉", style: inboxStyle}, {text: " "}})
-		text := renderCells([]cell{{text: ansi.Truncate(r.title(), max(w-4-8, 4), "…"), style: inboxStyle}})
-		right := renderCells([]cell{{text: age + "    ", style: dim}})
-		return m.finish(spread(prefix+text, right, w), sel, w)
 	}
 
 	c := columns(w)
@@ -316,11 +357,16 @@ func (m Model) rowLine(r row, sel bool, w int, asOf string) string {
 	workSt := plain
 	if r.needsYou() {
 		workSt = needsStyle
+	} else if r.updates > 0 {
+		// Unhandled inbox items about the row's threads: news to read in
+		// its Log, not a need.
+		workSt = inboxStyle
 	} else if (r.task != nil && r.task.Done) || (hasThread && t.Status == deck.StatusDone) || stale {
 		workSt = dim
 	}
 	cells = append(cells,
-		cell{text: " " + mark},
+		cell{text: " "},
+		cell{text: mark, style: markSt},
 		cell{text: glyph, style: gst},
 		cell{text: " "},
 		cell{text: r.title(), style: workSt, width: c.work},
@@ -354,7 +400,7 @@ func (m Model) rowLine(r row, sel bool, w int, asOf string) string {
 		}
 		cells = append(cells, cell{text: pr, style: pst, width: c.pr}, cell{text: "  "})
 	}
-	cells = append(cells, badgeCells(rowLinks(r, m.snap), c.links)...)
+	cells = append(cells, badgeCells(rowLinks(r), c.links)...)
 	cells = append(cells, cell{text: " "})
 	cells = append(cells, devCells(r, c.dev)...)
 	return m.finish(renderCells(cells), sel, w)
@@ -542,34 +588,16 @@ func (m Model) footer(w int) string {
 		hint = "↵ save  esc cancel  empty removes it"
 	case m.mode == modeSettings:
 		hint = "↵ edit  x remove  j k move  esc back  q quit"
-	case m.files:
-		_, d, _ := m.diff()
-		view := "t tree"
-		if m.tree {
-			view = "t list"
-		}
-		hint = fmt.Sprintf("Files: 1-%d open  d whole diff  %s  esc cancel", min(len(d.Files), maxFiles), view)
+	case m.mode == modeReport:
+		hint = "esc back  pgup pgdn scroll  ? help  q quit"
 	case m.mode != modeRow:
 		hint = "esc back  pgup pgdn scroll  z drawer  ? help  q quit"
 	case !ok:
 		hint = "? help  q quit"
 	case r.kind == rowHeading:
 		hint = "space fold  j k move  z drawer  ? help"
-	case r.kind == rowInbox:
-		hint = "↵ go to " + r.inbox.Thread + "  1-9 link  z drawer  ? help"
-	case r.needsYou():
-		hint = "↵ go to pane  1-9 link  e edit  r report  z drawer  ? help"
-		if narrow {
-			hint = "↵ go to pane  1-9 link  r report  z drawer  ? help"
-		}
 	default:
-		hint = "1-9 link  l f n g o first  ↵ pane  e edit  z drawer  ? help"
-		if m.opt.Diff != nil {
-			hint = "1-9 link  l f n g o first  ↵ pane  e edit  d diff  z drawer  ? help"
-		}
-		if narrow {
-			hint = "1-9 link  l f n g o first  ↵ pane  z drawer  ? help"
-		}
+		hint = m.rowHint(r, narrow)
 	}
 	return footerLine(" "+hint, m.opt.Version, w)
 }
@@ -612,4 +640,48 @@ func pad(s string, n int) string {
 		return ""
 	}
 	return fit(s, n)
+}
+
+// rowHint is the footer's key help for a work row, by the drawer's tab and
+// focus.
+func (m Model) rowHint(r row, narrow bool) string {
+	t, hasThread := r.thread()
+	tab := m.curTab()
+	if m.dfocus {
+		switch tab {
+		case tabFiles:
+			view := "t tree"
+			if m.tree {
+				view = "t list"
+			}
+			return "j k file  ↵ open  d d whole diff  " + view + "  esc list  ? help"
+		case tabLog:
+			return "j k event  ↵ act  tab next tab  esc list  ? help"
+		}
+		return "j k link  ↵ open  tab next tab  esc list  ? help"
+	}
+	switch {
+	case tab == tabFiles:
+		view := "t tree"
+		if m.tree {
+			view = "t list"
+		}
+		if narrow {
+			return "1-9 file  d d diff  " + view + "  [ ] tab  ? help"
+		}
+		return "1-9 file  d d whole diff  " + view + "  [ ] tab  z drawer  ? help"
+	case tab == tabLog && hasThread && t.PR != nil:
+		return "1-9 link  g PR  r report  [ ] tab  z drawer  ? help"
+	case tab == tabLog:
+		return "r report  ↵ go to pane  [ ] tab  z drawer  ? help"
+	case !hasThread:
+		return "1-9 link  l f n g first  [ ] tab  z drawer  ? help"
+	case r.needsYou() && narrow:
+		return "↵ go to pane  1-9 link  [ ] tab  z drawer  ? help"
+	case r.needsYou():
+		return "↵ go to pane  1-9 link  [ ] tab  r report  z drawer  ? help"
+	case narrow:
+		return "1-9 link  o open  ↵ pane  [ ] tab  z drawer  ? help"
+	}
+	return "1-9 link  l f n g o first  ↵ pane  [ ] tab  z drawer  ? help"
 }

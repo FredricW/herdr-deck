@@ -1,9 +1,8 @@
- Admin rebuild                      ● 1  ◐ 1  ◇ 1  ○ 1  ✉ 1
+ Admin rebuild                      ● 1  ◐ 1  ◇ 1  ○ 1  ✉ 2
 ────────────────────────────────────────────────────────────
     WORK                        STATUS           LINKS  DEV
   Needs you
  ▸● Users page                  needs you        L4
-  ✉ inbox: t-0002 is now Waiting on you               3m
 
   In progress
   ◐ Templates page              Writing tests    L F    ●●●
@@ -13,16 +12,17 @@
   ○ Subscriptions list          idle             L N    ~○
 
   + Backlog (3)
-
-
-─ Users page · t-0002 ──────────────────────────────────────
- Status  needs you · ~95% · Waiting for you
- Next    → Approve phase 1 (ABC-1256 overview)
-         → Say whether to start ABC-1257 and ABC-1250
- Note    Phase 1 = layout + overview (ABC-1256); report on
-         1257/1250 before starting them.
- Linear  1 ABC-1246 done  2 ABC-1256 in progress
-         3 ABC-1257 todo  4 ABC-1250
- Report  threads/t-0002.md · r shows it
 ────────────────────────────────────────────────────────────
- ↵ go to pane  1-9 link  r report  z drawer  ? help   v9.9.9
+ Users page                               ● needs you  ~95%
+ t-0002                                          ▰▰▰▰▰▰▰▰▰▱
+ Overview   Files   Log 7                          ↓ 8 more
+ ✉ 1 update · see Log
+ ── Next ──
+ → Approve phase 1 (ABC-1256 overview)
+ → Say whether to start ABC-1257 and ABC-1250
+ ── Note ──
+ Phase 1 = layout + overview (ABC-1256); report on 1257/1250
+ before starting them.
+ ── Links ──
+────────────────────────────────────────────────────────────
+ ↵ go to pane  1-9 link  [ ] tab  z drawer  ? help    v9.9.9

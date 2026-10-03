@@ -12,7 +12,7 @@ worktree's dev servers, and refreshes as they change. As a herdr plugin it
 opens next to each coordinator by itself. See [docs/PLAN.md](docs/PLAN.md)
 for the plan and milestones.
 
-![The deck on sample data: Users page needs you and is pinned on top; moving down the list, the drawer below shows each row's thread, status, links, branch, dev servers and changed files; the folded Backlog opens and shuts with space.](docs/demo/hero.gif)
+![The deck on sample data: Users page needs you and is pinned on top; the drawer below shows its card and Overview tab, then ] shows its Files and Log tabs; moving down the list keeps the tab, the review row shows its PR, links and dev servers, and the folded Backlog opens and shuts with space.](docs/demo/hero.gif)
 
 ## Install as a herdr plugin
 
@@ -399,8 +399,8 @@ a refusal. To change your answer, use System Settings → Privacy & Security
 
 The deck shows the dev servers of each open thread's worktree: one dot per
 server in the list's DEV column (green `●` when something listens on the
-port, dim `○` when not), and in the drawer a `Dev` line with each port and an
-`Open` line with numbered localhost links. A port is running when a TCP
+port, dim `○` when not), and in the drawer's Overview tab a *Dev* section
+with each port and the numbered localhost links as chips. A port is running when a TCP
 connect to `127.0.0.1:<port>` or `[::1]:<port>` succeeds within 400 ms. Ports are probed in
 parallel and each answer is reused for 2 seconds.
 
@@ -458,19 +458,66 @@ without a manifest is noted in the `!` sources view; a manifest or state file
 that cannot be read is listed there as missing, and the rest of the deck
 carries on.
 
+## The drawer
+
+The drawer under the list describes the selected row and takes half of the
+pane (`z` makes it full height, or hides it). It starts with a card: the
+row's title, its status as a glyph and a word (`● needs you`, `◐ working`,
+`◇ review`, …) with the thread's percent, and a dim line with the thread
+id, its title, what it is doing and its pane, with a progress bar or the
+PR's checks at the right. Under the card are three tabs:
+
+```
+ Users page                                   ● needs you  ~95%
+ t-0002 · Members /admin/users · pane w1Z:p1         ▰▰▰▰▰▰▰▰▰▱
+ Overview   Files 11   Log 7                     ↓ Dev · Thread
+ ── Next ──
+ → Approve phase 1 (ABC-1256 overview)
+ ── Links ──
+ [1 ABC-1246 done] [2 ABC-1256 in progress] [3 ABC-1257 todo]
+```
+
+- **Overview**: titled sections, the empty ones left out: *Next* (the
+  report's `## Next`), *PR* (state, review, comments and who made them,
+  failing checks), *Note* (the task's notes), *Links* (Linear, Figma, Notion
+  and GitHub links as numbered chips, with each Linear issue's state),
+  *Dev* (dev servers and localhost links) and *Thread* (pane, branch,
+  report, base, dev log).
+- **Files**: the thread's changed files as a diffstat (see Changed files).
+- **Log**: the thread's timeline, newest first, from what herdr-projects
+  records: created and launched (the thread file), new reports, waiting on
+  you, blocked on a prompt, PRs opened, updated, failing and merged,
+  routines that prompted it, and resolved (inbox items, handled or not).
+  An item still in `inbox/` ends in a yellow `✉`.
+
+The active tab is bold dark text on blue; the others sit on grey, and a tab
+with nothing behind it (no thread, a resolved thread's files) is dim and
+skipped. The tab stays as you move through the list. `[` and `]` switch
+tabs; `tab` moves the focus into the drawer, where `j`/`k` move a cursor
+over its chips, files or events, `↵` opens the one under it, `tab` and
+`shift+tab` switch tabs and `esc` returns to the list.
+
+Inbox items are news for the coordinator, not needs: a thread with
+unhandled items gets a yellow title in the list and a `✉ N updates · see
+Log` line on Overview, and its Log marks them. Items about no thread
+(routines, spaces) only count in the header's `✉ N`. *Needs you* holds
+only threads waiting on you. The deck never marks an item handled.
+
 ## Keys
 
 | Key | Action |
 |---|---|
 | `j` / `k`, `↓` / `↑` | move; the drawer follows |
 | `space` | fold or unfold the list under the cursor (Backlog starts folded) |
-| `1`–`9` | open the drawer's numbered link (Figma links in the desktop app with `figma_desktop = true`) |
+| `[` / `]` | previous / next drawer tab: Overview, Files, Log |
+| `tab` | focus the drawer: `j`/`k` move its cursor, `↵` opens what is under it, `tab`/`shift+tab` switch tabs, `esc` returns to the list |
+| `1`–`9` | open the drawer's numbered link (Figma links in the desktop app with `figma_desktop = true`); on Files, the numbered file's diff |
 | `l` `f` `n` `g` | open the row's Linear / Figma / Notion / PR link; with several, pick one with a digit, `a` for all, `d` for the Figma desktop app, the same letter for the first, `esc` to cancel |
 | `o` | open the row's first localhost link whose dev server is running |
-| `enter` | focus the thread's herdr pane; on an inbox item, its thread's pane, else the coordinator's |
+| `enter` | focus the thread's herdr pane |
 | `e` | open the thread's worktree in the editor (VS Code unless configured) |
 | `u` | start the thread's dev servers: the dev manifest's `up` command, detached (see Dev servers) |
-| `d` | the thread's changed files: a digit opens that file in the diff tool, `d` again (or `a`, `enter`) the whole diff, `t` switches between list and folder tree, `esc` cancels; with one file, `d` opens the diff right away (see Changed files) |
+| `d` | the Files tab: a digit opens that file in the diff tool, `d` again (or `a`) the whole diff, `t` switches between list and folder tree; with one file, `d` opens the diff right away (see Changed files) |
 | `r` | the thread's report, full height |
 | `z` | drawer: normal, full height, hidden |
 | `pgup` / `pgdn` | scroll the drawer |
@@ -479,15 +526,17 @@ carries on.
 | `p` | projects: every project under the projects root with what needs you in each (see Other projects) |
 | `w` | what's new: the changelog, newest first, with the running release marked; with `↑` in the header, also what the newer version brings |
 | `?` | all keys |
-| `esc` | back to the selected row |
+| `esc` | back to the list, or from a full view to the tab you were on |
 | `q`, `ctrl+c` | quit |
 
 ![The drawer's numbered links for a thread with Linear, Figma, GitHub and localhost links: f asks which of three Figma links to open and 3 opens one; g opens the pull request, o the running dev server, and 1 the Linear issue.](docs/demo/links.gif)
 
-Mouse: click a row to select it, a list heading to fold it, a drawer link to
-open it, a changed file to open its diff (its total line for the whole
-diff), `! N` for the sources, the other-projects line for the project
-picker; the wheel moves the list or scrolls the drawer.
+Mouse: click a row to select it, a list heading to fold it, a tab to show
+it, a chip to open its link, a changed file to open its diff (the total
+line for the whole diff), a Log event to act on it (a report shows it, a PR
+event opens the PR, the rest focus the pane), `! N` for the sources, the
+other-projects line for the project picker. A click in the drawer gives it
+the focus. The wheel moves the list or scrolls the tab under the pointer.
 
 ## Other projects
 
@@ -519,16 +568,17 @@ them on every reload; it watches only its own project's folder.
 
 ## Changed files
 
-The drawer's Files section lists every file the selected thread changed in
-its worktree, with a status letter, line counts and a total line:
+The drawer's Files tab lists every file the selected thread changed in its
+worktree as a diffstat: a total line, then per file its number, a status
+letter, the path, line counts and a bar:
 
 ```
- Files    5 files +62 -13 vs origin/main
-          1 M src/pages/users/UsersPage.tsx     +48 -6
-          2 M src/api/users.ts                  +13 -3
-          3 A public/empty-state.png            binary
-          4 D src/pages/users/OldList.tsx           -4
-          5 ? notes.md                    +1 untracked
+ 5 files  +62 -13  vs origin/main                     list · t tree
+ 1 M  src/pages/users/UsersPage.tsx                +48 -6  ▇▇▇▇▇▇▇▇
+ 2 M  src/api/users.ts                             +13 -3  ▇▇▇▁▁▁▁▁
+ 3 A  public/empty-state.png                       binary
+ 4 D  src/pages/users/OldList.tsx                      -4  ▇▁▁▁▁▁▁▁
+ 5 ?  notes.md                                         +1  ▇▁▁▁▁▁▁▁
 ```
 
 The letter says how the file changed, as `git status` writes it, in the
@@ -536,45 +586,48 @@ terminal's own colours so it reads on dark and light themes: `A` added
 (green), `M` modified (yellow), `D` deleted (red), `R` renamed (cyan),
 `?` untracked (faint green). A binary file's letter is faint. Counts are
 `+added` in green and `-deleted` in red; an added or untracked file shows
-only `+N` and a deleted file only `-M`.
+only `+N` and a deleted file only `-M`. The bar (8 cells, 5 at 60 columns)
+is the file's share of the thread's largest change, green for added lines
+then red for deleted. A long path loses its start, so the file's name
+stays; a rename folds what its paths share, `pages/{members → users}/index.ts`.
 
-`d` then `t` switches to a folder tree and back; the chooser stays open,
-since the numbers move. The tree puts each file under its folder, folders
-first, joins a chain of folders that hold only one folder into one line
-(`src/pages/users/`), and shows folder names and their summed counts
-faint, so the changed files stand out. Files
-are numbered 1–9 in the order shown, so digits and clicks open the file on
-that line:
+`t` on the Files tab switches to a folder tree and back. The tree puts each
+file under its folder, folders first, joins a chain of folders that hold
+only one folder into one line (`src/pages/users/`), and shows folder names
+and their summed counts faint, so the changed files stand out. Files are
+numbered in the order shown; 1–9 take the digits, the rest open by click
+or the drawer cursor:
 
 ```
- Files    5 files +62 -13 vs origin/main
-              public/
-          1 A   empty-state.png                 binary
-              src/                              +61 -13
-                api/                             +13 -3
-          2 M     users.ts                       +13 -3
-                pages/users/                     +48 -10
-          3 D     OldList.tsx                        -4
-          4 M     UsersPage.tsx                  +48 -6
-          5 ?   notes.md                   +1 untracked
+ 5 files  +62 -13  vs origin/main                     tree · t list
+       public/
+ 1 A     empty-state.png                               binary
+       src/                                            +61 -13
+         api/                                           +13 -3
+ 2 M       users.ts                                     +13 -3  ▇▇▇▁▁▁▁▁
+         pages/users/                                   +48 -10
+ 3 D       OldList.tsx                                      -4  ▇▁▁▁▁▁▁▁
+ 4 M       UsersPage.tsx                                +48 -6  ▇▇▇▇▇▇▇▇
+ 5 ?     notes.md                                           +1  ▇▁▁▁▁▁▁▁
 ```
 
 The deck starts in the list; `diff_view = "tree"` in the config file (or
 the settings page, `--diff-view`, `$HERDR_DECK_DIFF_VIEW`) starts it in the
-tree. `d t` does not write the file.
+tree. `t` does not write the file.
 
 The worktree is compared with where it forked from the thread's base
 branch (`base` in the thread record, e.g. `origin/main`, else
 `origin/HEAD`): `git diff --numstat <merge-base>`, so committed, staged and
 unstaged changes count, plus untracked files (`git ls-files --others
 --exclude-standard`). Renames show as `old → new` (from `git diff --raw`, which also gives each
-file's status), binary files as `binary`. The section lists nine files, one per digit, then `+K more`.
+file's status), binary files as `binary`. Every file is listed and the tab
+scrolls; the tab bar says how many lines are below its end (`↓ 4 more`).
 
 Git runs off the UI, with a 5 s timeout and without taking git's optional
 locks, so it never gets in the way of the agent working in the worktree.
 It runs when the selection moves to another thread and on every reload
 (the refresh interval, or a change in the project folder); an answer is
-reused for 2 s. A resolved thread has no Files section, and a missing
+reused for 2 s. A resolved thread's Files tab is dim, and a missing
 worktree or base shows a dim note instead.
 
 `d` opens the diff tool (`[diff]` in the config file, `hunk` by default)
@@ -584,7 +637,7 @@ A renamed file opens with its old and new path, so git pairs them. An
 untracked file does not open: `git diff` leaves it out until it is added,
 and the status line says so; the whole diff leaves it out too.
 
-![The Files section of a thread that changed eight files, each with a coloured status letter and green and red counts: z makes the drawer full height, d asks which file and 2 opens one file's diff, d t switches to the folder tree where 5 opens the file now numbered 5, and d d opens the whole diff.](docs/demo/diff.gif)
+![The Files tab of a thread that changed eight files, each with a coloured status letter, green and red counts and a bar: z makes the drawer full height, d shows the Files tab and 2 opens one file's diff, t switches to the folder tree where 5 opens the file now numbered 5, and d again opens the whole diff.](docs/demo/diff.gif)
 
 ## Layout
 

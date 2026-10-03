@@ -1,0 +1,28 @@
+ Admin rebuild                                               ◐ 2  ◇ 1  ○ 1  ✉ 1
+────────────────────────────────────────────────────────────────────────────────
+    WORK                         THREAD  STATUS              PR      LINKS  DEV
+  In progress
+  ◐ Users page                   t-0002  Building overview           L4
+  ◐ Templates page               t-0003  Writing tests               L F    ●●●
+ ▸◇ Document select for summary  t-0004  review required     #2320✕  L F3   ●○
+
+  On hold until Monday 2026-10-05
+  ○ Subscriptions list           t-0001  idle                        L N    ~○
+
+  + Backlog (3)
+
+
+────────────────────────────────────────────────────────────────────────────────
+ Document select for summary                                           ◇ review
+ t-0004 · Summary select documents · pane w21:p1              #2320 ✕ 2 failing
+ Overview   Files   Log 7                                              ↓ Thread
+ ✉ 1 update · see Log
+ ── PR ──
+ [5 #2320] open · review required · 2 comments (sam, alex)
+ ✕ 2 failing: lint, test (ubuntu-latest)
+ ── Links ──
+ [1 ABC-1191] [2 Figma 598-48083] [3 1138-88367] [4 635-76529]
+ ── Dev ──
+ :5174 frontend ●   :8002 api ○
+────────────────────────────────────────────────────────────────────────────────
+ 1-9 link  l f n g o first  ↵ pane  [ ] tab  z drawer  ? help             v9.9.9

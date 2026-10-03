@@ -13,7 +13,6 @@ type rowKind int
 const (
 	rowHeading rowKind = iota // a list heading, or the pinned Needs you group
 	rowWork                   // a task with its threads, or a thread no task names
-	rowInbox                  // an unhandled inbox item
 	rowGap                    // the blank line between two groups
 )
 
@@ -40,8 +39,9 @@ type row struct {
 	// Work rows. task is nil for a thread no task names.
 	task    *deck.Task
 	threads []deck.Thread
-
-	inbox *deck.InboxItem
+	// updates counts the unhandled inbox items about the row's threads
+	// (on a folded heading, its rows'): they tint the row yellow.
+	updates int
 }
 
 // title is the row's text in the WORK column and the drawer's title.
@@ -51,8 +51,6 @@ func (r row) title() string {
 		return r.list
 	case r.kind == rowGap:
 		return ""
-	case r.inbox != nil:
-		return "inbox: " + inboxText(*r.inbox)
 	case r.task != nil:
 		return r.task.Title
 	case len(r.threads) > 0:
@@ -80,10 +78,9 @@ func (r row) thread() (deck.Thread, bool) {
 	return best, true
 }
 
+// needsYou reports whether a thread of the row waits on the user: what
+// pins it under Needs you. Inbox items never do; they tint the row.
 func (r row) needsYou() bool {
-	if r.kind == rowInbox {
-		return true
-	}
 	for _, t := range r.threads {
 		if t.Status == deck.StatusNeedsYou {
 			return true
@@ -114,23 +111,20 @@ func foldedByDefault(list string) bool {
 	return strings.Contains(l, "backlog") || l == strings.ToLower(listResolved)
 }
 
-// inboxText is an inbox item's one-line description.
-func inboxText(it deck.InboxItem) string {
-	text := it.Summary
-	if text == "" {
-		text = it.Subject
+// inboxByThread counts the unhandled inbox items per thread id. Items
+// about no thread (routines, spaces) count only in the header.
+func inboxByThread(snap deck.Snapshot) map[string]int {
+	n := map[string]int{}
+	for _, it := range snap.Inbox {
+		if it.Thread != "" {
+			n[it.Thread]++
+		}
 	}
-	if text == "" {
-		text = it.ID
-	}
-	if i := strings.IndexByte(text, '\n'); i >= 0 {
-		text = text[:i]
-	}
-	return text
+	return n
 }
 
 // buildRows lays out the list: the Needs you group (threads waiting on the
-// user and unhandled inbox items) pinned on top, then TASKS.md's lists in
+// user) pinned on top, then TASKS.md's lists in
 // order, then the threads no task names, with a gap between two groups.
 // folds holds the user's fold toggles by list name; lists without one use
 // foldedByDefault.
@@ -139,6 +133,7 @@ func buildRows(snap deck.Snapshot, folds map[string]bool) []row {
 	for _, t := range snap.Threads {
 		byID[t.ID] = t
 	}
+	updates := inboxByThread(snap)
 
 	type list struct {
 		name string
@@ -160,6 +155,7 @@ func buildRows(snap deck.Snapshot, folds map[string]bool) []row {
 				named[id] = true
 				if t, ok := byID[id]; ok {
 					r.threads = append(r.threads, t)
+					r.updates += updates[id]
 				}
 			}
 			l.rows = append(l.rows, r)
@@ -175,7 +171,7 @@ func buildRows(snap deck.Snapshot, folds map[string]bool) []row {
 		if named[t.ID] {
 			continue
 		}
-		r := row{kind: rowWork, threads: []deck.Thread{t}, key: "thread:" + t.ID}
+		r := row{kind: rowWork, threads: []deck.Thread{t}, key: "thread:" + t.ID, updates: updates[t.ID]}
 		if t.Status == deck.StatusDone {
 			r.list = resolved.name
 			resolved.rows = append(resolved.rows, r)
@@ -203,10 +199,6 @@ func buildRows(snap deck.Snapshot, folds map[string]bool) []row {
 		}
 		lists[li].rows = kept
 	}
-	for i := range snap.Inbox {
-		it := &snap.Inbox[i]
-		pinned = append(pinned, row{kind: rowInbox, list: listNeedsYou, inbox: it, key: "inbox:" + it.ID})
-	}
 
 	var rows []row
 	if len(pinned) > 0 {
@@ -224,6 +216,7 @@ func buildRows(snap deck.Snapshot, folds map[string]bool) []row {
 		h := row{kind: rowHeading, list: l.name, key: "head:" + l.name, count: len(l.rows), folded: folded, foldable: true}
 		if folded {
 			for _, r := range l.rows {
+				h.updates += r.updates
 				for _, t := range r.threads {
 					if t.Status != deck.StatusDone {
 						h.glyphs = append(h.glyphs, t.Status)
@@ -241,8 +234,8 @@ func buildRows(snap deck.Snapshot, folds map[string]bool) []row {
 
 // rowLinks are the links of a row in the drawer's order: Linear, Figma,
 // Notion, GitHub, localhost, each kind in the order found. A task offers its
-// own links and its threads'; an inbox item its subject thread's.
-func rowLinks(r row, snap deck.Snapshot) []deck.Link {
+// own links and its threads'.
+func rowLinks(r row) []deck.Link {
 	var links []deck.Link
 	add := func(ls []deck.Link) {
 		for _, l := range ls {
@@ -257,23 +250,7 @@ func rowLinks(r row, snap deck.Snapshot) []deck.Link {
 		for _, t := range r.threads {
 			add(t.Links)
 		}
-	case rowInbox:
-		if t, ok := findThread(snap, r.inbox.Thread); ok {
-			add(t.Links)
-		}
 	}
 	sort.SliceStable(links, func(i, j int) bool { return links[i].Kind < links[j].Kind })
 	return links
-}
-
-func findThread(snap deck.Snapshot, id string) (deck.Thread, bool) {
-	if id == "" {
-		return deck.Thread{}, false
-	}
-	for _, t := range snap.Threads {
-		if t.ID == id {
-			return t, true
-		}
-	}
-	return deck.Thread{}, false
 }

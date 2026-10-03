@@ -40,6 +40,14 @@ const (
 	selLight = 254
 )
 
+// The active drawer tab's text on its blue: near-black from the 256-colour
+// palette (fixed, so it stays dark whatever the theme), black on a light
+// terminal.
+const (
+	tabTextDark  = 234
+	tabTextLight = 16
+)
+
 // highlight puts the selection background under s, which may already hold
 // styled text: the background is set again after each of its resets, so
 // red, cyan, magenta and dim text keep their colours on it.

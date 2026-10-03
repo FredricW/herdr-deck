@@ -193,6 +193,8 @@ func TestReadBusy(t *testing.T) {
 		Review:        "CHANGES_REQUESTED",
 		FailingChecks: []string{"lint", "test"},
 		Comments:      3,
+		Commenters:    []string{"alice", "bob"},
+		CheckedAt:     time.Date(2026, 10, 2, 15, 2, 5, 795169000, time.UTC),
 	}
 	if !reflect.DeepEqual(pr.PR, wantPR) {
 		t.Errorf("t-0001 PR = %+v, want %+v", pr.PR, wantPR)

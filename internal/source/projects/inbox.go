@@ -21,6 +21,7 @@ type inboxFile struct {
 	Subject string `toml:"subject"`
 	Created string `toml:"created"`
 	Summary string `toml:"summary"`
+	Event   string `toml:"event"`
 }
 
 // readInbox lists the unhandled items: inbox/*.md, not inbox/done/. A missing
@@ -59,7 +60,7 @@ func inboxItems(project fs.FS, note func(string, ...any)) []deck.InboxItem {
 		if f.ID != "" {
 			item.ID = f.ID
 		}
-		item.Kind, item.Subject, item.Summary = f.Kind, f.Subject, f.Summary
+		item.Kind, item.Subject, item.Summary, item.Event = f.Kind, f.Subject, f.Summary, f.Event
 		if t, err := time.Parse(time.RFC3339, f.Created); err == nil {
 			item.Created = t
 		}

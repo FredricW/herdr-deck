@@ -1,0 +1,28 @@
+ Admin rebuild                           ◐ 2  ◇ 1  ○ 1  ✉ 1
+────────────────────────────────────────────────────────────
+    WORK                        STATUS           LINKS  DEV
+  In progress
+  ◐ Users page                  Building overv…  L4
+  ◐ Templates page              Writing tests    L F    ●●●
+ ▸◇ Document select for summa…  #2320 review     L F3   ●○
+
+  On hold until Monday 2026-10-05
+  ○ Subscriptions list          idle             L N    ~○
+
+  + Backlog (3)
+
+
+────────────────────────────────────────────────────────────
+ Document select for summary                       ◇ review
+ t-0004                                           #2320 ✕ 2
+ Overview   Files   Log 7
+   2m  ✕ checks failing: lint, test (ubuntu-latest)       ✉
+  25m  ◇ [5 #2320] updated · open · 2 comments
+   3h  ◇ [5 #2320] opened
+   4h  ● waiting on you · pane w21:p1
+   5h  » prompted by routine pr-followup · checks-failed
+   5h  ▶ launched in pane w21:p1
+   5h  + created from origin/main
+
+────────────────────────────────────────────────────────────
+ 1-9 link  g PR  r report  [ ] tab  z drawer  ? help  v9.9.9

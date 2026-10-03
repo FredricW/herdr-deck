@@ -12,9 +12,6 @@
   + Backlog (3)
 
 
-
-
-
 ─ Sources ──────────────────────────────────────────────────────────────────────
  ! .state/ticker.json: no such file or directory
  ! thread list: herdr-projects: no session; showing threads/*.toml as last
@@ -23,6 +20,9 @@
  · dev servers: billing has no .herdr-deck/dev.json; only herdr's port token, if
    any
  ✓ everything else read 14:41
+
+ ! or esc returns
+
 
 ────────────────────────────────────────────────────────────────────────────────
  esc back  pgup pgdn scroll  z drawer  ? help  q quit                     v9.9.9

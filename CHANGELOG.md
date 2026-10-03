@@ -21,6 +21,24 @@ and versions follow [Semantic Versioning](https://semver.org/).
 - When threads in other projects wait on you, the list ends with a line
   such as `● 2 other projects need you`; click it or press `p` to see them.
   Their threads never join this project's Needs you group.
+- The drawer has a header card (the title, the status as a glyph and a
+  word, the percent with a progress bar) and three tabs: Overview
+  (Next, PR with commenters and failing checks, Note, Links as numbered
+  chips, Dev, Thread), Files (the changed files as a diffstat with a
+  bar per file, every file listed) and Log (the thread's timeline from
+  its thread file and its inbox items, handled ones included). The
+  active tab is dark text on blue. `[` and `]` switch tabs; `tab` moves
+  the focus into the drawer, where `j`/`k` and `↵` pick a chip, file or
+  event. The drawer takes half of the pane.
+
+### Changed
+
+- Inbox items no longer get rows under Needs you, which now holds only
+  threads waiting on you. A thread with unhandled items has a yellow title
+  and shows them, marked `✉`, in its Log; items about no thread only count
+  in the header.
+- `d` shows the Files tab instead of a chooser; `d 3` still opens file 3
+  and `d d` the whole diff, and `t` on the tab switches list and tree.
 
 ## [0.1.2] - 2026-10-03
 

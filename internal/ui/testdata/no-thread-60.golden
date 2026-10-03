@@ -1,28 +1,28 @@
- Admin rebuild                      ● 1  ◐ 1  ◇ 1  ○ 1  ✉ 1
+ Admin rebuild                           ◐ 2  ◇ 1  ○ 1  ✉ 0
 ────────────────────────────────────────────────────────────
     WORK                        STATUS           LINKS  DEV
-  Needs you
-  ● Users page                  needs you        L4
- ▸✉ inbox: t-0002 is now Waiting on you               3m
-
-  In progress
+  ◐ Users page                  Building overv…  L4
   ◐ Templates page              Writing tests    L F    ●●●
   ◇ Document select for summa…  #2320 review     L F3   ●○
 
   On hold until Monday 2026-10-05
   ○ Subscriptions list          idle             L N    ~○
 
-  + Backlog (3)
+  Backlog
+  · Settings page
+  · Home page
+ ▸· Snippets page                                L
+────────────────────────────────────────────────────────────
+ Snippets page                                  ○ no thread
+ Backlog · TASKS.md
+ Overview   Files   Log
+ ── Links ──
+ [1 ABC-1251]
 
 
-─ Inbox item · 14:38 ───────────────────────────────────────
- Kind    thread-state
- Subject t-0002 Members /admin/users
- Summary t-0002 is now Waiting on you
- File    inbox/20261002T143012Z-thread-state-t-0002-7.md
 
 
 
 
 ────────────────────────────────────────────────────────────
- ↵ go to t-0002  1-9 link  z drawer  ? help           v9.9.9
+ 1-9 link  l f n g first  [ ] tab  z drawer  ? help   v9.9.9
