@@ -6,7 +6,9 @@ import (
 	"path/filepath"
 	"reflect"
 	"strings"
+	"syscall"
 	"testing"
+	"time"
 
 	"github.com/FredricW/herdr-deck/internal/deck"
 )
@@ -195,5 +197,26 @@ func TestLimitWriter(t *testing.T) {
 	_, _ = w.Write([]byte("defg"))
 	if w.buf.String() != "abcde" || !w.cut {
 		t.Errorf("kept %q, cut %v", w.buf.String(), w.cut)
+	}
+}
+
+// A FIFO never ends: neither the hash nor the read may open it.
+func TestReadPatchSkipsFIFO(t *testing.T) {
+	dir := t.TempDir()
+	if err := syscall.Mkfifo(filepath.Join(dir, "pipe"), 0o644); err != nil {
+		t.Skip("no FIFOs here:", err)
+	}
+	done := make(chan deck.Patch, 1)
+	go func() {
+		r := &Reader{}
+		done <- r.ReadPatch(context.Background(), deck.Thread{Worktree: dir}, "", deck.DiffFile{Path: "pipe", Untracked: true})
+	}()
+	select {
+	case p := <-done:
+		if p.Note != "not a regular file" {
+			t.Errorf("FIFO: %+v", p)
+		}
+	case <-time.After(5 * time.Second):
+		t.Fatal("ReadPatch blocked on a FIFO")
 	}
 }

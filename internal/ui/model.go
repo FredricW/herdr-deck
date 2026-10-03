@@ -192,7 +192,7 @@ type Model struct {
 	prevThread string
 	prevKey    string
 	prevOff    int
-	patches    map[string]preview // the last patch read, by patchKey
+	patches    map[string]preview // the last patch read, by patchKey (one)
 	patchSel   string             // the patchKey last asked for
 	patching   bool               // a Patch call is running
 	patchAgain bool               // the preview moved while it ran
@@ -438,6 +438,8 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, m.readPatch(false)
 	case patchMsg:
 		m.patching = false
+		// Only the shown file's patch is drawn: keep that one alone.
+		clear(m.patches)
 		m.patches[msg.key] = msg.data
 		m.scrollPreview(0)
 		if m.patchAgain {

@@ -229,19 +229,31 @@ func cutLine(s string) string {
 	return s
 }
 
-// contentHash is a hash of the file's content, or "" when it cannot be
-// read (deleted, or a folder).
+// contentHash stands for the file's content: a hash of its first
+// maxPatchBytes (all the preview reads) with its size and modification
+// time. A symlink is its target; anything else that is not a regular file
+// (a FIFO would never end) or cannot be read is "".
 func contentHash(path string) string {
+	fi, err := os.Lstat(path)
+	switch {
+	case err != nil:
+		return ""
+	case fi.Mode()&os.ModeSymlink != 0:
+		target, _ := os.Readlink(path)
+		return "link:" + target
+	case !fi.Mode().IsRegular():
+		return ""
+	}
 	fh, err := os.Open(path)
 	if err != nil {
 		return ""
 	}
 	defer fh.Close()
 	h := sha256.New()
-	if _, err := io.Copy(h, bufio.NewReader(fh)); err != nil {
+	if _, err := io.Copy(h, bufio.NewReader(io.LimitReader(fh, maxPatchBytes))); err != nil {
 		return ""
 	}
-	return string(h.Sum(nil))
+	return fmt.Sprintf("%x:%d:%d", h.Sum(nil), fi.Size(), fi.ModTime().UnixNano())
 }
 
 func errText(err error) string {
