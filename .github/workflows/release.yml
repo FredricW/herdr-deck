@@ -78,37 +78,43 @@ jobs:
       - name: build
         env:
           TAG: ${{ steps.tag.outputs.tag }}
+        # Everything is written outside the checkout: Go stamps a build as
+        # modified (-dirty) when the tree has untracked files.
         run: |
           version=${TAG#v}
-          mkdir -p dist
+          dist=$RUNNER_TEMP/release/dist
+          mkdir -p "$dist"
           for target in darwin/arm64 darwin/amd64 linux/arm64 linux/amd64; do
             os=${target%/*} arch=${target#*/}
-            out=build/${os}_${arch}
+            out=$RUNNER_TEMP/build/${os}_${arch}
             mkdir -p "$out"
             CGO_ENABLED=0 GOOS=$os GOARCH=$arch go build -trimpath \
               -ldflags "-s -w -X main.version=$TAG" -o "$out/herdr-deck" ./cmd/herdr-deck
             cp README.md "$out/"
-            tar -czf "dist/herdr-deck_${version}_${os}_${arch}.tar.gz" -C "$out" herdr-deck README.md
+            tar -czf "$dist/herdr-deck_${version}_${os}_${arch}.tar.gz" -C "$out" herdr-deck README.md
           done
-          (cd dist && sha256sum -- *.tar.gz > SHA256SUMS)
-          cat dist/SHA256SUMS
-      - name: the linux/amd64 binary reports the tag
+          (cd "$dist" && sha256sum -- *.tar.gz > SHA256SUMS)
+          cat "$dist/SHA256SUMS"
+      - name: the binaries name the tag and a clean commit
         env:
           TAG: ${{ steps.tag.outputs.tag }}
         run: |
-          got=$(build/linux_amd64/herdr-deck --version)
+          got=$("$RUNNER_TEMP/build/linux_amd64/herdr-deck" --version)
           echo "$got"
           case $got in "herdr-deck $TAG" | "herdr-deck $TAG "*) ;; *) exit 1 ;; esac
+          for bin in "$RUNNER_TEMP"/build/*/herdr-deck; do
+            if ! go version -m "$bin" | grep -q 'vcs.modified=false'; then
+              echo "$bin was built from a modified tree:"; go version -m "$bin"; exit 1
+            fi
+          done
       - name: changelog
         env:
           REV: ${{ steps.tag.outputs.rev }}
-        run: scripts/changelog.sh "$REV" > notes.md && cat notes.md
+        run: scripts/changelog.sh "$REV" > "$RUNNER_TEMP/release/notes.md" && cat "$RUNNER_TEMP/release/notes.md"
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: release
-          path: |
-            dist/
-            notes.md
+          path: ${{ runner.temp }}/release/
           if-no-files-found: error
 
   publish:
