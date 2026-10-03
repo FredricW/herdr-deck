@@ -50,9 +50,10 @@ jobs:
           version: v2.14.0
 
   version:
-    # On a vX.Y.Z tag, the tag must match herdr-plugin.toml's version.
-    # Skips while there is no tag or no manifest. Also tests scripts/build.sh,
-    # herdr's build step.
+    # On a vX.Y.Z tag, the tag must match herdr-plugin.toml's version and
+    # have a CHANGELOG.md section. Skips while there is no tag or no
+    # manifest. Also tests scripts/build.sh, herdr's build step, and the
+    # changelog scripts.
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -60,3 +61,5 @@ jobs:
         run: scripts/check-version.sh
       - name: build script
         run: scripts/test-build.sh
+      - name: changelog scripts
+        run: scripts/test-changelog.sh

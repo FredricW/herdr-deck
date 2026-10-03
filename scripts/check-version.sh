@@ -1,6 +1,8 @@
 #!/bin/sh
 # Fails when a release tag (vX.Y.Z) disagrees with herdr-plugin.toml's
-# version. Skips when there is no tag or no manifest yet.
+# version, or when CHANGELOG.md has no section for it. Skips when there is no
+# tag or no manifest yet, and skips the changelog check when the checkout has
+# no CHANGELOG.md (tags from before it).
 #
 # Usage: scripts/check-version.sh [tag]   (default: $GITHUB_REF_NAME on a tag push)
 set -eu
@@ -36,3 +38,11 @@ if [ "${tag#v}" != "${version#v}" ]; then
 	exit 1
 fi
 echo "tag $tag matches $manifest version $version"
+
+if [ -f CHANGELOG.md ]; then
+	if ! "$(dirname "$0")/changelog-section.sh" "$tag" CHANGELOG.md >/dev/null; then
+		echo "CHANGELOG.md has no section for ${tag#v}: add \`## [${tag#v}] - YYYY-MM-DD\` with its changes (move them from Unreleased)" >&2
+		exit 1
+	fi
+	echo "CHANGELOG.md has a section for ${tag#v}"
+fi

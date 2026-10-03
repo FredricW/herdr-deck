@@ -3,7 +3,8 @@ name: release
 # A vX.Y.Z tag push builds the deck for darwin and linux on arm64 and amd64
 # and publishes a GitHub Release with herdr-deck_<version>_<os>_<arch>.tar.gz
 # archives and SHA256SUMS. scripts/build.sh, herdr's build step, downloads
-# from it.
+# from it. The notes are the tag's CHANGELOG.md section
+# (scripts/release-notes.sh).
 #
 # A pull request that changes the release files, and a manual run
 # (workflow_dispatch) with dry_run on, only build: the archives and notes are
@@ -17,6 +18,9 @@ on:
       - .github/workflows/release.yml
       - scripts/build.sh
       - scripts/changelog.sh
+      - scripts/changelog-section.sh
+      - scripts/release-notes.sh
+      - scripts/check-version.sh
   workflow_dispatch:
     inputs:
       tag:
@@ -107,10 +111,12 @@ jobs:
               echo "$bin was built from a modified tree:"; go version -m "$bin"; exit 1
             fi
           done
-      - name: changelog
+      - name: release notes
+        # The tag's CHANGELOG.md section, else the PRs since the last tag.
         env:
+          TAG: ${{ steps.tag.outputs.tag }}
           REV: ${{ steps.tag.outputs.rev }}
-        run: scripts/changelog.sh "$REV" > "$RUNNER_TEMP/release/notes.md" && cat "$RUNNER_TEMP/release/notes.md"
+        run: scripts/release-notes.sh "$TAG" "$REV" > "$RUNNER_TEMP/release/notes.md" && cat "$RUNNER_TEMP/release/notes.md"
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: release
