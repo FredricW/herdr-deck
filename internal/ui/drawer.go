@@ -532,7 +532,8 @@ func (d *drawer) release(r changelog.Release, tag string) {
 	d.line(head)
 	var b strings.Builder
 	if r.Summary != "" {
-		b.WriteString(r.Summary + "\n\n")
+		// The parser ends each summary paragraph with one newline.
+		b.WriteString(strings.ReplaceAll(strings.TrimSpace(r.Summary), "\n", "\n\n") + "\n\n")
 	}
 	for _, s := range r.Sections {
 		b.WriteString("### " + s.Name + "\n\n")

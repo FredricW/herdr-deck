@@ -146,3 +146,22 @@ func TestUpdatedNoteOnce(t *testing.T) {
 		t.Error("the note outlived a click")
 	}
 }
+
+// Summary paragraphs stay apart: the parser separates them with a single
+// newline, which Markdown alone would join into one paragraph.
+func TestNewsSummaryParagraphs(t *testing.T) {
+	log, _ := changelog.Parse("## [0.1.0] - 2026-09-01\n\nPara one.\n\nPara two.\n\n### Added\n\n- A thing.\n")
+	m, _ := newModelWith(t, calm(), 80, 28, func(o *Options) {
+		o.Changelog = log
+		o.Version = "v0.1.0"
+	})
+	m, _ = press(m, keys("w")...)
+	var lines []string
+	for _, l := range m.layout().drawer.lines {
+		lines = append(lines, strings.TrimSpace(ansi.Strip(l.text)))
+	}
+	text := strings.Join(lines, "\n")
+	if !strings.Contains(text, "Para one.\n\nPara two.") {
+		t.Errorf("summary paragraphs ran together:\n%s", text)
+	}
+}
