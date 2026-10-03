@@ -32,7 +32,7 @@ func (m Model) View() tea.View {
 // the full height, and a view asked for by key is never hidden.
 func (m Model) effectiveSize() drawerSize {
 	switch {
-	case m.mode == modeReport:
+	case m.mode == modeReport || m.mode == modeSettings:
 		return sizeFull
 	case m.mode != modeRow && m.size == sizeHidden:
 		return sizeNormal
@@ -71,6 +71,8 @@ func (m Model) drawerFor(width int) *drawer {
 		return m.sourcesDrawer(width)
 	case modeHelp:
 		return m.helpDrawer(width)
+	case modeSettings:
+		return m.settingsDrawer(width)
 	case modeReport:
 		if ok {
 			return m.reportDrawer(r, width)
@@ -514,6 +516,10 @@ func (m Model) footer(w int) string {
 			}
 			hint += "  a all  " + kindKey(m.choosing) + " first  esc cancel"
 		}
+	case m.mode == modeSettings && m.set.editing:
+		hint = "↵ save  esc cancel  empty removes it"
+	case m.mode == modeSettings:
+		hint = "↵ edit  x remove  j k move  esc back  q quit"
 	case m.files:
 		_, d, _ := m.diff()
 		hint = fmt.Sprintf("Files: 1-%d open  d whole diff  esc cancel", min(len(d.Files), maxFiles))

@@ -105,17 +105,29 @@ func run(args []string) error {
 			return client.RunInPane(context.Background(), self, dir, launch.ShellLine(argv))
 		}
 	}
+	// The settings page swaps cur when it saves; everything that runs
+	// later reads it there.
+	var cur atomic.Pointer[config.Settings]
+	cur.Store(&cfg)
 	opt := ui.Options{
-		OpenURL:      launch.Browser{Reuse: cfg.ReuseTabs}.OpenURL,
+		OpenURL: func(url string) error {
+			return launch.Browser{Reuse: cur.Load().ReuseTabs}.OpenURL(url)
+		},
 		FigmaDesktop: cfg.FigmaDesktop,
 		OpenEditor: func(path string) error {
-			return runner.Run(cfg.Editor, launch.EditorArgv(cfg.Editor, path), path)
+			ed := cur.Load().Editor
+			return runner.Run(ed, launch.EditorArgv(ed, path), path)
 		},
 		OpenDiff: func(path, base string, files []string) error {
 			return runner.Run(cfg.Diff, launch.DiffArgv(cfg.Diff, path, base, files...), path)
 		},
 		Tick:    cfg.RefreshInterval,
 		Version: shortVersionString(),
+		Settings: &ui.SettingsHooks{
+			Resolve: func() (config.Settings, error) { return config.Resolve(fl, os.Getenv, exec.LookPath) },
+			Save:    config.Save,
+			Apply:   func(s config.Settings) { cur.Store(&s) },
+		},
 	}
 	if *demo {
 		slug := *slugFlag
@@ -143,42 +155,57 @@ func run(args []string) error {
 	devs := dev.NewReader()
 	devs.Logs = config.LogDir(os.Getenv)
 	src.Dev = devs
-	if cfg.LinearStatus {
-		src.Linear = linear.NewReader(os.Getenv, cfg.LinearAPIKeyCommand)
-	}
 	go plugin.MarkSelf(context.Background(), plugin.Socket{Client: client}, os.Getenv, slug)
-	// Config problems show in the Sources view with the sources' own.
+
+	// The program changes when a failed restart starts the deck again.
+	var prog atomic.Pointer[tea.Program]
+	refresh := func() {
+		if p := prog.Load(); p != nil {
+			p.Send(ui.RefreshMsg{})
+		}
+	}
+	// Loads run one at a time, so this is the only place src changes:
+	// it takes the latest settings before each read.
+	var lin *linear.Reader
 	opt.Load = func(ctx context.Context) deck.Snapshot {
+		c := cur.Load()
+		src.LinearWorkspace = c.LinearWorkspace
+		src.Linear = nil
+		if c.LinearStatus {
+			if lin == nil || !slices.Equal(lin.Key.Command, c.LinearAPIKeyCommand) {
+				lin = linear.NewReader(os.Getenv, c.LinearAPIKeyCommand)
+				// A background fetch finished: reload to show its statuses.
+				lin.OnUpdate = refresh
+			}
+			src.Linear = lin
+		}
 		snap := src.Read(ctx)
-		snap.Missing = append(slices.Clone(cfg.Problems), snap.Missing...)
+		// Config problems show in the Sources view with the sources' own.
+		snap.Missing = append(slices.Clone(c.Problems), snap.Missing...)
 		return snap
 	}
 	opt.FocusPane = func(id string) error { return client.Focus(context.Background(), id) }
 	opt.Diff = (&diff.Reader{}).Read
 	opt.StartDev = func(t deck.Thread) (string, error) { return devs.Up(context.Background(), slug, t) }
-	if cfg.UpdateCheck {
-		opt.CheckUpdate = updateHint(config.CacheDir(os.Getenv))
+	// Both switches can change while the deck runs, so the checks are
+	// always set up and ask cur each time.
+	hint := updateHint(config.CacheDir(os.Getenv))
+	opt.CheckUpdate = func(ctx context.Context) ui.Update {
+		if !cur.Load().UpdateCheck {
+			return ui.Update{}
+		}
+		return hint(ctx)
 	}
 	// The binary's path is taken now, before an update can move it.
 	var exe string
-	if cfg.AutoRestart && restart.Supported {
+	if restart.Supported {
 		if exe, err = restart.Executable(os.Getenv); err == nil {
 			if w, err := restart.New(exe); err == nil {
-				opt.BinaryChanged = w.Changed
+				opt.BinaryChanged = func(ctx context.Context) bool {
+					return cur.Load().AutoRestart && w.Changed(ctx)
+				}
 			}
 		}
-	}
-
-	// The program changes when a failed restart starts the deck again.
-	var cur atomic.Pointer[tea.Program]
-	refresh := func() {
-		if p := cur.Load(); p != nil {
-			p.Send(ui.RefreshMsg{})
-		}
-	}
-	if src.Linear != nil {
-		// A background fetch finished: reload to show its statuses.
-		src.Linear.OnUpdate = refresh
 	}
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
@@ -190,7 +217,7 @@ func run(args []string) error {
 	model := ui.New(deck.Snapshot{Project: deck.Project{Slug: slug}}, opt)
 	for {
 		p := tea.NewProgram(model)
-		cur.Store(p)
+		prog.Store(p)
 		final, err := p.Run()
 		if err != nil {
 			return err

@@ -12,6 +12,7 @@ type keyMap struct {
 	DevUp, Diff    key.Binding
 	Report, Drawer key.Binding
 	Sources, Help  key.Binding
+	Settings       key.Binding
 	PageDown       key.Binding
 	PageUp         key.Binding
 	Back, Quit     key.Binding
@@ -35,6 +36,7 @@ func defaultKeys() keyMap {
 		Drawer:    key.NewBinding(key.WithKeys("z")),
 		Sources:   key.NewBinding(key.WithKeys("!")),
 		Help:      key.NewBinding(key.WithKeys("?")),
+		Settings:  key.NewBinding(key.WithKeys("s")),
 		PageDown:  key.NewBinding(key.WithKeys("pgdown", "ctrl+d")),
 		PageUp:    key.NewBinding(key.WithKeys("pgup", "ctrl+u")),
 		Back:      key.NewBinding(key.WithKeys("esc")),

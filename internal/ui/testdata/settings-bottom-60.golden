@@ -1,0 +1,28 @@
+ Admin rebuild                           ◐ 2  ◇ 1  ○ 1  ✉ 0
+────────────────────────────────────────────────────────────
+─ Settings · /home/ada/.config/herdr-deck/config.toml ──────
+   linear_workspace        acme                      file
+   linear_status           true                      default
+   linear_api_key_command  none                      default
+
+ Editor and diff
+   editor.command          zed {path}                file
+   editor.terminal         false                     default
+   diff.command            hunk diff {base} -- {fi…  default
+   diff.terminal           true                      default
+
+ Updates
+   update_check            true                      default
+   auto_restart            true                      default
+
+ Browser
+   reuse_browser_tabs      true                      default
+   figma_desktop           false                     default
+
+ Projects and refresh
+   refresh_interval        5s                        default
+ ▸ projects_root           /home/ada/.herdr-projec…  default
+     the herdr-projects root; ~/ is your home folder
+     a change applies when the deck restarts
+────────────────────────────────────────────────────────────
+ ↵ edit  x remove  j k move  esc back  q quit         v9.9.9
