@@ -92,23 +92,34 @@ func EditorArgv(c Command, path string) []string {
 }
 
 // DiffArgv is the diff command for the worktree at path against base,
-// limited to file when it is not "". Without a file, an argument that is
-// just {file} is dropped, and with it a "--" right before it.
-func DiffArgv(c Command, path, base, file string) []string {
-	tmpl := c.Argv
-	if file == "" {
-		tmpl = nil
-		for i, a := range c.Argv {
-			if a == "{file}" {
-				continue
-			}
-			if a == "--" && i+1 < len(c.Argv) && c.Argv[i+1] == "{file}" {
-				continue
-			}
-			tmpl = append(tmpl, a)
+// limited to files when there are any ("" counts as none). An argument
+// that is just {file} becomes one argument per file, so a rename can pass
+// its old and new path and git pairs them; {file} inside a longer
+// argument is the first file. Without files, an argument that is just
+// {file} is dropped, and with it a "--" right before it.
+func DiffArgv(c Command, path, base string, files ...string) []string {
+	var fs []string
+	for _, f := range files {
+		if f != "" {
+			fs = append(fs, f)
 		}
 	}
-	return Expand(tmpl, map[string]string{"path": path, "base": base, "file": file})
+	first := ""
+	if len(fs) > 0 {
+		first = fs[0]
+	}
+	vars := map[string]string{"path": path, "base": base, "file": first}
+	var argv []string
+	for i, a := range c.Argv {
+		switch {
+		case a == "{file}":
+			argv = append(argv, fs...)
+		case a == "--" && len(fs) == 0 && i+1 < len(c.Argv) && c.Argv[i+1] == "{file}":
+		default:
+			argv = append(argv, Expand([]string{a}, vars)...)
+		}
+	}
+	return argv
 }
 
 var placeholder = regexp.MustCompile(`\{([a-z]+)\}`)

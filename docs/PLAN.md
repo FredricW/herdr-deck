@@ -138,6 +138,16 @@ A compact list on top and a detail drawer below; mockups of every state at
   replace a separate chooser. With no row selected (or in an empty project)
   the drawer shows the project's goal and repos. `z` cycles the drawer
   through ~40 % height, full height and hidden.
+- **Files.** The drawer's last section lists the selected thread's
+  changed files (`internal/source/diff`): its worktree against the
+  merge-base with the thread's `base` (else `origin/HEAD`), `git diff
+  --numstat -z -M <merge-base>` plus untracked files from `git ls-files
+  --others --exclude-standard`, each with dim `+N -M` counts (`binary`,
+  `untracked`, `old → new`) under a total line. Nine files, numbered, then
+  `+K more`. Git runs off the UI goroutine (5 s timeout,
+  `GIT_OPTIONAL_LOCKS=0`) when the selection moves to another thread and on
+  every reload; answers are reused for 2 s. No section for a resolved
+  thread; a missing worktree or base is a dim note.
 - **Missing sources.** `! N` in the header (yellow), and `!` shows a
   *Sources* view in the drawer. Stale rows are dim with `as of HH:MM`, and
   fallback ports are marked `~`.
@@ -167,6 +177,13 @@ Keys:
   with `terminal = true` opens in a new herdr pane instead. `$VISUAL` and
   `$EDITOR` are still not read implicitly. `r`: the
   thread's report in the drawer at full height. `!`: sources. `?`: help.
+- `d`: the Files section waits for a file's digit (highlighted, scrolled
+  into view): the digit opens that file's diff, `d` again, `a` or `enter`
+  the whole diff, `esc` cancels. With one file `d` opens the whole diff at
+  once. A click on a file opens it, on the total line the whole diff. The
+  diff tool gets the merge-base commit as `{base}`. A rename passes both
+  paths (a lone `{file}` argument becomes one per file) so git pairs them;
+  an untracked file does not open, since git diff leaves it out.
 - `u`: run the manifest's `up` command for the worktree, detached (own
   session and process group), logging to
   `$XDG_STATE_HOME/herdr-deck/logs/<slug>-<thread>.log` (else
@@ -274,8 +291,8 @@ secrets there; a later settings page will edit it.
   quoted command and Enter); outside herdr the status line says it needs
   herdr. The source that gives a command also decides its `terminal`, or a
   higher one does.
-- The diff tool is only defined for now (`config.Settings.Diff`,
-  `launch.DiffArgv`); a later "Diff section" task uses it. Default `hunk
+- The diff tool (`config.Settings.Diff`, `launch.DiffArgv`) opens from the
+  Files section (`d`, see UI). Default `hunk
   diff {base} -- {file}` (working tree against the base ref, uncommitted
   changes included) when `hunk` is on PATH, else `git -C {path} diff
   --merge-base {base} -- {file}`, which pages itself in the pane.
@@ -449,7 +466,8 @@ marked parallel.
    "Browser tabs" has the rules), `u` starts dev servers (the manifest's
    `up`), Figma link handlers with the open-link action (see herdr
    integration), and Linear issue status next to IDs (see "Linear issue
-   status" above). Still to do: multi-project view (design directions to
+   status" above), and the drawer's Files section, whose `d` opens the
+   diff tool (see UI). Still to do: multi-project view (design directions to
    choose from in
    [docs/design/multi-project/](design/multi-project/README.md)).
 

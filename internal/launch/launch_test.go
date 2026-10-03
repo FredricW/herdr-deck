@@ -59,6 +59,12 @@ func TestDiffArgv(t *testing.T) {
 	if got, want := DiffArgv(c, "/w", "main", ""), []string{"hunk", "diff", "main"}; !reflect.DeepEqual(got, want) {
 		t.Errorf("DiffArgv without file = %q, want %q", got, want)
 	}
+	if got, want := DiffArgv(c, "/w", "main", "old.go", "new.go"), []string{"hunk", "diff", "main", "--", "old.go", "new.go"}; !reflect.DeepEqual(got, want) {
+		t.Errorf("DiffArgv with a rename = %q, want %q", got, want)
+	}
+	if got, want := DiffArgv(Command{Argv: []string{"tool", "--file={file}"}}, "/w", "main", "a.go", "b.go"), []string{"tool", "--file=a.go"}; !reflect.DeepEqual(got, want) {
+		t.Errorf("DiffArgv with {file} in an argument = %q, want %q", got, want)
+	}
 	c = Command{Argv: []string{"git", "-C", "{path}", "diff", "--merge-base", "{base}"}}
 	if got, want := DiffArgv(c, "/w", "origin/main", ""), []string{"git", "-C", "/w", "diff", "--merge-base", "origin/main"}; !reflect.DeepEqual(got, want) {
 		t.Errorf("DiffArgv = %q, want %q", got, want)

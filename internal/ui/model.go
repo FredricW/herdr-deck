@@ -35,6 +35,14 @@ type Options struct {
 	// FocusPane focuses a herdr pane by id. Tests replace it so no real
 	// pane is ever focused.
 	FocusPane func(paneID string) error
+	// Diff reads what a thread's worktree changed against its base. It
+	// runs off the UI goroutine when the selection moves to another
+	// thread and on every reload. Nil shows no Files section.
+	Diff func(context.Context, deck.Thread) deck.Diff
+	// OpenDiff opens the diff tool for the worktree at path against base
+	// (a commit), for one file (a rename's old and new path) or, with no
+	// files, the whole diff. Tests replace it so no diff tool is ever run.
+	OpenDiff func(path, base string, files []string) error
 	// StartDev runs the dev manifest's `up` command for a thread's
 	// worktree and returns the line the footer shows. Tests replace it so
 	// no dev server is ever started.
@@ -91,6 +99,10 @@ type (
 		status string
 		err    error
 	}
+	diffMsg struct {
+		key  string
+		diff deck.Diff
+	}
 )
 
 // drawerSize cycles with z.
@@ -126,6 +138,7 @@ type Model struct {
 	mode      drawerMode
 	size      drawerSize
 	choosing  deck.LinkKind // the link chooser's kind, or noKind
+	files     bool          // d waits for a file's digit
 	desktop   bool          // the Figma chooser opens the desktop app
 	status    string        // a one-off message in the footer
 
@@ -140,6 +153,11 @@ type Model struct {
 	checkingBinary bool   // a BinaryChanged call is running
 	restart        bool   // quit to run the new binary
 	update         Update // the last update check
+
+	diffs     map[string]deck.Diff // the last diff read, by diffKey
+	diffSel   string               // the diffKey last asked for
+	diffing   bool                 // a Diff call is running
+	diffAgain bool                 // the selection moved while it ran
 }
 
 // New returns a model showing snap until Options.Load delivers a fresh one.
@@ -157,6 +175,7 @@ func New(snap deck.Snapshot, opt Options) Model {
 		opt:      opt,
 		keys:     defaultKeys(),
 		folds:    map[string]bool{},
+		diffs:    map[string]deck.Diff{},
 		choosing: noKind,
 		width:    defaultWidth,
 		height:   defaultHeight,
@@ -331,9 +350,18 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.loading = false
 		m.loaded = true
 		m.SetSnapshot(deck.Snapshot(msg))
+		diff := m.readDiff(true)
 		if m.pending {
 			m.pending = false
-			return m, m.refresh()
+			return m, tea.Batch(m.refresh(), diff)
+		}
+		return m, diff
+	case diffMsg:
+		m.diffing = false
+		m.diffs[msg.key] = msg.diff
+		if m.diffAgain {
+			m.diffAgain = false
+			return m, m.readDiff(true)
 		}
 	case openedMsg:
 		verb, past := "open", "opened"
@@ -354,17 +382,180 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		// The drawer shows the log and that the servers are starting.
 		return m, m.refresh()
 	case tea.KeyPressMsg:
-		return m.handleKey(msg)
+		next, cmd := m.handleKey(msg)
+		return next.(Model).followDiff(cmd)
 	case tea.MouseClickMsg:
-		return m.handleClick(msg.Mouse())
+		next, cmd := m.handleClick(msg.Mouse())
+		return next.(Model).followDiff(cmd)
 	case tea.MouseWheelMsg:
 		m.handleWheel(msg.Mouse())
+		return m.followDiff(nil)
 	}
 	return m, nil
 }
 
+// followDiff adds a diff read to cmd when the selection moved to another
+// thread.
+func (m Model) followDiff(cmd tea.Cmd) (tea.Model, tea.Cmd) {
+	diff := m.readDiff(false)
+	if diff == nil {
+		return m, cmd
+	}
+	return m, tea.Batch(cmd, diff)
+}
+
+// diffThread is the selected row's thread whose worktree the Files section
+// shows: not for a resolved thread, whose worktree is likely gone.
+func (m Model) diffThread() (deck.Thread, bool) {
+	r, _ := m.selected()
+	t, ok := r.thread()
+	if r.kind != rowWork || !ok || t.Worktree == "" || t.Status == deck.StatusDone {
+		return deck.Thread{}, false
+	}
+	return t, true
+}
+
+func diffKey(t deck.Thread) string { return t.ID + "\x00" + t.Worktree + "\x00" + t.Base }
+
+// diff is the selected thread's last diff, when one was read.
+func (m Model) diff() (deck.Thread, deck.Diff, bool) {
+	t, ok := m.diffThread()
+	if !ok || m.opt.Diff == nil {
+		return t, deck.Diff{}, false
+	}
+	d, ok := m.diffs[diffKey(t)]
+	return t, d, ok
+}
+
+// readDiff reads the selected thread's diff, again when force is set, else
+// only when the selection moved to another thread. One read runs at a
+// time; a move meanwhile reads again when it ends.
+func (m *Model) readDiff(force bool) tea.Cmd {
+	t, ok := m.diffThread()
+	if m.opt.Diff == nil || !ok {
+		return nil
+	}
+	k := diffKey(t)
+	if !force && k == m.diffSel {
+		return nil
+	}
+	if m.diffing {
+		m.diffAgain = true
+		return nil
+	}
+	m.diffing, m.diffSel = true, k
+	read := m.opt.Diff
+	return func() tea.Msg { return diffMsg{key: k, diff: read(context.Background(), t)} }
+}
+
+// diffKeyPressed starts the file chooser: a digit opens that file's diff,
+// d again (or a, or enter) the whole diff. With one file, d opens the
+// whole diff right away.
+func (m *Model) diffKeyPressed() tea.Cmd {
+	if m.opt.Diff == nil {
+		m.status = "the diff section is off"
+		return nil
+	}
+	if _, ok := m.diffThread(); !ok {
+		r, _ := m.selected()
+		if t, has := r.thread(); r.kind == rowWork && has && t.Status == deck.StatusDone && t.Worktree != "" {
+			m.status = t.ID + " is resolved"
+		} else {
+			m.status = "no worktree on this row"
+		}
+		return nil
+	}
+	t, d, ok := m.diff()
+	switch {
+	case !ok:
+		m.status = "reading " + t.ID + "'s changes…"
+		return nil
+	case d.Note != "":
+		m.status = t.ID + ": " + d.Note
+		return nil
+	case len(d.Files) == 0:
+		m.status = t.ID + " has no changes against " + d.Base
+		return nil
+	case len(d.Files) == 1:
+		return m.openFile(t, d, 0)
+	}
+	m.setMode(modeRow)
+	m.choosing = noKind
+	m.files = true
+	// Scroll the files into view, as far as the drawer's content goes.
+	if l := m.layout(); l.drawer != nil && l.drawer.filesAt >= 0 {
+		m.scrollDrawer(l.drawer.filesAt)
+	}
+	return nil
+}
+
+// filesKey handles a key while d waits. done is false when the key closes
+// the chooser and should then be handled as usual.
+func (m *Model) filesKey(msg tea.KeyPressMsg) (tea.Cmd, bool) {
+	m.files = false
+	t, d, ok := m.diff()
+	if !ok {
+		return nil, false
+	}
+	s := msg.String()
+	switch {
+	case len(s) == 1 && s[0] >= '1' && s[0] <= '9':
+		return m.openFile(t, d, int(s[0]-'1')), true
+	case s == "d" || s == "a" || key.Matches(msg, m.keys.Pane):
+		return m.openDiff(t, d, deck.DiffFile{}), true
+	case key.Matches(msg, m.keys.Back):
+		return nil, true
+	}
+	return nil, false
+}
+
+func (m *Model) openFile(t deck.Thread, d deck.Diff, i int) tea.Cmd {
+	if i < 0 || i >= min(len(d.Files), maxFiles) {
+		m.status = fmt.Sprintf("no file %d on this row", i+1)
+		return nil
+	}
+	f := d.Files[i]
+	if f.Untracked {
+		m.status = f.Path + " is untracked: git diff shows it once it is added"
+		return nil
+	}
+	return m.openDiff(t, d, f)
+}
+
+// openDiff opens the diff tool on the thread's worktree against the merge
+// base, so it shows what the Files section counts: one file, or with a
+// zero file the whole diff. A rename passes both paths so git pairs them.
+// Untracked files are not in git's diff.
+func (m *Model) openDiff(t deck.Thread, d deck.Diff, f deck.DiffFile) tea.Cmd {
+	open := m.opt.OpenDiff
+	what := "the diff of " + t.ID
+	var files []string
+	if f.Path != "" {
+		what = "the diff of " + f.Path
+		if f.OldPath != "" {
+			files = append(files, f.OldPath)
+		}
+		files = append(files, f.Path)
+	}
+	if open == nil {
+		m.status = "opening diffs is off"
+		return nil
+	}
+	base := d.MergeBase
+	if base == "" {
+		base = d.Base
+	}
+	path := t.Worktree
+	return func() tea.Msg { return openedMsg{what: what, err: open(path, base, files)} }
+}
+
 func (m Model) handleKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	m.status = ""
+	if m.files {
+		if cmd, done := m.filesKey(msg); done {
+			return m, cmd
+		}
+	}
 	if m.choosing != noKind {
 		if cmd, done := m.chooserKey(msg); done {
 			return m, cmd
@@ -398,6 +589,8 @@ func (m Model) handleKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		return m, m.openEditor()
 	case key.Matches(msg, m.keys.DevUp):
 		return m, m.startDev()
+	case key.Matches(msg, m.keys.Diff):
+		return m, m.diffKeyPressed()
 	case key.Matches(msg, m.keys.Report):
 		m.toggleReport()
 	case key.Matches(msg, m.keys.Drawer):
@@ -428,6 +621,7 @@ func (m *Model) move(delta int) {
 	}
 	m.cursor = m.offGap(clamp(m.cursor+delta, 0, len(m.rows)-1), dir)
 	m.moved = true
+	m.files = false
 	m.setMode(modeRow)
 	m.ensureVisible()
 }
@@ -503,7 +697,7 @@ func (m *Model) linkKey(kind deck.LinkKind) tea.Cmd {
 	}
 	m.setMode(modeRow)
 	m.choosing = kind
-	m.desktop = false
+	m.desktop, m.files = false, false
 	return nil
 }
 
@@ -730,7 +924,7 @@ func (m *Model) handleClick(mouse tea.Mouse) (tea.Model, tea.Cmd) {
 			break
 		}
 		m.cursor, m.moved = i, true
-		m.choosing = noKind
+		m.choosing, m.files = noKind, false
 		m.setMode(modeRow)
 		if m.rows[i].kind == rowHeading {
 			m.toggleFold()
@@ -743,10 +937,21 @@ func (m *Model) handleClick(mouse tea.Mouse) (tea.Model, tea.Cmd) {
 			break
 		}
 		for _, z := range dl[i].zones {
-			if mouse.X >= z.x0 && mouse.X < z.x1 {
-				m.choosing = noKind
-				return *m, m.openNumbered(z.link)
+			if mouse.X < z.x0 || mouse.X >= z.x1 {
+				continue
 			}
+			m.choosing, m.files = noKind, false
+			if z.file != 0 {
+				t, d, ok := m.diff()
+				switch {
+				case !ok:
+					return *m, nil
+				case z.file < 0:
+					return *m, m.openDiff(t, d, deck.DiffFile{})
+				}
+				return *m, m.openFile(t, d, z.file-1)
+			}
+			return *m, m.openNumbered(z.link)
 		}
 	}
 	return *m, nil

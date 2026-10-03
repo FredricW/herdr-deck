@@ -29,7 +29,7 @@ const testVersion = "v9.9.9"
 var now = time.Date(2026, 10, 2, 14, 41, 0, 0, time.UTC)
 
 // opened records what the model asked to open; nothing is ever opened.
-type opened struct{ urls, dirs, panes, devs []string }
+type opened struct{ urls, dirs, panes, devs, diffs []string }
 
 func newModel(t *testing.T, snap deck.Snapshot, w, h int) (Model, *opened) {
 	t.Helper()
@@ -49,6 +49,10 @@ func newModelWith(t *testing.T, snap deck.Snapshot, w, h int, set func(*Options)
 		StartDev: func(t deck.Thread) (string, error) {
 			o.devs = append(o.devs, t.Worktree)
 			return "started make dev for " + t.ID, nil
+		},
+		OpenDiff: func(path, base string, files []string) error {
+			o.diffs = append(o.diffs, strings.TrimSpace(path+" "+base+" "+strings.Join(files, " ")))
+			return nil
 		},
 		Version: testVersion,
 	}
@@ -80,7 +84,7 @@ func run(m Model, cmd tea.Cmd) Model {
 		for _, c := range msg {
 			m = run(m, c)
 		}
-	case openedMsg, devUpMsg:
+	case openedMsg, devUpMsg, diffMsg:
 		next, _ := m.Update(msg)
 		m = next.(Model)
 	}
@@ -1030,5 +1034,189 @@ func TestLinearIssueStatus(t *testing.T) {
 		if got := issueStyle(tt.issue).Render(shortState(tt.issue.State)); got != tt.style.Render(tt.text) {
 			t.Errorf("%+v renders %q, want %q", tt.issue, got, tt.style.Render(tt.text))
 		}
+	}
+}
+
+// changes is a thread's diff with every kind of file, more than the Files
+// section lists.
+func changes() deck.Diff {
+	return deck.Diff{
+		Base:      "origin/main",
+		MergeBase: "4b825dc",
+		Files: []deck.DiffFile{
+			{Path: "apps/admin/src/pages/users/UsersOverviewPage.tsx", Added: 214, Deleted: 12},
+			{Path: "apps/admin/src/pages/users/columns.ts", Added: 48},
+			{Path: "apps/admin/src/api/users.ts", Added: 31, Deleted: 9},
+			{Path: "apps/admin/src/pages/users/index.ts", OldPath: "apps/admin/src/pages/members/index.ts", Added: 1, Deleted: 1},
+			{Path: "apps/admin/public/empty-state.png", Binary: true},
+			{Path: "apps/admin/src/routes.tsx", Added: 6, Deleted: 2},
+			{Path: "docs/users-page.md", Added: 19, Untracked: true},
+			{Path: "package.json", Added: 1, Deleted: 1},
+			{Path: "pnpm-lock.yaml", Added: 102, Deleted: 40},
+			{Path: "scripts/seed-users.ts", Added: 25, Untracked: true},
+			{Path: "tsconfig.json", Deleted: 3},
+		},
+	}
+}
+
+// withDiffs gives the model a Diff that answers by worktree and counts its
+// calls.
+func withDiffs(diffs map[string]deck.Diff, calls *[]string) func(*Options) {
+	return func(o *Options) {
+		o.Diff = func(_ context.Context, t deck.Thread) deck.Diff {
+			if calls != nil {
+				*calls = append(*calls, t.ID)
+			}
+			return diffs[t.Worktree]
+		}
+	}
+}
+
+func TestFilesGolden(t *testing.T) {
+	gone := deck.Diff{Base: "origin/main", Note: "the worktree is gone"}
+	cases := []struct {
+		name string
+		diff deck.Diff
+		keys []tea.Msg
+	}{
+		{name: "files", diff: changes(), keys: keys("z")},
+		{name: "files-chooser", diff: changes(), keys: keys("d")},
+		{name: "files-note", diff: gone},
+	}
+	for _, c := range cases {
+		for _, w := range []int{80, 60} {
+			name := c.name + "-" + map[int]string{80: "80", 60: "60"}[w]
+			t.Run(name, func(t *testing.T) {
+				m, _ := newModelWith(t, deck.Snapshot{}, w, 28, withDiffs(map[string]deck.Diff{"/src/worktrees/t-0002": c.diff}, nil))
+				m, _ = press(m, snapshotMsg(calm()))
+				m, _ = press(m, c.keys...)
+				golden(t, name, m)
+			})
+		}
+	}
+}
+
+func TestFilesOpenDiffs(t *testing.T) {
+	m, o := newModelWith(t, deck.Snapshot{}, 80, 40, withDiffs(map[string]deck.Diff{"/src/worktrees/t-0002": changes()}, nil))
+	m, _ = press(m, snapshotMsg(calm()))
+	m, _ = press(m, keys("z")...) // full height: every file shows
+	if !strings.Contains(screen(m), "11 files +447 -68 vs origin/main") || !strings.Contains(screen(m), "+2 more · d d opens the whole diff") {
+		t.Fatalf("no Files section:\n%s", screen(m))
+	}
+	m, _ = press(m, keys("d2")...)
+	m, _ = press(m, keys("dd")...)
+	m, _ = press(m, keys("d")...)
+	m, _ = press(m, esc)
+	m, _ = press(m, keys("d9")...)
+	want := []string{
+		"/src/worktrees/t-0002 4b825dc apps/admin/src/pages/users/columns.ts",
+		"/src/worktrees/t-0002 4b825dc",
+		"/src/worktrees/t-0002 4b825dc pnpm-lock.yaml",
+	}
+	if !slices.Equal(o.diffs, want) {
+		t.Errorf("diffs %q, want %q", o.diffs, want)
+	}
+	if m.Status() != "opened the diff of pnpm-lock.yaml" {
+		t.Errorf("status %q", m.Status())
+	}
+	// A click on a file opens it; on the total line, the whole diff.
+	o.diffs = nil
+	x, y := find(t, m, "routes.tsx")
+	m, _ = press(m, click(x, y))
+	_, y = find(t, m, "11 files")
+	m, _ = press(m, click(40, y))
+	if want := []string{"/src/worktrees/t-0002 4b825dc apps/admin/src/routes.tsx", "/src/worktrees/t-0002 4b825dc"}; !slices.Equal(o.diffs, want) {
+		t.Errorf("clicks opened %q, want %q", o.diffs, want)
+	}
+	// A rename opens with both paths; an untracked file does not open.
+	o.diffs = nil
+	m, _ = press(m, keys("d4")...)
+	m, _ = press(m, keys("d7")...)
+	if want := []string{"/src/worktrees/t-0002 4b825dc apps/admin/src/pages/members/index.ts apps/admin/src/pages/users/index.ts"}; !slices.Equal(o.diffs, want) {
+		t.Errorf("rename opened %q, want %q", o.diffs, want)
+	}
+	if m.Status() != "docs/users-page.md is untracked: git diff shows it once it is added" {
+		t.Errorf("untracked status %q", m.Status())
+	}
+	// The digits are links again once the chooser is closed.
+	_, _ = press(m, keys("1")...)
+	if len(o.urls) != 1 {
+		t.Errorf("1 after the chooser opened %q", o.urls)
+	}
+}
+
+func TestFilesKeyEdges(t *testing.T) {
+	one := deck.Diff{Base: "origin/main", MergeBase: "abc", Files: []deck.DiffFile{{Path: "a.go", Added: 1}}}
+	none := deck.Diff{Base: "origin/main", MergeBase: "abc"}
+	diffs := map[string]deck.Diff{"/src/worktrees/t-0002": one, "/src/worktrees/t-0003": none}
+	snap := calm()
+	snap.Threads[2].Worktree = "/src/worktrees/t-0003"
+	m, o := newModelWith(t, deck.Snapshot{}, 80, 28, withDiffs(diffs, nil))
+	m, _ = press(m, snapshotMsg(snap))
+	// One file: d opens the whole diff at once.
+	m, _ = press(m, keys("d")...)
+	if !slices.Equal(o.diffs, []string{"/src/worktrees/t-0002 abc a.go"}) {
+		t.Errorf("one file: %q", o.diffs)
+	}
+	m, _ = press(m, keys("j")...)
+	if !strings.Contains(screen(m), "no changes against origin/main") {
+		t.Errorf("no changes:\n%s", screen(m))
+	}
+	m, _ = press(m, keys("d")...)
+	if m.Status() != "t-0003 has no changes against origin/main" {
+		t.Errorf("status %q", m.Status())
+	}
+	// Without herdr the opener fails, and the footer says why.
+	m, _ = press(m, keys("k")...)
+	m.opt.OpenDiff = func(string, string, []string) error { return errors.New("a terminal program needs herdr") }
+	m, _ = press(m, keys("d")...)
+	if m.Status() != "could not open the diff of a.go: a terminal program needs herdr" {
+		t.Errorf("status %q", m.Status())
+	}
+}
+
+func TestFilesHiddenForResolvedAndInbox(t *testing.T) {
+	var calls []string
+	snap := fakeSnap()
+	m, _ := newModelWith(t, deck.Snapshot{}, 80, 28, withDiffs(map[string]deck.Diff{"/src/worktrees/t-0002": changes()}, &calls))
+	m, _ = press(m, snapshotMsg(snap))
+	// The cursor rests on t-0002, which needs the user.
+	if len(calls) != 1 || calls[0] != "t-0002" {
+		t.Fatalf("calls %q", calls)
+	}
+	snap.Threads[1].Status = deck.StatusDone
+	m, _ = press(m, snapshotMsg(snap))
+	if strings.Contains(screen(m), "11 files") {
+		t.Errorf("a resolved thread shows its files:\n%s", screen(m))
+	}
+	if len(calls) != 1 {
+		t.Errorf("read a resolved thread's diff: %q", calls)
+	}
+}
+
+func TestDiffReadsFollowSelection(t *testing.T) {
+	var calls []string
+	snap := calm()
+	snap.Threads[2].Worktree = "/src/worktrees/t-0003"
+	diffs := map[string]deck.Diff{"/src/worktrees/t-0002": changes(), "/src/worktrees/t-0003": {Base: "origin/main"}}
+	m, _ := newModelWith(t, deck.Snapshot{}, 80, 28, withDiffs(diffs, &calls))
+	m, _ = press(m, snapshotMsg(snap))
+	m, _ = press(m, keys("j")...) // t-0003
+	m, _ = press(m, keys("k")...) // t-0002 again
+	m, _ = press(m, keys("z")...) // no move: no read
+	m, _ = press(m, snapshotMsg(snap))
+	if want := []string{"t-0002", "t-0003", "t-0002", "t-0002"}; !slices.Equal(calls, want) {
+		t.Errorf("calls %q, want %q", calls, want)
+	}
+	// A move while a read runs reads again when it ends, for the row
+	// selected then.
+	calls = nil
+	next, cmd := m.Update(keys("j")[0])
+	m = next.(Model)
+	next, _ = m.Update(keys("j")[0])
+	m = next.(Model)
+	_ = run(m, cmd)
+	if want := []string{"t-0003"}; !slices.Equal(calls, want) {
+		t.Errorf("calls %q, want %q", calls, want)
 	}
 }

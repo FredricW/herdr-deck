@@ -514,6 +514,9 @@ func (m Model) footer(w int) string {
 			}
 			hint += "  a all  " + kindKey(m.choosing) + " first  esc cancel"
 		}
+	case m.files:
+		_, d, _ := m.diff()
+		hint = fmt.Sprintf("Files: 1-%d open  d whole diff  esc cancel", min(len(d.Files), maxFiles))
 	case m.mode != modeRow:
 		hint = "esc back  pgup pgdn scroll  z drawer  ? help  q quit"
 	case !ok:
@@ -529,6 +532,9 @@ func (m Model) footer(w int) string {
 		}
 	default:
 		hint = "1-9 link  l f n g o first  ↵ pane  e edit  z drawer  ? help"
+		if m.opt.Diff != nil {
+			hint = "1-9 link  l f n g o first  ↵ pane  e edit  d diff  z drawer  ? help"
+		}
 		if narrow {
 			hint = "1-9 link  l f n g o first  ↵ pane  z drawer  ? help"
 		}

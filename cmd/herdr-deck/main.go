@@ -24,6 +24,7 @@ import (
 	"github.com/FredricW/herdr-deck/internal/project"
 	"github.com/FredricW/herdr-deck/internal/restart"
 	"github.com/FredricW/herdr-deck/internal/source/dev"
+	"github.com/FredricW/herdr-deck/internal/source/diff"
 	"github.com/FredricW/herdr-deck/internal/source/fake"
 	"github.com/FredricW/herdr-deck/internal/source/herdr"
 	"github.com/FredricW/herdr-deck/internal/source/linear"
@@ -110,6 +111,9 @@ func run(args []string) error {
 		OpenEditor: func(path string) error {
 			return runner.Run(cfg.Editor, launch.EditorArgv(cfg.Editor, path), path)
 		},
+		OpenDiff: func(path, base string, files []string) error {
+			return runner.Run(cfg.Diff, launch.DiffArgv(cfg.Diff, path, base, files...), path)
+		},
 		Tick:    cfg.RefreshInterval,
 		Version: shortVersionString(),
 	}
@@ -150,6 +154,7 @@ func run(args []string) error {
 		return snap
 	}
 	opt.FocusPane = func(id string) error { return client.Focus(context.Background(), id) }
+	opt.Diff = (&diff.Reader{}).Read
 	opt.StartDev = func(t deck.Thread) (string, error) { return devs.Up(context.Background(), slug, t) }
 	if cfg.UpdateCheck {
 		opt.CheckUpdate = updateHint(config.CacheDir(os.Getenv))

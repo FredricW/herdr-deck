@@ -1,0 +1,28 @@
+ Admin rebuild                           ◐ 2  ◇ 1  ○ 1  ✉ 0
+────────────────────────────────────────────────────────────
+    WORK                        STATUS           LINKS  DEV
+  In progress
+ ▸◐ Users page                  Building overv…  L4
+  ◐ Templates page              Writing tests    L F    ●●●
+  ◇ Document select for summa…  #2320 review     L F3   ●○
+
+  On hold until Monday 2026-10-05
+  ○ Subscriptions list          idle             L N    ~○
+
+  + Backlog (3)
+
+
+
+
+
+─ Users page · t-0002 ──────────────────────────────────────
+▶Files   11 files +447 -68 vs origin/main
+         1 …src/pages/users/UsersOverviewPage.tsx  +214 -12
+         2 apps/admin/src/pages/users/columns.ts     +48 -0
+         3 apps/admin/src/api/users.ts               +31 -9
+         4 …ts → apps/admin/src/pages/users/index.ts  +1 -1
+         5 apps/admin/public/empty-state.png         binary
+         6 apps/admin/src/routes.tsx                  +6 -2
+         7 docs/users-page.md                 +19 untracked
+────────────────────────────────────────────────────────────
+ Files: 1-9 open  d whole diff  esc cancel            v9.9.9
