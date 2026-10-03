@@ -144,6 +144,17 @@ func (m Model) header(w int) string {
 		}
 		parts = append(parts, st.Render(fmt.Sprintf("✉ %d", c)))
 	}
+	if v := m.update.Available; v != "" {
+		parts = append(parts, okStyle.Render("↑ "+v))
+	}
+	if m.opt.RestartFailed != "" {
+		s := "↻"
+		if !narrow {
+			s += " restart failed"
+		}
+		parts = append(parts, warnStyle.Render(s))
+	}
+	// `! N` stays last: bangZone finds it at the right edge.
 	if c := len(m.snap.Missing); c > 0 {
 		parts = append(parts, warnStyle.Bold(true).Render(fmt.Sprintf("! %d", c)))
 	}

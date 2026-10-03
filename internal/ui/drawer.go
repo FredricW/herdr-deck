@@ -504,8 +504,17 @@ func (m Model) sourcesDrawer(width int) *drawer {
 	if !m.snap.ThreadsAsOf.IsZero() {
 		d.styledField("!", warnStyle.Bold(true), false, words("threads as of "+m.snap.ThreadsAsOf.In(m.loc()).Format("15:04")+", when herdr-projects last wrote them", plain))
 	}
+	if m.opt.RestartFailed != "" {
+		d.styledField("!", warnStyle.Bold(true), false, words("a new herdr-deck is installed, but restarting into it failed ("+m.opt.RestartFailed+"); this deck keeps running the old one", plain))
+	}
+	if v := m.update.Available; v != "" {
+		d.styledField("↑", okStyle, false, words("herdr-deck "+v+" is available: run `herdr-deck update`", plain))
+	}
 	for _, n := range m.snap.Notes {
 		d.styledField("·", dim, false, words(n, dim))
+	}
+	if p := m.update.Problem; p != "" {
+		d.styledField("·", dim, false, words("update check: "+p, dim))
 	}
 	ok := "every source"
 	if len(m.snap.Missing) > 0 {

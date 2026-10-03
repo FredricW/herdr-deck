@@ -79,8 +79,19 @@ The deck marks its pane with the token `herdr_deck=<slug>` (source
 `herdr-deck`); that is how the plugin finds it again. `herdr plugin log list
 --plugin herdr-deck` shows what the hooks did and why one failed.
 
-To update, install again (`herdr plugin install FredricW/herdr-deck`). To
-remove it, `herdr plugin uninstall herdr-deck`, or `herdr plugin unlink
+To update, run `herdr-deck update` (or `herdr-deck update --check` to only
+look). For a GitHub install it asks herdr to reinstall the newest release
+tag (`herdr plugin install FredricW/herdr-deck --ref vX.Y.Z --yes`). For a
+linked checkout it runs `git pull --ff-only` and rebuilds `bin/herdr-deck`,
+but only when the checkout is on origin's default branch with no
+uncommitted changes; otherwise it says why and changes nothing. Nothing
+updates on its own: the deck only shows `↑ <version>` in its header when
+something newer exists (checked at most once an hour, shared by all decks;
+a failed check shows only in the `!` sources view). Running decks notice
+the new binary within a refresh or two and restart in place, in the same
+pane.
+
+To remove it, `herdr plugin uninstall herdr-deck`, or `herdr plugin unlink
 herdr-deck` for a linked checkout, and delete the keybinding.
 
 ## Build and run
@@ -151,6 +162,13 @@ projects_root = "~/.herdr-projects"
 # "Browser tabs" below.
 reuse_browser_tabs = true
 
+# Show "↑ <version>" in the header when a newer deck exists.
+update_check = true
+
+# Restart running decks in place when their binary is replaced, e.g. by
+# `herdr-deck update`.
+auto_restart = true
+
 # What `e` opens a thread's worktree with. {path} is the worktree folder;
 # without it the folder is added at the end. Not run through a shell: quote
 # arguments with spaces. terminal = true opens it in a new herdr pane below
@@ -175,6 +193,8 @@ terminal = true
 | `refresh_interval` | `--refresh-interval` | `HERDR_DECK_REFRESH_INTERVAL` | `5s` |
 | `projects_root` | `--projects-root` | `HERDR_PROJECTS_ROOT` | `~/.herdr-projects` |
 | `reuse_browser_tabs` | `--reuse-browser-tabs` | `HERDR_DECK_REUSE_BROWSER_TABS` | `true` |
+| `update_check` | `--update-check` | `HERDR_DECK_UPDATE_CHECK` | `true` |
+| `auto_restart` | `--auto-restart` | `HERDR_DECK_AUTO_RESTART` | `true` |
 | `[editor] command` | `--editor` | `HERDR_DECK_EDITOR` | `code {path}` |
 | `[editor] terminal` | `--editor-terminal` | `HERDR_DECK_EDITOR_TERMINAL` | `false` |
 | `[diff] command` | `--diff-tool` | `HERDR_DECK_DIFF_TOOL` | `hunk diff {base} -- {file}`, or `git -C {path} diff --merge-base {base} -- {file}` without hunk |

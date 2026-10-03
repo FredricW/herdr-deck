@@ -910,3 +910,87 @@ func TestFooterVersionYieldsToHelp(t *testing.T) {
 		})
 	}
 }
+
+func TestRestartWhenBinaryChanges(t *testing.T) {
+	calls := 0
+	changed := false
+	m := New(calm(), Options{
+		Now:           func() time.Time { return now },
+		BinaryChanged: func(context.Context) bool { calls++; return changed },
+	})
+	if m.Init() == nil {
+		t.Fatal("Init with BinaryChanged returns no command")
+	}
+	cmd := m.checkBinary()
+	if cmd == nil {
+		t.Fatal("no binary check on the tick")
+	}
+	if again := m.checkBinary(); again != nil {
+		t.Fatal("a second check started while one ran")
+	}
+	next, quit := m.Update(cmd())
+	m = next.(Model)
+	if quit != nil || m.Restart() {
+		t.Fatal("an unchanged binary quit the deck")
+	}
+	changed = true
+	cmd = m.checkBinary()
+	next, quit = m.Update(cmd())
+	m = next.(Model)
+	if !m.Restart() || quit == nil {
+		t.Fatal("a changed binary did not ask for a restart")
+	}
+	if _, ok := quit().(tea.QuitMsg); !ok {
+		t.Fatal("the restart did not quit the program")
+	}
+	if calls != 2 {
+		t.Errorf("BinaryChanged ran %d times, want 2", calls)
+	}
+	if m.checkBinary() != nil {
+		t.Error("a check started after the restart was asked for")
+	}
+}
+
+func TestUpdateHint(t *testing.T) {
+	m, _ := newModel(t, calm(), 80, 28)
+	m.opt.CheckUpdate = func(context.Context) Update { return Update{Available: "v0.2.0"} }
+	if m.Init() == nil {
+		t.Fatal("Init with CheckUpdate returns no command")
+	}
+	// Update, not press: the next check's hour-long tick must not run.
+	next, _ := m.Update(m.checkUpdate()())
+	m = next.(Model)
+	header := strings.Split(screen(m), "\n")[0]
+	if !strings.Contains(header, "↑ v0.2.0") {
+		t.Errorf("header = %q, want the update hint", header)
+	}
+	m, _ = press(m, keys("!")...)
+	if s := screen(m); !strings.Contains(s, "herdr-deck v0.2.0 is available: run `herdr-deck update`") {
+		t.Errorf("Sources view does not explain the update:\n%s", s)
+	}
+
+	// A failed check is silent in the header and shows in Sources.
+	m, _ = newModel(t, calm(), 80, 28)
+	next, _ = m.Update(updateMsg{Problem: "git ls-remote: could not resolve host"})
+	m = next.(Model)
+	before, _ := newModel(t, calm(), 80, 28)
+	if got, want := strings.Split(screen(m), "\n")[0], strings.Split(screen(before), "\n")[0]; got != want {
+		t.Errorf("header with a failed check = %q, want it unchanged %q", got, want)
+	}
+	m, _ = press(m, keys("!")...)
+	if s := screen(m); !strings.Contains(s, "update check: git ls-remote: could not resolve host") {
+		t.Errorf("Sources view does not show the failed check:\n%s", s)
+	}
+}
+
+func TestRestartFailedHint(t *testing.T) {
+	m := New(calm(), Options{Now: func() time.Time { return now }, RestartFailed: "exec format error"})
+	m, _ = press(m, tea.WindowSizeMsg{Width: 80, Height: 28})
+	if header := strings.Split(screen(m), "\n")[0]; !strings.Contains(header, "↻ restart failed") {
+		t.Errorf("header = %q, want the restart hint", header)
+	}
+	m, _ = press(m, keys("!")...)
+	if s := screen(m); !strings.Contains(s, "restarting into it failed (exec format") {
+		t.Errorf("Sources view does not say why the restart failed:\n%s", s)
+	}
+}
