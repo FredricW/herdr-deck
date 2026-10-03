@@ -2,6 +2,7 @@ package diff
 
 import (
 	"context"
+	"errors"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -213,5 +214,57 @@ func TestReadCommitsCachesByHead(t *testing.T) {
 	clock = clock.Add(cacheTTL)
 	if cs := r.ReadCommits(context.Background(), th); count("log") != 2 || cs.List[0].SHA != "h2" {
 		t.Errorf("a moved HEAD did not read the log again: %v %+v", calls, cs)
+	}
+}
+
+// A moved base reads the list again; a failed read is never kept.
+func TestReadCommitsBaseAndFailures(t *testing.T) {
+	clock := time.Date(2026, 10, 3, 12, 0, 0, 0, time.UTC)
+	baseSHA, mbFails := "b1", true
+	logs := 0
+	r := &Reader{
+		Now: func() time.Time { return clock },
+		Git: func(_ context.Context, _ string, args ...string) ([]byte, error) {
+			switch args[0] {
+			case "rev-parse":
+				switch {
+				case args[1] == "HEAD":
+					return []byte("h1\n"), nil
+				case strings.HasSuffix(args[len(args)-1], "^{commit}"):
+					return []byte(baseSHA + "\n"), nil
+				}
+				return nil, os.ErrNotExist
+			case "merge-base":
+				if mbFails {
+					return nil, errors.New("timeout")
+				}
+				return []byte("mb\n"), nil
+			case "log":
+				logs++
+				return []byte("\x1eh1\x1fh\x1fp\x1f0\x1fA\x1fs\n"), nil
+			}
+			return nil, nil
+		},
+	}
+	th := deck.Thread{Worktree: t.TempDir()}
+	read := func() deck.Commits {
+		clock = clock.Add(cacheTTL)
+		return r.ReadCommits(context.Background(), th)
+	}
+	if cs := read(); !strings.HasPrefix(cs.Note, "cannot compare") {
+		t.Fatalf("failed merge-base: %+v", cs)
+	}
+	mbFails = false
+	if cs := read(); cs.Note != "" || len(cs.List) != 1 {
+		t.Fatalf("a failure was cached: %+v", cs)
+	}
+	read()
+	if logs != 1 {
+		t.Errorf("same HEAD and base read the log %d times", logs)
+	}
+	baseSHA = "b2"
+	read()
+	if logs != 2 {
+		t.Errorf("a moved base did not read the log again: %d", logs)
 	}
 }

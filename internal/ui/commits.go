@@ -64,6 +64,35 @@ func (m *Model) readCommits(force bool) tea.Cmd {
 	return func() tea.Msg { return commitsMsg{key: k, commits: read(context.Background(), t)} }
 }
 
+// setCommits stores a thread's commit list. When it is the list the
+// Commits tab shows, the drawer cursor stays on the same commit (or the
+// uncommitted row) though rows came or went above it, so the preview does
+// not jump to another commit.
+func (m *Model) setCommits(key string, cs deck.Commits) {
+	t, old, had := m.commits()
+	m.commitLists[key] = cs
+	if !had || diffKey(t) != key || m.curTab() != tabCommits {
+		return
+	}
+	i := m.cursorCommit(old)
+	switch {
+	case i >= 0:
+		sha := old.List[i].SHA
+		for j, c := range cs.List {
+			if c.SHA == sha {
+				m.dcur = commitStop(cs, j)
+				return
+			}
+		}
+	case pseudoRow(old) && m.dcur == 0:
+		if pseudoRow(cs) {
+			return
+		}
+	}
+	// The commit is gone (or the uncommitted row): keep within the list.
+	m.dcur = clamp(m.dcur, 0, max(commitStop(cs, len(cs.List))-1, 0))
+}
+
 // pseudoRow says whether the Commits tab starts with the uncommitted
 // changes' row, which takes the first cursor stop.
 func pseudoRow(cs deck.Commits) bool { return cs.Note == "" && cs.Uncommitted > 0 }
