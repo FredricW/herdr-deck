@@ -66,6 +66,8 @@ type Options struct {
 	// RestartFailed says why an earlier restart did not work; the header
 	// and the Sources view show it.
 	RestartFailed string
+	// Settings backs the settings page (s); nil turns it off.
+	Settings *SettingsHooks
 }
 
 // DefaultUpdateEvery is how often CheckUpdate runs.
@@ -89,6 +91,7 @@ type (
 	updateTickMsg struct{}
 	binaryMsg     bool
 	updateMsg     Update
+	updateOnceMsg Update // a check outside the hourly round
 	snapshotMsg   deck.Snapshot
 	openedMsg     struct {
 		what string
@@ -158,6 +161,8 @@ type Model struct {
 	diffSel   string               // the diffKey last asked for
 	diffing   bool                 // a Diff call is running
 	diffAgain bool                 // the selection moved while it ran
+
+	set settingsPage
 }
 
 // New returns a model showing snap until Options.Load delivers a fresh one.
@@ -344,6 +349,19 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case updateMsg:
 		m.update = Update(msg)
 		return m, m.updateTick()
+	case updateOnceMsg:
+		m.update = Update(msg)
+	case settingsMsg:
+		if msg.err != nil {
+			m.set.err = msg.err.Error()
+		} else {
+			m.set.cfg, m.set.loaded, m.set.err = msg.cfg, true, ""
+		}
+		m.followSetting()
+	case settingsSavedMsg:
+		cmd := m.settingsSaved(msg)
+		m.followSetting()
+		return m, cmd
 	case RefreshMsg:
 		return m, m.refresh()
 	case snapshotMsg:
@@ -551,6 +569,11 @@ func (m *Model) openDiff(t deck.Thread, d deck.Diff, f deck.DiffFile) tea.Cmd {
 
 func (m Model) handleKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	m.status = ""
+	if m.mode == modeSettings {
+		if cmd, done := m.settingsKey(msg); done {
+			return m, cmd
+		}
+	}
 	if m.files {
 		if cmd, done := m.filesKey(msg); done {
 			return m, cmd
@@ -601,6 +624,8 @@ func (m Model) handleKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		m.toggleMode(modeSources)
 	case key.Matches(msg, m.keys.Help):
 		m.toggleMode(modeHelp)
+	case key.Matches(msg, m.keys.Settings):
+		return m, m.openSettings()
 	case key.Matches(msg, m.keys.PageDown):
 		m.scrollDrawer(max(m.layout().drawerH/2, 1))
 	case key.Matches(msg, m.keys.PageUp):
@@ -934,6 +959,11 @@ func (m *Model) handleClick(mouse tea.Mouse) (tea.Model, tea.Cmd) {
 		dl := l.drawer.lines
 		i := m.drawerOff + mouse.Y - l.drawerTop
 		if i >= len(dl) {
+			break
+		}
+		if s := dl[i].setting; s > 0 && !m.set.editing {
+			m.set.cursor = s - 1
+			m.followSetting()
 			break
 		}
 		for _, z := range dl[i].zones {

@@ -87,6 +87,9 @@ func run(m Model, cmd tea.Cmd) Model {
 	case openedMsg, devUpMsg, diffMsg:
 		next, _ := m.Update(msg)
 		m = next.(Model)
+	case settingsMsg, settingsSavedMsg:
+		next, cmd := m.Update(msg)
+		m = run(next.(Model), cmd)
 	}
 	return m
 }

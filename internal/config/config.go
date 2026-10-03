@@ -4,10 +4,11 @@
 //
 // The file is $XDG_CONFIG_HOME/herdr-deck/config.toml, else
 // ~/.config/herdr-deck/config.toml (on macOS too); --config or
-// $HERDR_DECK_CONFIG names another. The deck only reads it. A missing file
-// is fine; a file that cannot be parsed, an unknown key or a bad value never
-// stops the deck: they come back as problems for the Sources view (or
-// stderr) and the setting falls back to the next source.
+// $HERDR_DECK_CONFIG names another. Only the settings page writes it, one
+// key at a time (Save). A missing file is fine; a file that cannot be
+// parsed, an unknown key or a bad value never stops the deck: they come
+// back as problems for the Sources view (or stderr) and the setting falls
+// back to the next source.
 package config
 
 import (
@@ -41,6 +42,9 @@ const (
 	EnvUpdateCheck     = "HERDR_DECK_UPDATE_CHECK"
 	EnvAutoRestart     = "HERDR_DECK_AUTO_RESTART"
 	EnvLinearStatus    = "HERDR_DECK_LINEAR_STATUS"
+	// EnvLinearAPIKey is internal/source/linear's: the key itself, which
+	// wins over linear_api_key_command.
+	EnvLinearAPIKey = "LINEAR_API_KEY"
 )
 
 // Default editor and diff tool commands. The diff tool is hunk when it is
@@ -275,6 +279,9 @@ type Settings struct {
 	// Problems are one line each about the file or a bad value that was
 	// skipped. They never stop the deck.
 	Problems []string
+	// Values are each setting's effective value as text and where it came
+	// from, keyed by Spec.Key, for the settings page.
+	Values map[string]Value
 }
 
 // Resolve reads the config file and settles every setting: flag > env >
@@ -283,7 +290,7 @@ type Settings struct {
 // used. lookPath finds a program on $PATH (exec.LookPath); it picks the
 // default diff tool.
 func Resolve(fl Flags, getenv func(string) string, lookPath func(string) (string, error)) (Settings, error) {
-	var s Settings
+	s := Settings{Values: map[string]Value{}}
 	var named bool
 	s.Path, named = Path(fl.Config, getenv)
 	f, problems := Load(s.Path, named)
@@ -292,29 +299,35 @@ func Resolve(fl Flags, getenv func(string) string, lookPath func(string) (string
 	switch {
 	case fl.LinearWorkspace != "":
 		s.LinearWorkspace = fl.LinearWorkspace
+		s.note(KeyLinearWorkspace, s.LinearWorkspace, FromFlag)
 	case getenv(EnvLinearWorkspace) != "":
 		s.LinearWorkspace = getenv(EnvLinearWorkspace)
+		s.note(KeyLinearWorkspace, s.LinearWorkspace, FromEnv)
 	case f.LinearWorkspace != nil:
 		s.LinearWorkspace = strings.TrimSpace(*f.LinearWorkspace)
+		s.note(KeyLinearWorkspace, s.LinearWorkspace, FromFile)
+	default:
+		s.note(KeyLinearWorkspace, "", FromDefault)
 	}
 
-	s.RefreshInterval = DefaultRefreshInterval
+	var from Source
 	if fl.RefreshInterval != "" {
 		d, err := parseInterval(fl.RefreshInterval)
 		if err != nil {
 			return s, fmt.Errorf("--refresh-interval: %w", err)
 		}
-		s.RefreshInterval = d
+		s.RefreshInterval, from = d, FromFlag
 	} else if v := getenv(EnvRefreshInterval); v != "" {
 		if d, err := parseInterval(v); err == nil {
-			s.RefreshInterval = d
+			s.RefreshInterval, from = d, FromEnv
 		} else {
 			s.Problems = append(s.Problems, "$"+EnvRefreshInterval+": "+err.Error()+"; ignored")
-			s.RefreshInterval = fileInterval(f, s.Path, &s.Problems)
+			s.RefreshInterval, from = fileInterval(f, s.Path, &s.Problems)
 		}
 	} else {
-		s.RefreshInterval = fileInterval(f, s.Path, &s.Problems)
+		s.RefreshInterval, from = fileInterval(f, s.Path, &s.Problems)
 	}
+	s.note(KeyRefreshInterval, s.RefreshInterval.String(), from)
 
 	switch {
 	case fl.ProjectsRoot != "":
@@ -324,12 +337,15 @@ func Resolve(fl Flags, getenv func(string) string, lookPath func(string) (string
 			return s, fmt.Errorf("--projects-root: %w", err)
 		}
 		s.ProjectsRoot = p
+		s.note(KeyProjectsRoot, p, FromFlag)
 	case getenv(EnvProjectsRoot) != "":
 		s.ProjectsRoot = getenv(EnvProjectsRoot)
+		s.note(KeyProjectsRoot, s.ProjectsRoot, FromEnv)
 	default:
 		if f.ProjectsRoot != nil {
 			if p := expandHome(strings.TrimSpace(*f.ProjectsRoot), getenv); filepath.IsAbs(p) {
 				s.ProjectsRoot = p
+				s.note(KeyProjectsRoot, p, FromFile)
 				break
 			}
 			s.Problems = append(s.Problems, fmt.Sprintf("config: %s: projects_root %q is not an absolute path; ignored", s.Path, *f.ProjectsRoot))
@@ -337,79 +353,56 @@ func Resolve(fl Flags, getenv func(string) string, lookPath func(string) (string
 		if home := homeDir(getenv); home != "" {
 			s.ProjectsRoot = filepath.Join(home, ".herdr-projects")
 		}
+		s.note(KeyProjectsRoot, s.ProjectsRoot, FromDefault)
 	}
 
-	if v := getenv(EnvFigmaDesktop); v != "" {
-		if b, err := strconv.ParseBool(v); err == nil {
-			s.FigmaDesktop = b
-		} else {
-			s.Problems = append(s.Problems, fmt.Sprintf("$%s: %q is not true or false; ignored", EnvFigmaDesktop, v))
-			s.FigmaDesktop = f.FigmaDesktop != nil && *f.FigmaDesktop
-		}
-	} else if f.FigmaDesktop != nil {
-		s.FigmaDesktop = *f.FigmaDesktop
-	}
+	s.FigmaDesktop = s.resolveBool(KeyFigmaDesktop, nil, EnvFigmaDesktop, f.FigmaDesktop, false, getenv)
 
 	var err error
-	if s.Editor, err = resolveProgram(programSources{
+	if s.Editor, err = s.resolveProgram(programSources{
 		what: "editor", flag: fl.Editor, flagTerm: fl.EditorTerminal, flagName: "--editor",
 		env: EnvEditor, envTerm: EnvEditorTerminal, file: f.Editor, path: s.Path,
 		allowed: EditorPlaceholders, def: DefaultEditor, defTerm: false,
-	}, getenv, &s.Problems); err != nil {
+	}, getenv); err != nil {
 		return s, err
 	}
 	def := DefaultDiffTool
 	if _, err := lookPath("hunk"); err != nil {
 		def = FallbackDiffTool
 	}
-	if s.Diff, err = resolveProgram(programSources{
+	if s.Diff, err = s.resolveProgram(programSources{
 		what: "diff", flag: fl.DiffTool, flagTerm: fl.DiffTerminal, flagName: "--diff-tool",
 		env: EnvDiffTool, envTerm: EnvDiffTerminal, file: f.Diff, path: s.Path,
 		allowed: DiffPlaceholders, def: def, defTerm: true,
-	}, getenv, &s.Problems); err != nil {
+	}, getenv); err != nil {
 		return s, err
 	}
-	s.ReuseTabs = true
-	switch v := getenv(EnvReuseTabs); {
-	case fl.ReuseTabs != nil:
-		s.ReuseTabs = *fl.ReuseTabs
-	case v != "":
-		if b, err := strconv.ParseBool(v); err == nil {
-			s.ReuseTabs = b
-			break
-		}
-		s.Problems = append(s.Problems, fmt.Sprintf("$%s: %q is not true or false; ignored", EnvReuseTabs, v))
-		fallthrough
-	default:
-		if f.ReuseTabs != nil {
-			s.ReuseTabs = *f.ReuseTabs
-		}
-	}
-	s.LinearStatus = true
-	if v := getenv(EnvLinearStatus); v != "" {
-		if b, err := strconv.ParseBool(v); err == nil {
-			s.LinearStatus = b
-		} else {
-			s.Problems = append(s.Problems, fmt.Sprintf("$%s: %q is not true or false; ignored", EnvLinearStatus, v))
-			if f.LinearStatus != nil {
-				s.LinearStatus = *f.LinearStatus
-			}
-		}
-	} else if f.LinearStatus != nil {
-		s.LinearStatus = *f.LinearStatus
-	}
+	s.ReuseTabs = s.resolveBool(KeyReuseTabs, fl.ReuseTabs, EnvReuseTabs, f.ReuseTabs, true, getenv)
+	s.LinearStatus = s.resolveBool(KeyLinearStatus, nil, EnvLinearStatus, f.LinearStatus, true, getenv)
 	// The command takes no placeholders and runs as written, without a
 	// shell. Problems never quote it, in case a key was pasted there.
+	s.note(KeyLinearAPIKeyCommand, "", FromDefault)
 	if f.LinearAPIKeyCommand != nil && strings.TrimSpace(*f.LinearAPIKeyCommand) != "" {
 		if argv, err := launch.ParseCommand(*f.LinearAPIKeyCommand); err == nil {
 			s.LinearAPIKeyCommand = argv
+			s.note(KeyLinearAPIKeyCommand, strings.TrimSpace(*f.LinearAPIKeyCommand), FromFile)
 		} else {
 			s.Problems = append(s.Problems, fmt.Sprintf("config: %s: linear_api_key_command does not parse; ignored", s.Path))
 		}
 	}
+	if getenv(EnvLinearAPIKey) != "" {
+		v := s.Values[KeyLinearAPIKeyCommand]
+		v.Note = "$" + EnvLinearAPIKey + " is set and wins over the command"
+		s.Values[KeyLinearAPIKeyCommand] = v
+	}
 
-	s.UpdateCheck = resolveBool(fl.UpdateCheck, EnvUpdateCheck, f.UpdateCheck, true, getenv, &s.Problems)
-	s.AutoRestart = resolveBool(fl.AutoRestart, EnvAutoRestart, f.AutoRestart, true, getenv, &s.Problems)
+	s.UpdateCheck = s.resolveBool(KeyUpdateCheck, fl.UpdateCheck, EnvUpdateCheck, f.UpdateCheck, true, getenv)
+	s.AutoRestart = s.resolveBool(KeyAutoRestart, fl.AutoRestart, EnvAutoRestart, f.AutoRestart, true, getenv)
+	for k, text := range fileValues(f) {
+		v := s.Values[k]
+		v.File, v.InFile = text, true
+		s.Values[k] = v
+	}
 	// The Sources view is narrow: show the file as ~/… where it fits.
 	if home := homeDir(getenv); home != "" && strings.HasPrefix(s.Path, home+string(filepath.Separator)) {
 		short := "~" + strings.TrimPrefix(s.Path, home)
@@ -435,53 +428,56 @@ type programSources struct {
 // the highest source with a valid command wins, and terminal comes from
 // that source or a higher one, else the default. So --editor "zed {path}"
 // is not opened in a pane because the file said terminal = true for nvim.
-func resolveProgram(ps programSources, getenv func(string) string, problems *[]string) (launch.Command, error) {
+func (s *Settings) resolveProgram(ps programSources, getenv func(string) string) (launch.Command, error) {
 	var term *bool
-	setTerm := func(b *bool) {
+	termFrom := FromDefault
+	setTerm := func(b *bool, from Source) {
 		if term == nil && b != nil {
-			term = b
+			term, termFrom = b, from
 		}
 	}
-	pick := func(argv []string) launch.Command {
+	pick := func(argv []string, text string, from Source) launch.Command {
 		c := launch.Command{Argv: argv, Terminal: ps.defTerm}
 		if term != nil {
 			c.Terminal = *term
 		}
+		s.note(ps.what+".command", strings.TrimSpace(text), from)
+		s.note(ps.what+".terminal", strconv.FormatBool(c.Terminal), termFrom)
 		return c
 	}
 
-	setTerm(ps.flagTerm)
+	setTerm(ps.flagTerm, FromFlag)
 	if ps.flag != "" {
 		argv, err := launch.ParseCommand(ps.flag, ps.allowed...)
 		if err != nil {
 			return launch.Command{}, fmt.Errorf("%s: %w", ps.flagName, err)
 		}
-		return pick(argv), nil
+		return pick(argv, ps.flag, FromFlag), nil
 	}
 
 	if v := getenv(ps.envTerm); v != "" {
 		if b, err := strconv.ParseBool(v); err == nil {
-			setTerm(&b)
+			setTerm(&b, FromEnv)
 		} else {
-			*problems = append(*problems, fmt.Sprintf("$%s: %q is not true or false; ignored", ps.envTerm, v))
+			s.Problems = append(s.Problems, fmt.Sprintf("$%s: %q is not true or false; ignored", ps.envTerm, v))
 		}
 	}
 	if v := getenv(ps.env); v != "" {
 		argv, err := launch.ParseCommand(v, ps.allowed...)
 		if err == nil {
-			return pick(argv), nil
+			return pick(argv, v, FromEnv), nil
 		}
-		*problems = append(*problems, fmt.Sprintf("$%s: %v; ignored", ps.env, err))
+		s.Problems = append(s.Problems, fmt.Sprintf("$%s: %v; ignored", ps.env, err))
 	}
 
 	if ps.file != nil {
-		setTerm(ps.file.Terminal)
+		setTerm(ps.file.Terminal, FromFile)
 		if ps.file.Command != nil {
 			argv, err := launch.ParseCommand(*ps.file.Command, ps.allowed...)
 			if err == nil {
-				return pick(argv), nil
+				return pick(argv, *ps.file.Command, FromFile), nil
 			}
-			*problems = append(*problems, fmt.Sprintf("config: %s: %s.command: %v; ignored", ps.path, ps.what, err))
+			s.Problems = append(s.Problems, fmt.Sprintf("config: %s: %s.command: %v; ignored", ps.path, ps.what, err))
 		}
 	}
 
@@ -489,39 +485,50 @@ func resolveProgram(ps programSources, getenv func(string) string, problems *[]s
 	if err != nil {
 		panic("config: bad default " + ps.what + " command: " + err.Error())
 	}
-	return pick(argv), nil
+	return pick(argv, ps.def, FromDefault), nil
 }
 
 // resolveBool settles an on/off setting: flag > env > file > default. A bad
 // environment value is a problem and the file or default is used.
-func resolveBool(flag *bool, env string, file *bool, def bool, getenv func(string) string, problems *[]string) bool {
-	if flag != nil {
-		return *flag
-	}
-	if v := getenv(env); v != "" {
-		if b, err := strconv.ParseBool(v); err == nil {
-			return b
+func (s *Settings) resolveBool(key string, flag *bool, env string, file *bool, def bool, getenv func(string) string) bool {
+	v, from := def, FromDefault
+	switch e := getenv(env); {
+	case flag != nil:
+		v, from = *flag, FromFlag
+	case e != "":
+		if b, err := strconv.ParseBool(e); err == nil {
+			v, from = b, FromEnv
+			break
 		}
-		*problems = append(*problems, fmt.Sprintf("$%s: %q is not true or false; ignored", env, v))
+		s.Problems = append(s.Problems, fmt.Sprintf("$%s: %q is not true or false; ignored", env, e))
+		fallthrough
+	default:
+		if file != nil {
+			v, from = *file, FromFile
+		}
 	}
-	if file != nil {
-		return *file
-	}
-	return def
+	s.note(key, strconv.FormatBool(v), from)
+	return v
+}
+
+// note records a setting's effective value and source for the settings
+// page.
+func (s *Settings) note(key, text string, from Source) {
+	s.Values[key] = Value{Text: text, Source: from}
 }
 
 // fileInterval is the file's refresh_interval when it is valid, else the
 // default.
-func fileInterval(f File, path string, problems *[]string) time.Duration {
+func fileInterval(f File, path string, problems *[]string) (time.Duration, Source) {
 	if f.RefreshInterval == nil {
-		return DefaultRefreshInterval
+		return DefaultRefreshInterval, FromDefault
 	}
 	d := f.RefreshInterval.Duration
 	if err := checkInterval(d); err != nil {
 		*problems = append(*problems, fmt.Sprintf("config: %s: refresh_interval: %v; using %v", path, err, DefaultRefreshInterval))
-		return DefaultRefreshInterval
+		return DefaultRefreshInterval, FromDefault
 	}
-	return d
+	return d, FromFile
 }
 
 func parseInterval(s string) (time.Duration, error) {

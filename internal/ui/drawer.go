@@ -17,10 +17,11 @@ import (
 type drawerMode int
 
 const (
-	modeRow     drawerMode = iota // the selected row
-	modeSources                   // which sources are missing
-	modeHelp                      // every key
-	modeReport                    // the selected thread's report
+	modeRow      drawerMode = iota // the selected row
+	modeSources                    // which sources are missing
+	modeHelp                       // every key
+	modeReport                     // the selected thread's report
+	modeSettings                   // the settings page
 )
 
 // item is one piece of a drawer value: a word of text or a whole link.
@@ -50,6 +51,9 @@ type zone struct {
 type dline struct {
 	text  string
 	zones []zone
+	// setting is the settings page's row on this line, as an index into
+	// config.Specs plus one; 0 is none.
+	setting int
 }
 
 // drawer builds the drawer's lines for one width.
@@ -61,6 +65,9 @@ type drawer struct {
 	light  bool // the terminal's background is light
 	// filesAt is the line the Files section starts on, or -1.
 	filesAt int
+	// focus and focusEnd are the first and last lines of the settings
+	// page's selected row; -1 elsewhere.
+	focus, focusEnd int
 }
 
 func newDrawer(width int, title string) *drawer {
@@ -68,7 +75,7 @@ func newDrawer(width int, title string) *drawer {
 	if width < wideMin {
 		lw = 8
 	}
-	return &drawer{width: width, labelW: lw, title: title, filesAt: -1}
+	return &drawer{width: width, labelW: lw, title: title, filesAt: -1, focus: -1, focusEnd: -1}
 }
 
 func words(text string, st lipgloss.Style) group {
@@ -660,6 +667,7 @@ var helpLines = [][2]string{
 	{"z", "drawer: normal, full height, hidden"},
 	{"pgup pgdn", "scroll the drawer"},
 	{"!", "sources: what could not be read"},
+	{"s", "settings: every setting with its value and source; ↵ edits one in the config file"},
 	{"?", "this help; esc returns"},
 	{"q", "quit"},
 	{"mouse", "click a row, link, list heading or ! N; the wheel moves the list or scrolls the drawer"},

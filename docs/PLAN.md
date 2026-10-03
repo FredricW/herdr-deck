@@ -275,8 +275,8 @@ Settings live in `$XDG_CONFIG_HOME/herdr-deck/config.toml`, else
 `~/.config/herdr-deck/config.toml` (macOS too, not Application Support);
 `--config` or `$HERDR_DECK_CONFIG` names another file. Each setting comes
 from the flag, else the environment variable, else the file, else the
-default (`internal/config`). The deck only reads the file and never writes
-secrets there; a later settings page will edit it.
+default (`internal/config`). Only the settings page writes the file, and
+never a secret.
 
 - Keys: `linear_workspace`, `refresh_interval` (Go duration, 1s–10m, default
   5s), `projects_root`, `reuse_browser_tabs` (default true), `[editor]` and
@@ -309,6 +309,28 @@ secrets there; a later settings page will edit it.
   when the binary is replaced), both on by default. New keys are new
   optional fields, so an older deck only reports a newer file's keys as
   unknown.
+- Settings page (`s`, `internal/ui/settings.go`): a full-height drawer view
+  listing `config.Specs` in groups (Links and Linear, Editor and diff,
+  Updates, Browser, Projects and refresh), each with its effective value
+  and source (`Settings.Values`, recorded by `Resolve` as it settles each
+  setting). `↵` toggles a boolean or edits a value in place, checked by
+  `config.Check` as you type; `x` removes the key from the file. There are
+  no enum settings yet. A save goes through `config.Save`: it patches only
+  that key's line (comments, order and unknown keys stay; a new key goes
+  after the last key of its table, a new table at the end), refuses a file
+  that does not parse or an inline `editor = {…}` table, decodes the result
+  to check only that key changed, and writes a temp file renamed over the
+  old one (through a symlink, keeping the mode). A value set by a flag or
+  env var still saves to the file; the page and status line say the
+  override wins. After a save the deck resolves again and applies it at
+  once: the UI takes the refresh interval, Figma desktop and the update
+  hint, and `main` swaps an `atomic.Pointer[config.Settings]` that opening
+  links, the editor and the diff tool, the Linear workspace and reader
+  (rebuilt when the key command changes), the update check and
+  auto-restart read each time.
+  Only `projects_root` needs a restart, and the status line says so.
+  `linear_api_key_command` is shown and edited as a command; the key it
+  prints is never run, shown or written.
 
 ## Updates
 
@@ -466,8 +488,9 @@ marked parallel.
    "Browser tabs" has the rules), `u` starts dev servers (the manifest's
    `up`), Figma link handlers with the open-link action (see herdr
    integration), and Linear issue status next to IDs (see "Linear issue
-   status" above), and the drawer's Files section, whose `d` opens the
-   diff tool (see UI). Still to do: multi-project view (design directions to
+   status" above), the drawer's Files section, whose `d` opens the diff
+   tool (see UI), and the settings page (`s`, see Configuration). Still to
+   do: multi-project view (design directions to
    choose from in
    [docs/design/multi-project/](design/multi-project/README.md)).
 

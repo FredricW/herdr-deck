@@ -303,8 +303,21 @@ and `d` say so in the status line.
 The deck does not read `$VISUAL` or `$EDITOR`. To use yours, put it in the
 file, e.g. `command = "nvim {path}"` with `terminal = true`.
 
-The deck only reads this file and never writes secrets to it. A missing
-file is fine. A file that does not parse, an unknown key or a bad value
+Press `s` for the settings page: every setting with its effective value and
+where it comes from (flag, env, file or default), grouped as above. `↵`
+toggles a switch or edits a value in place (checked as you type; `esc`
+cancels, an empty value removes it), and `x` removes a setting from the file
+so the next source decides. Each change is saved to the config file at once,
+creating it and its folder when missing. Only the changed line is touched:
+comments, key order and keys the deck does not know stay. A setting a flag
+or environment variable sets can still be saved, but the page says the
+override keeps winning. The running deck applies a change straight away,
+except `projects_root`, which needs a restart (the status line says so).
+`linear_api_key_command` is edited as a command; the deck never runs it
+there or shows the key it prints.
+
+The deck writes this file only from the settings page and never writes
+secrets to it. A missing file is fine. A file that does not parse, an unknown key or a bad value
 never stops the deck: the `!` sources view lists the problem (the plugin
 commands print it to herdr's plugin log), and that setting falls back to
 the next source. A bad flag value is an error.
@@ -423,6 +436,7 @@ carries on.
 | `z` | drawer: normal, full height, hidden |
 | `pgup` / `pgdn` | scroll the drawer |
 | `!` | sources the deck could not read |
+| `s` | settings: every setting, its value and source; `↵` edits or toggles, `x` removes it from the file (see Configuration) |
 | `?` | all keys |
 | `esc` | back to the selected row |
 | `q`, `ctrl+c` | quit |

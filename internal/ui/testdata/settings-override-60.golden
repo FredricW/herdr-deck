@@ -1,0 +1,28 @@
+ Admin rebuild                           ◐ 2  ◇ 1  ○ 1  ✉ 0
+────────────────────────────────────────────────────────────
+─ Settings · /home/ada/.config/herdr-deck/config.toml ──────
+ Links and Linear
+   linear_workspace        acme                      file
+   linear_status           true                      default
+   linear_api_key_command  none                      default
+
+ Editor and diff
+ ▸ editor.command          nvim {path}               env
+     what e opens a worktree with; {path} is the folder
+     set by $HERDR_DECK_EDITOR, which wins over the file; a
+     saved value applies once it is gone
+   editor.terminal         false                     default
+   diff.command            hunk diff {base} -- {fi…  default
+   diff.terminal           true                      default
+
+ Updates
+   update_check            false                     flag
+   auto_restart            true                      default
+
+ Browser
+   reuse_browser_tabs      true                      default
+   figma_desktop           false                     default
+
+ Projects and refresh
+────────────────────────────────────────────────────────────
+ ↵ edit  x remove  j k move  esc back  q quit         v9.9.9
