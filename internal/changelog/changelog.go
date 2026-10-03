@@ -222,9 +222,9 @@ func Core(v string) (core string, exact bool) {
 }
 
 // Newer is what remote, the changelog of a newer deck, lists beyond what
-// the deck running version v with changelog local has: remote's releases
-// newer than v, and remote's Unreleased items local does not list
-// anywhere. For a version that cannot be read, local's newest release
+// the deck running version v with changelog local has: remote's Unreleased
+// and its releases newer than v, without the items local lists anywhere.
+// A release left with no items is left out. For a version that cannot be read, local's newest release
 // stands in. Newest first, Unreleased first; nil when there is nothing.
 func Newer(remote, local Log, v string) []Release {
 	base, _ := Core(v)
@@ -246,26 +246,26 @@ func Newer(remote, local Log, v string) []Release {
 	}
 	var out []Release
 	for _, r := range remote.Releases {
-		if r.Unreleased() {
-			n := Release{}
-			for _, s := range r.Sections {
-				var items []string
-				for _, it := range s.Items {
-					if !have[it] {
-						items = append(items, it)
-					}
-				}
-				if len(items) > 0 {
-					n.Sections = append(n.Sections, Section{Name: s.Name, Items: items})
-				}
-			}
-			if !n.Empty() {
-				out = append(out, n)
-			}
+		if !r.Unreleased() && base != "" && Compare(r.Version, base) <= 0 {
 			continue
 		}
-		if (base == "" || Compare(r.Version, base) > 0) && !r.Empty() {
-			out = append(out, r)
+		// A build past a release already has what its Unreleased lists,
+		// also once a newer release lists it.
+		n := Release{Version: r.Version, Date: r.Date, Summary: r.Summary}
+		for _, s := range r.Sections {
+			var items []string
+			for _, it := range s.Items {
+				if !have[it] {
+					items = append(items, it)
+				}
+			}
+			if len(items) > 0 {
+				n.Sections = append(n.Sections, Section{Name: s.Name, Items: items})
+			}
+		}
+		// A release that is only a summary has nothing to filter.
+		if len(n.Sections) > 0 || len(r.Sections) == 0 && n.Summary != "" {
+			out = append(out, n)
 		}
 	}
 	return out

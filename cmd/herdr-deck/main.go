@@ -296,9 +296,14 @@ func updateHint(cacheDir string) func(context.Context) ui.Update {
 		defer mu.Unlock()
 		if newsFor != st.Label() {
 			lastNews = nil // an older version's list, or none
-			if text, err := c.Updater.Changelog(ctx, st); err == nil {
+			if text, final, err := c.Updater.Changelog(ctx, st); err == nil {
 				remote, _ := changelog.Parse(string(text))
-				newsFor, lastNews = st.Label(), changelog.Newer(remote, ownChangelog, shortVersionString())
+				lastNews = changelog.Newer(remote, ownChangelog, shortVersionString())
+				if final {
+					// A stand-in (origin's branch as last fetched) is
+					// read again on the next check.
+					newsFor = st.Label()
+				}
 			}
 		}
 		return ui.Update{Available: st.Label(), News: lastNews}

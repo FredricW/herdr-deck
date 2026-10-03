@@ -231,6 +231,20 @@ func TestNewer(t *testing.T) {
 	if got := titles(Newer(remote, local, "abc1234")); got != "Unreleased v0.2.0 v0.1.1" {
 		t.Errorf("from a commit: %q", got)
 	}
+	// A dev build past 0.1.0 already has its Unreleased items; once 0.2.0
+	// lists them, they are still not new.
+	tagged, _ := Parse(`## [0.2.0] - 2026-10-09
+### Added
+- Already here.
+- Brand new.
+## [0.1.5] - 2026-10-07
+### Fixed
+- Already here.
+`)
+	got = Newer(tagged, local, "v0.1.0-3-gabc1234")
+	if titles(got) != "v0.2.0" || !reflect.DeepEqual(got[0].Sections, []Section{{Name: "Added", Items: []string{"Brand new."}}}) {
+		t.Errorf("tagged after a dev build: %#v", got)
+	}
 	if got := Newer(local, local, "v0.1.0"); got != nil {
 		t.Errorf("nothing is newer than itself: %q", titles(got))
 	}

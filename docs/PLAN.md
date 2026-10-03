@@ -380,9 +380,10 @@ prebuilt binaries, and herdr's build step uses them when it can.
   downgrade say nothing. While `↑` shows, the check also reads the newer
   version's CHANGELOG.md (`Updater.Changelog`: GitHub's raw host at the
   tag, or `git show <origin head>:CHANGELOG.md`, else the fetched origin
-  branch, for a linked checkout), once per newer version, and What's new
-  lists its releases newer than the running one plus Unreleased items this
-  build does not have. Failures leave the list out, silently.
+  branch, for a linked checkout, which is read again on the next check),
+  once per newer version. What's new lists its Unreleased and its releases
+  newer than the running one, without items this build's changelog already
+  lists. Failures leave the list out, silently.
 
 - `herdr-deck update [--check]` (`internal/update`) reads `herdr plugin list
   --plugin herdr-deck --json`. A GitHub install compares the newest `vX.Y.Z`

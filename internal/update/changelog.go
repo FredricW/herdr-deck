@@ -20,32 +20,34 @@ const maxChangelog = 1 << 20
 // What's new view. A GitHub install reads it at the newer tag from GitHub's
 // raw host; a linked checkout reads origin's commit with `git show`, which
 // works once the checkout has fetched it, else origin's branch as last
-// fetched. It only reads.
-func (u Updater) Changelog(ctx context.Context, st Status) ([]byte, error) {
+// fetched. final is false for that stand-in, which may be older than the
+// newer commit: ask again later. It only reads.
+func (u Updater) Changelog(ctx context.Context, st Status) (text []byte, final bool, err error) {
 	switch st.Install.Kind {
 	case GitHub:
 		if st.Remote.Tag == "" {
-			return nil, errors.New("no newer tag")
+			return nil, false, errors.New("no newer tag")
 		}
-		return u.rawChangelog(ctx, st.Install.Repo, st.Remote.Tag)
+		text, err := u.rawChangelog(ctx, st.Install.Repo, st.Remote.Tag)
+		return text, err == nil, err
 	case Local:
 		root := st.Install.Root
-		var err error
-		for _, rev := range []string{st.Remote.Head, "refs/remotes/origin/" + st.Remote.Branch} {
-			if rev == "" || rev == "refs/remotes/origin/" {
-				continue
-			}
+		err := errors.New("no origin commit")
+		if st.Remote.Head != "" {
 			var out []byte
-			if out, err = u.Exec.Output(ctx, root, "git", "show", rev+":CHANGELOG.md"); err == nil {
-				return out, nil
+			if out, err = u.Exec.Output(ctx, root, "git", "show", st.Remote.Head+":CHANGELOG.md"); err == nil {
+				return out, true, nil
 			}
 		}
-		if err == nil {
-			err = errors.New("no origin commit")
+		if st.Remote.Branch != "" {
+			var out []byte
+			if out, err = u.Exec.Output(ctx, root, "git", "show", "refs/remotes/origin/"+st.Remote.Branch+":CHANGELOG.md"); err == nil {
+				return out, false, nil
+			}
 		}
-		return nil, fmt.Errorf("git show CHANGELOG.md: %w", err)
+		return nil, false, fmt.Errorf("git show CHANGELOG.md: %w", err)
 	}
-	return nil, fmt.Errorf("cannot read the changelog of a %q install", st.Install.Kind)
+	return nil, false, fmt.Errorf("cannot read the changelog of a %q install", st.Install.Kind)
 }
 
 // rawChangelog fetches repo's (OWNER/REPO[/SUBDIR]) CHANGELOG.md at ref.
