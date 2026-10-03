@@ -149,8 +149,8 @@ A compact list on top and a detail drawer below; mockups of every state at
   counts: only `+N` for an added or untracked file, only `-M` for a
   deleted one (`binary`, `untracked`, `old → new`). `d t` switches between
   this list and a folder tree (`internal/ui/filetree.go`): folders first,
-  single-folder chains joined (`src/pages/users/`), faint summed counts
-  per folder; files are numbered in display order, so digits and clicks
+  single-folder chains joined (`src/pages/users/`), folder names and
+  their summed counts faint; files are numbered in display order, so digits and clicks
   follow the tree. `diff_view` (list or tree, default list) sets the view
   at start; the toggle never writes the file. Nine files, numbered, then
   `+K more`. Git runs off the UI goroutine (5 s timeout,

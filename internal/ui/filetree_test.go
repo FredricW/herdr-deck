@@ -170,6 +170,16 @@ func TestFileColours(t *testing.T) {
 	if !strings.Contains(styled, "\x1b[32m+3") || !strings.Contains(styled, "\x1b[31m-1") {
 		t.Errorf("counts %q are not green and red", styled)
 	}
+	// Folder names are faint in the tree; file names stay plain.
+	d := newDrawer(60, "")
+	d.dirLine(&fileDir{name: "src/admin", added: 3}, 0)
+	d.fileLine(1, deck.DiffFile{Path: "src/admin/a.go", Added: 3}, 1, "a.go")
+	if !strings.Contains(d.lines[0].text, "\x1b[2msrc/admin/\x1b[m") {
+		t.Errorf("folder line %q: the name is not faint", d.lines[0].text)
+	}
+	if strings.Contains(d.lines[1].text, "\x1b[2ma.go") {
+		t.Errorf("file line %q: the name is faint", d.lines[1].text)
+	}
 	_, styled = sumCounts(3, 1)
 	if !strings.Contains(styled, "\x1b[2;32m+3") || !strings.Contains(styled, "\x1b[2;31m-1") {
 		t.Errorf("folder sums %q are not faint green and red", styled)

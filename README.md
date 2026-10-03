@@ -512,7 +512,8 @@ only `+N` and a deleted file only `-M`.
 `d` then `t` switches to a folder tree and back; the chooser stays open,
 since the numbers move. The tree puts each file under its folder, folders
 first, joins a chain of folders that hold only one folder into one line
-(`src/pages/users/`), and shows each folder's summed counts, faint. Files
+(`src/pages/users/`), and shows folder names and their summed counts
+faint, so the changed files stand out. Files
 are numbered 1–9 in the order shown, so digits and clicks open the file on
 that line:
 

@@ -209,8 +209,9 @@ func (d *drawer) fileLine(n int, f deck.DiffFile, depth int, name string) {
 	})
 }
 
-// dirLine is a folder in the tree view, lined up with the file names, with
-// its summed counts faint at the right edge.
+// dirLine is a folder in the tree view, lined up with the file names: its
+// name faint, so the changed files stand out, and its summed counts faint
+// at the right edge.
 func (d *drawer) dirLine(dir *fileDir, depth int) {
 	x0 := 1 + d.labelW
 	avail := d.width - x0 - 1
@@ -219,6 +220,6 @@ func (d *drawer) dirLine(dir *fileDir, depth int) {
 	room := max(avail-lead-2-ansi.StringWidth(ctext), 4)
 	name := truncateLeft(dir.name+"/", room)
 	gap := max(avail-lead-ansi.StringWidth(name)-ansi.StringWidth(ctext), 1)
-	text := strings.Repeat(" ", x0+lead) + plain.Render(name) + strings.Repeat(" ", gap) + counts
+	text := strings.Repeat(" ", x0+lead) + dim.Render(name) + strings.Repeat(" ", gap) + counts
 	d.lines = append(d.lines, dline{text: ansi.Truncate(text, d.width, "…")})
 }
