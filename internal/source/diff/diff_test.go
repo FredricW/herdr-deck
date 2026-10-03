@@ -14,22 +14,32 @@ import (
 	"github.com/FredricW/herdr-deck/internal/deck"
 )
 
-func TestParseNumstat(t *testing.T) {
-	out := "3\t1\tsrc/app.go\x00" +
+func TestParse(t *testing.T) {
+	const modes = ":100644 100644 1111111 2222222 "
+	out := modes + "M\x00src/app.go\x00" +
+		":000000 100644 0000000 3333333 A\x00logo.png\x00" +
+		modes + "R087\x00old name.txt\x00new name.txt\x00" +
+		modes + "T\x00docs/ü tab\t.md\x00" +
+		":100644 000000 4444444 0000000 D\x00gone.go\x00" +
+		"3\t1\tsrc/app.go\x00" +
 		"-\t-\tlogo.png\x00" +
 		"0\t0\t\x00old name.txt\x00new name.txt\x00" +
-		"2\t5\tdocs/ü tab\t.md\x00"
-	got := ParseNumstat([]byte(out))
+		"2\t5\tdocs/ü tab\t.md\x00" +
+		"0\t7\tgone.go\x00" +
+		"1\t1\tno-raw.txt\x00"
+	got := Parse([]byte(out))
 	want := []deck.DiffFile{
 		{Path: "src/app.go", Added: 3, Deleted: 1},
-		{Path: "logo.png", Binary: true},
-		{Path: "new name.txt", OldPath: "old name.txt"},
+		{Path: "logo.png", Change: deck.ChangeAdded, Binary: true},
+		{Path: "new name.txt", OldPath: "old name.txt", Change: deck.ChangeRenamed},
 		{Path: "docs/ü tab\t.md", Added: 2, Deleted: 5},
+		{Path: "gone.go", Change: deck.ChangeDeleted, Deleted: 7},
+		{Path: "no-raw.txt", Added: 1, Deleted: 1},
 	}
 	if !reflect.DeepEqual(got, want) {
-		t.Errorf("ParseNumstat =\n%+v\nwant\n%+v", got, want)
+		t.Errorf("Parse =\n%+v\nwant\n%+v", got, want)
 	}
-	if got := ParseNumstat(nil); got != nil {
+	if got := Parse(nil); got != nil {
 		t.Errorf("empty output = %+v", got)
 	}
 }
@@ -106,14 +116,14 @@ func TestReadTempRepo(t *testing.T) {
 		t.Errorf("base %q, merge base %q", d.Base, d.MergeBase)
 	}
 	want := []deck.DiffFile{
-		{Path: ".gitignore", Added: 1, Untracked: true},
+		{Path: ".gitignore", Change: deck.ChangeAdded, Added: 1, Untracked: true},
 		{Path: "README.md", Deleted: 2},
 		{Path: "app.go", Added: 2},
-		{Path: "gone.txt", Deleted: 1},
-		{Path: "logo.png", Binary: true, Untracked: true},
-		{Path: "notes/todo.md", Added: 3, Untracked: true},
-		{Path: "renamed.txt", OldPath: "old.txt"},
-		{Path: "staged.go", Added: 1},
+		{Path: "gone.txt", Change: deck.ChangeDeleted, Deleted: 1},
+		{Path: "logo.png", Change: deck.ChangeAdded, Binary: true, Untracked: true},
+		{Path: "notes/todo.md", Change: deck.ChangeAdded, Added: 3, Untracked: true},
+		{Path: "renamed.txt", OldPath: "old.txt", Change: deck.ChangeRenamed},
+		{Path: "staged.go", Change: deck.ChangeAdded, Added: 1},
 	}
 	if !reflect.DeepEqual(d.Files, want) {
 		t.Errorf("files =\n%+v\nwant\n%+v", d.Files, want)

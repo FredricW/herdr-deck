@@ -68,6 +68,7 @@ func run(args []string) error {
 	fs.StringVar(&fl.Editor, "editor", "", "command that opens a worktree, {path} is the folder (default: $"+config.EnvEditor+", else [editor] command in the config file, else \""+config.DefaultEditor+"\")")
 	editorTerm := fs.Bool("editor-terminal", false, "the editor is a terminal program: open it in a new herdr pane (default: $"+config.EnvEditorTerminal+", else [editor] terminal)")
 	fs.StringVar(&fl.DiffTool, "diff-tool", "", "command that shows a worktree's diff: {path}, {base}, optional {file} (default: $"+config.EnvDiffTool+", else [diff] command, else hunk or git diff)")
+	fs.StringVar(&fl.DiffView, "diff-view", "", "the Files section's view at start, list or tree (default: $"+config.EnvDiffView+", else diff_view in the config file, else list)")
 	diffTerm := fs.Bool("diff-terminal", false, "the diff tool is a terminal program (default: $"+config.EnvDiffTerminal+", else [diff] terminal)")
 	reuseTabs := fs.Bool("reuse-browser-tabs", true, "open a web link in a browser tab that already shows it, on macOS (default: $"+config.EnvReuseTabs+", else reuse_browser_tabs in the config file, else true)")
 	updateCheck := fs.Bool("update-check", true, "check for a newer deck and show it in the header (default: $"+config.EnvUpdateCheck+", else update_check in the config file, else true)")
@@ -125,6 +126,7 @@ func run(args []string) error {
 			df := cur.Load().Diff
 			return runner.Run(df, launch.DiffArgv(df, path, base, files...), path)
 		},
+		DiffTree:  cfg.DiffView == config.DiffViewTree,
 		Tick:      cfg.RefreshInterval,
 		Version:   shortVersionString(),
 		Changelog: ownChangelog,

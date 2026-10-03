@@ -141,9 +141,18 @@ A compact list on top and a detail drawer below; mockups of every state at
 - **Files.** The drawer's last section lists the selected thread's
   changed files (`internal/source/diff`): its worktree against the
   merge-base with the thread's `base` (else `origin/HEAD`), `git diff
-  --numstat -z -M <merge-base>` plus untracked files from `git ls-files
-  --others --exclude-standard`, each with dim `+N -M` counts (`binary`,
-  `untracked`, `old → new`) under a total line. Nine files, numbered, then
+  --raw --numstat -z -M <merge-base>` (the raw records give each file's
+  `deck.Change`) plus untracked files from `git ls-files --others
+  --exclude-standard`, under a total line. Each file has a status letter
+  coloured by its change (`A` green, `M` yellow, `D` red, `R` cyan, `?`
+  untracked faint green; faint when binary) and green `+N` / red `-M`
+  counts: only `+N` for an added or untracked file, only `-M` for a
+  deleted one (`binary`, `untracked`, `old → new`). `d t` switches between
+  this list and a folder tree (`internal/ui/filetree.go`): folders first,
+  single-folder chains joined (`src/pages/users/`), folder names and
+  their summed counts faint; files are numbered in display order, so digits and clicks
+  follow the tree. `diff_view` (list or tree, default list) sets the view
+  at start; the toggle never writes the file. Nine files, numbered, then
   `+K more`. Git runs off the UI goroutine (5 s timeout,
   `GIT_OPTIONAL_LOCKS=0`) when the selection moves to another thread and on
   every reload; answers are reused for 2 s. No section for a resolved
@@ -179,7 +188,8 @@ Keys:
   thread's report in the drawer at full height. `!`: sources. `?`: help.
 - `d`: the Files section waits for a file's digit (highlighted, scrolled
   into view): the digit opens that file's diff, `d` again, `a` or `enter`
-  the whole diff, `esc` cancels. With one file `d` opens the whole diff at
+  the whole diff, `t` switches list and tree and keeps waiting, `esc`
+  cancels. With one file `d` opens the whole diff at
   once. A click on a file opens it, on the total line the whole diff. The
   diff tool gets the merge-base commit as `{base}`. A rename passes both
   paths (a lone `{file}` argument becomes one per file) so git pairs them;
@@ -279,8 +289,8 @@ default (`internal/config`). Only the settings page writes the file, and
 never a secret.
 
 - Keys: `linear_workspace`, `refresh_interval` (Go duration, 1s–10m, default
-  5s), `projects_root`, `reuse_browser_tabs` (default true), `[editor]` and
-  `[diff]`. The README has the full
+  5s), `projects_root`, `reuse_browser_tabs` (default true), `diff_view`
+  (list or tree, default list), `[editor]` and `[diff]`. The README has the full
   table and an example.
 - `[editor]` and `[diff]` are a command plus `terminal`. Commands are split
   into argv like a POSIX shell but never run through one. Placeholders:
@@ -313,9 +323,9 @@ never a secret.
   listing `config.Specs` in groups (Links and Linear, Editor and diff,
   Updates, Browser, Projects and refresh), each with its effective value
   and source (`Settings.Values`, recorded by `Resolve` as it settles each
-  setting). `↵` toggles a boolean or edits a value in place, checked by
-  `config.Check` as you type; `x` removes the key from the file. There are
-  no enum settings yet. A save goes through `config.Save`: it patches only
+  setting). `↵` toggles a boolean, cycles a choice (`KindChoice`, its values in
+  `Spec.Choices`, such as `diff_view`) or edits a value in place, checked by
+  `config.Check` as you type; `x` removes the key from the file. A save goes through `config.Save`: it patches only
   that key's line (comments, order and unknown keys stay; a new key goes
   after the last key of its table, a new table at the end), refuses a file
   that does not parse or an inline `editor = {…}` table, decodes the result

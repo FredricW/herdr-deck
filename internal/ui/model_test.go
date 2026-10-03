@@ -1048,16 +1048,16 @@ func changes() deck.Diff {
 		MergeBase: "4b825dc",
 		Files: []deck.DiffFile{
 			{Path: "apps/admin/src/pages/users/UsersOverviewPage.tsx", Added: 214, Deleted: 12},
-			{Path: "apps/admin/src/pages/users/columns.ts", Added: 48},
+			{Path: "apps/admin/src/pages/users/columns.ts", Change: deck.ChangeAdded, Added: 48},
 			{Path: "apps/admin/src/api/users.ts", Added: 31, Deleted: 9},
-			{Path: "apps/admin/src/pages/users/index.ts", OldPath: "apps/admin/src/pages/members/index.ts", Added: 1, Deleted: 1},
-			{Path: "apps/admin/public/empty-state.png", Binary: true},
+			{Path: "apps/admin/src/pages/users/index.ts", OldPath: "apps/admin/src/pages/members/index.ts", Change: deck.ChangeRenamed, Added: 1, Deleted: 1},
+			{Path: "apps/admin/public/empty-state.png", Change: deck.ChangeAdded, Binary: true},
 			{Path: "apps/admin/src/routes.tsx", Added: 6, Deleted: 2},
-			{Path: "docs/users-page.md", Added: 19, Untracked: true},
+			{Path: "docs/users-page.md", Change: deck.ChangeAdded, Added: 19, Untracked: true},
 			{Path: "package.json", Added: 1, Deleted: 1},
 			{Path: "pnpm-lock.yaml", Added: 102, Deleted: 40},
-			{Path: "scripts/seed-users.ts", Added: 25, Untracked: true},
-			{Path: "tsconfig.json", Deleted: 3},
+			{Path: "scripts/seed-users.ts", Change: deck.ChangeAdded, Added: 25, Untracked: true},
+			{Path: "tsconfig.json", Change: deck.ChangeDeleted, Deleted: 3},
 		},
 	}
 }
@@ -1080,17 +1080,23 @@ func TestFilesGolden(t *testing.T) {
 	cases := []struct {
 		name string
 		diff deck.Diff
+		tree bool
 		keys []tea.Msg
 	}{
 		{name: "files", diff: changes(), keys: keys("z")},
 		{name: "files-chooser", diff: changes(), keys: keys("d")},
 		{name: "files-note", diff: gone},
+		{name: "files-tree", diff: changes(), tree: true, keys: keys("z")},
+		{name: "files-tree-chooser", diff: changes(), keys: keys("zdt")},
 	}
 	for _, c := range cases {
 		for _, w := range []int{80, 60} {
 			name := c.name + "-" + map[int]string{80: "80", 60: "60"}[w]
 			t.Run(name, func(t *testing.T) {
-				m, _ := newModelWith(t, deck.Snapshot{}, w, 28, withDiffs(map[string]deck.Diff{"/src/worktrees/t-0002": c.diff}, nil))
+				m, _ := newModelWith(t, deck.Snapshot{}, w, 28, func(o *Options) {
+					withDiffs(map[string]deck.Diff{"/src/worktrees/t-0002": c.diff}, nil)(o)
+					o.DiffTree = c.tree
+				})
 				m, _ = press(m, snapshotMsg(calm()))
 				m, _ = press(m, c.keys...)
 				golden(t, name, m)
@@ -1145,6 +1151,46 @@ func TestFilesOpenDiffs(t *testing.T) {
 	_, _ = press(m, keys("1")...)
 	if len(o.urls) != 1 {
 		t.Errorf("1 after the chooser opened %q", o.urls)
+	}
+}
+
+// In the tree view the digits and clicks follow the tree's numbering, and
+// d t switches views without closing the chooser.
+func TestFilesTreeOpensByDisplayOrder(t *testing.T) {
+	m, o := newModelWith(t, deck.Snapshot{}, 80, 40, withDiffs(map[string]deck.Diff{"/src/worktrees/t-0002": changes()}, nil))
+	m, _ = press(m, snapshotMsg(calm()))
+	m, _ = press(m, keys("z")...)
+	m, _ = press(m, keys("dt")...)
+	if !m.tree || !m.files {
+		t.Fatalf("d t: tree %v, chooser %v", m.tree, m.files)
+	}
+	if !strings.Contains(screen(m), "pages/users/") || !strings.Contains(screen(m), "t list") {
+		t.Fatalf("no tree:\n%s", screen(m))
+	}
+	m, _ = press(m, keys("2")...)
+	m, _ = press(m, keys("d5")...)
+	x, y := find(t, m, "routes.tsx")
+	m, _ = press(m, click(x, y))
+	want := []string{
+		"/src/worktrees/t-0002 4b825dc apps/admin/src/api/users.ts",
+		"/src/worktrees/t-0002 4b825dc apps/admin/src/pages/members/index.ts apps/admin/src/pages/users/index.ts",
+		"/src/worktrees/t-0002 4b825dc apps/admin/src/routes.tsx",
+	}
+	if !slices.Equal(o.diffs, want) {
+		t.Errorf("diffs %q, want %q", o.diffs, want)
+	}
+	// A click on a folder line opens nothing.
+	o.diffs = nil
+	x, y = find(t, m, "pages/users/")
+	m, _ = press(m, click(x, y))
+	if len(o.diffs) != 0 {
+		t.Errorf("a folder click opened %q", o.diffs)
+	}
+	// d t again is the list, numbered as git lists the files.
+	m, _ = press(m, keys("dt")...)
+	m, _ = press(m, keys("2")...)
+	if m.tree || len(o.diffs) != 1 || o.diffs[0] != "/src/worktrees/t-0002 4b825dc apps/admin/src/pages/users/columns.ts" {
+		t.Errorf("back in the list: tree %v, diffs %q", m.tree, o.diffs)
 	}
 }
 

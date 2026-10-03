@@ -17,12 +17,12 @@
 
 ─ Users page ───────────────────────────────────────────────────────────────────
 ▶Files    11 files +447 -68 vs origin/main
-          1 apps/admin/src/pages/users/UsersOverviewPage.tsx           +214 -12
-          2 apps/admin/src/pages/users/columns.ts                        +48 -0
-          3 apps/admin/src/api/users.ts                                  +31 -9
-          4 …ages/members/index.ts → apps/admin/src/pages/users/index.ts  +1 -1
-          5 apps/admin/public/empty-state.png                            binary
-          6 apps/admin/src/routes.tsx                                     +6 -2
-          7 docs/users-page.md                                    +19 untracked
+          1 M apps/admin/src/pages/users/UsersOverviewPage.tsx         +214 -12
+          2 A apps/admin/src/pages/users/columns.ts                         +48
+          3 M apps/admin/src/api/users.ts                                +31 -9
+          4 R …es/members/index.ts → apps/admin/src/pages/users/index.ts  +1 -1
+          5 A apps/admin/public/empty-state.png                          binary
+          6 M apps/admin/src/routes.tsx                                   +6 -2
+          7 ? docs/users-page.md                                  +19 untracked
 ────────────────────────────────────────────────────────────────────────────────
- Files: 1-9 open  d whole diff  esc cancel                                v9.9.9
+ Files: 1-9 open  d whole diff  t tree  esc cancel                        v9.9.9

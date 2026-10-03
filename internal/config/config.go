@@ -37,6 +37,7 @@ const (
 	EnvEditorTerminal  = "HERDR_DECK_EDITOR_TERMINAL"
 	EnvDiffTool        = "HERDR_DECK_DIFF_TOOL"
 	EnvDiffTerminal    = "HERDR_DECK_DIFF_TERMINAL"
+	EnvDiffView        = "HERDR_DECK_DIFF_VIEW"
 	EnvReuseTabs       = "HERDR_DECK_REUSE_BROWSER_TABS"
 	EnvFigmaDesktop    = "HERDR_DECK_FIGMA_DESKTOP"
 	EnvUpdateCheck     = "HERDR_DECK_UPDATE_CHECK"
@@ -62,6 +63,17 @@ var (
 	DiffPlaceholders   = []string{"path", "base", "file"}
 )
 
+// The Files section's views: a flat list, or the files under their
+// folders.
+const (
+	DiffViewList = "list"
+	DiffViewTree = "tree"
+)
+
+// DiffViews are diff_view's values, in the order the settings page cycles
+// them.
+var DiffViews = []string{DiffViewList, DiffViewTree}
+
 // Refresh interval default and allowed range.
 const (
 	DefaultRefreshInterval = 5 * time.Second
@@ -78,6 +90,7 @@ type File struct {
 	ProjectsRoot    *string   `toml:"projects_root"`
 	Editor          *Program  `toml:"editor"`
 	Diff            *Program  `toml:"diff"`
+	DiffView        *string   `toml:"diff_view"`
 	ReuseTabs       *bool     `toml:"reuse_browser_tabs"`
 	FigmaDesktop    *bool     `toml:"figma_desktop"`
 	UpdateCheck     *bool     `toml:"update_check"`
@@ -196,6 +209,7 @@ func Load(path string, named bool) (File, []string) {
 		"projects_root":      func(p toml.Primitive) error { return decode(md, p, &f.ProjectsRoot) },
 		"editor":             func(p toml.Primitive) error { return decode(md, p, &f.Editor) },
 		"diff":               func(p toml.Primitive) error { return decode(md, p, &f.Diff) },
+		"diff_view":          func(p toml.Primitive) error { return decode(md, p, &f.DiffView) },
 		"reuse_browser_tabs": func(p toml.Primitive) error { return decode(md, p, &f.ReuseTabs) },
 		"figma_desktop":      func(p toml.Primitive) error { return decode(md, p, &f.FigmaDesktop) },
 		"update_check":       func(p toml.Primitive) error { return decode(md, p, &f.UpdateCheck) },
@@ -249,6 +263,7 @@ type Flags struct {
 	ProjectsRoot    string
 	Editor          string
 	DiffTool        string
+	DiffView        string
 	// EditorTerminal, DiffTerminal, ReuseTabs, UpdateCheck and AutoRestart
 	// are nil when the flag was not given.
 	EditorTerminal *bool
@@ -270,6 +285,9 @@ type Settings struct {
 	// ({path}, {base}, optional {file}).
 	Editor launch.Command
 	Diff   launch.Command
+	// DiffView is the Files section's view when the deck starts:
+	// DiffViewList or DiffViewTree.
+	DiffView string
 	// ReuseTabs opens a web link by focusing a browser tab that already
 	// shows it, where the browser allows (launch.Browser).
 	ReuseTabs bool
@@ -385,6 +403,9 @@ func Resolve(fl Flags, getenv func(string) string, lookPath func(string) (string
 		env: EnvDiffTool, envTerm: EnvDiffTerminal, file: f.Diff, path: s.Path,
 		allowed: DiffPlaceholders, def: def, defTerm: true,
 	}, getenv); err != nil {
+		return s, err
+	}
+	if s.DiffView, err = s.resolveChoice(KeyDiffView, fl.DiffView, "--diff-view", EnvDiffView, f.DiffView, DiffViews, getenv); err != nil {
 		return s, err
 	}
 	s.ReuseTabs = s.resolveBool(KeyReuseTabs, fl.ReuseTabs, EnvReuseTabs, f.ReuseTabs, true, getenv)
@@ -519,6 +540,48 @@ func (s *Settings) resolveBool(key string, flag *bool, env string, file *bool, d
 	}
 	s.note(key, strconv.FormatBool(v), from)
 	return v
+}
+
+// resolveChoice settles a setting that takes one of choices, the first
+// being the default: flag > env > file > default. A bad flag value is an
+// error; a bad environment or file value is a problem and the next source
+// is used.
+func (s *Settings) resolveChoice(key, flag, flagName, env string, file *string, choices []string, getenv func(string) string) (string, error) {
+	if flag != "" {
+		if err := checkChoice(flag, choices); err != nil {
+			return "", fmt.Errorf("%s: %w", flagName, err)
+		}
+		s.note(key, flag, FromFlag)
+		return flag, nil
+	}
+	if e := strings.TrimSpace(getenv(env)); e != "" {
+		err := checkChoice(e, choices)
+		if err == nil {
+			s.note(key, e, FromEnv)
+			return e, nil
+		}
+		s.Problems = append(s.Problems, fmt.Sprintf("$%s: %v; ignored", env, err))
+	}
+	if file != nil {
+		v := strings.TrimSpace(*file)
+		err := checkChoice(v, choices)
+		if err == nil {
+			s.note(key, v, FromFile)
+			return v, nil
+		}
+		s.Problems = append(s.Problems, fmt.Sprintf("config: %s: %s: %v; ignored", s.Path, key, err))
+	}
+	s.note(key, choices[0], FromDefault)
+	return choices[0], nil
+}
+
+func checkChoice(v string, choices []string) error {
+	for _, c := range choices {
+		if v == c {
+			return nil
+		}
+	}
+	return fmt.Errorf("%q is not %s", v, strings.Join(choices, " or "))
 }
 
 // note records a setting's effective value and source for the settings

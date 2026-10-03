@@ -67,6 +67,7 @@ func fileValues(f File) map[string]string {
 	boolean(KeyUpdateCheck, f.UpdateCheck)
 	boolean(KeyAutoRestart, f.AutoRestart)
 	str(KeyProjectsRoot, f.ProjectsRoot)
+	str(KeyDiffView, f.DiffView)
 	if f.RefreshInterval != nil {
 		out[KeyRefreshInterval] = f.RefreshInterval.String()
 	}
@@ -88,6 +89,7 @@ const (
 	KindPath                 // an absolute path; ~/ is the home folder
 	KindDuration             // a Go duration such as "5s"
 	KindCommand              // a command line, split without a shell
+	KindChoice               // one of Spec.Choices; the page cycles them
 )
 
 // Setting keys, as Spec.Key and Settings.Values name them. A key in a table
@@ -102,6 +104,7 @@ const (
 	KeyEditorTerminal      = "editor.terminal"
 	KeyDiffCommand         = "diff.command"
 	KeyDiffTerminal        = "diff.terminal"
+	KeyDiffView            = "diff_view"
 	KeyUpdateCheck         = "update_check"
 	KeyAutoRestart         = "auto_restart"
 	KeyRefreshInterval     = "refresh_interval"
@@ -120,6 +123,8 @@ type Spec struct {
 	Help string
 	// Placeholders a command may use.
 	Placeholders []string
+	// Choices are a KindChoice setting's values, the default first.
+	Choices []string
 	// Restart says a running deck only picks a change up when it starts.
 	Restart bool
 }
@@ -140,6 +145,8 @@ var Specs = []Spec{
 		Help: "shows a worktree's changes: {path}, {base} and an optional {file}"},
 	{Key: KeyDiffTerminal, Group: "Editor and diff", Kind: KindBool, Flag: "--diff-terminal", Env: EnvDiffTerminal,
 		Help: "the diff tool is a terminal program: open it in a new herdr pane"},
+	{Key: KeyDiffView, Group: "Editor and diff", Kind: KindChoice, Flag: "--diff-view", Env: EnvDiffView, Choices: DiffViews,
+		Help: "the Files section's view at start: list, or tree (files under their folders); d t switches"},
 	{Key: KeyUpdateCheck, Group: "Updates", Kind: KindBool, Flag: "--update-check", Env: EnvUpdateCheck,
 		Help: "show ↑ <version> in the header when a newer deck exists"},
 	{Key: KeyAutoRestart, Group: "Updates", Kind: KindBool, Flag: "--auto-restart", Env: EnvAutoRestart,
@@ -208,6 +215,8 @@ func Check(key, text string) error {
 		if _, err := launch.ParseCommand(text, sp.Placeholders...); err != nil {
 			return err
 		}
+	case KindChoice:
+		return checkChoice(text, sp.Choices)
 	}
 	return nil
 }

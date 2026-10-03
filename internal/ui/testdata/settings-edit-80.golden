@@ -14,6 +14,7 @@
    editor.terminal         false                                         default
    diff.command            hunk diff {base} -- {file}                    default
    diff.terminal           true                                          default
+   diff_view               list                                          default
 
  Updates
    update_check            true                                          default
@@ -23,6 +24,5 @@
    reuse_browser_tabs      true                                          default
    figma_desktop           false                                         default
 
- Projects and refresh
 ────────────────────────────────────────────────────────────────────────────────
  ↵ save  esc cancel  empty removes it                                     v9.9.9

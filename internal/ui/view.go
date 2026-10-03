@@ -527,7 +527,11 @@ func (m Model) footer(w int) string {
 		hint = "↵ edit  x remove  j k move  esc back  q quit"
 	case m.files:
 		_, d, _ := m.diff()
-		hint = fmt.Sprintf("Files: 1-%d open  d whole diff  esc cancel", min(len(d.Files), maxFiles))
+		view := "t tree"
+		if m.tree {
+			view = "t list"
+		}
+		hint = fmt.Sprintf("Files: 1-%d open  d whole diff  %s  esc cancel", min(len(d.Files), maxFiles), view)
 	case m.mode != modeRow:
 		hint = "esc back  pgup pgdn scroll  z drawer  ? help  q quit"
 	case !ok:

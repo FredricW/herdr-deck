@@ -12,6 +12,7 @@
    editor.terminal         false                                         default
    diff.command            hunk diff {base} -- {file}                    default
    diff.terminal           true                                          default
+   diff_view               list                                          default
 
  Updates
    update_check            true                                          default
@@ -23,6 +24,5 @@
 
  Projects and refresh
    refresh_interval        5s                                            default
-   projects_root           /home/ada/.herdr-projects                     default
 ────────────────────────────────────────────────────────────────────────────────
  ↵ edit  x remove  j k move  esc back  q quit                             v9.9.9
