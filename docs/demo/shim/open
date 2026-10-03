@@ -1,0 +1,4 @@
+#!/bin/sh
+# A no-op stand-in for `open` and `xdg-open` while the demo tapes record:
+# links "open" without starting a browser.
+exit 0

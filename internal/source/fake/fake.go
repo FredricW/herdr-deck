@@ -3,6 +3,7 @@
 package fake
 
 import (
+	"context"
 	"time"
 
 	"github.com/FredricW/herdr-deck/internal/deck"
@@ -124,6 +125,25 @@ func Snapshot(slug string, now time.Time) deck.Snapshot {
 				ID: "20261002T143012Z-thread-state-t-0002-7", Kind: "thread-state", Thread: "t-0002", Subject: "t-0002",
 				Summary: "t-0002 is now Waiting on you", Created: now.Add(-3 * time.Minute),
 			},
+		},
+	}
+}
+
+// Diff is the Files section's sample: what t-0002's worktree changed
+// against origin/main. Other threads have no changes.
+func Diff(_ context.Context, t deck.Thread) deck.Diff {
+	if t.ID != "t-0002" {
+		return deck.Diff{Base: "origin/main", Note: "no changes"}
+	}
+	return deck.Diff{
+		Base:      "origin/main",
+		MergeBase: "4f1c2a9",
+		Files: []deck.DiffFile{
+			{Path: "src/admin/users/UsersPage.tsx", Added: 142, Deleted: 18},
+			{Path: "src/admin/users/UsersTable.tsx", Added: 96, Deleted: 4},
+			{Path: "src/admin/users/overview.ts", OldPath: "src/admin/users/stats.ts", Added: 12, Deleted: 9},
+			{Path: "src/admin/users/users.test.tsx", Added: 64},
+			{Path: "public/avatar-placeholder.png", Binary: true},
 		},
 	}
 }

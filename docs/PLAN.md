@@ -511,9 +511,11 @@ marked parallel.
    `up`), Figma link handlers with the open-link action (see herdr
    integration), and Linear issue status next to IDs (see "Linear issue
    status" above), the drawer's Files section, whose `d` opens the diff
-   tool (see UI), the settings page (`s`, see Configuration), and
-   CHANGELOG.md with What's new (`w`, see Updates). Still to do:
-   multi-project view (design directions to choose from in
+   tool (see UI), the settings page (`s`, see Configuration),
+   CHANGELOG.md with What's new (`w`, see Updates), and README GIFs that
+   `make demo` renders with VHS from `docs/demo/*.tape` on `--fake` data
+   (not in CI). Still to do: multi-project view (design directions to
+   choose from in
    [docs/design/multi-project/](design/multi-project/README.md)).
 
 ## Definition of done (v1 = milestones 1–7)
