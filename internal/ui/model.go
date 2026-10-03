@@ -40,9 +40,9 @@ type Options struct {
 	// thread and on every reload. Nil shows no Files section.
 	Diff func(context.Context, deck.Thread) deck.Diff
 	// OpenDiff opens the diff tool for the worktree at path against base
-	// (a commit), for one file or, with file "", the whole diff. Tests
-	// replace it so no diff tool is ever run.
-	OpenDiff func(path, base, file string) error
+	// (a commit), for one file (a rename's old and new path) or, with no
+	// files, the whole diff. Tests replace it so no diff tool is ever run.
+	OpenDiff func(path, base string, files []string) error
 	// StartDev runs the dev manifest's `up` command for a thread's
 	// worktree and returns the line the footer shows. Tests replace it so
 	// no dev server is ever started.
@@ -477,7 +477,7 @@ func (m *Model) diffKeyPressed() tea.Cmd {
 		m.status = t.ID + " has no changes against " + d.Base
 		return nil
 	case len(d.Files) == 1:
-		return m.openDiff(t, d, "")
+		return m.openFile(t, d, 0)
 	}
 	m.setMode(modeRow)
 	m.choosing = noKind
@@ -502,7 +502,7 @@ func (m *Model) filesKey(msg tea.KeyPressMsg) (tea.Cmd, bool) {
 	case len(s) == 1 && s[0] >= '1' && s[0] <= '9':
 		return m.openFile(t, d, int(s[0]-'1')), true
 	case s == "d" || s == "a" || key.Matches(msg, m.keys.Pane):
-		return m.openDiff(t, d, ""), true
+		return m.openDiff(t, d, deck.DiffFile{}), true
 	case key.Matches(msg, m.keys.Back):
 		return nil, true
 	}
@@ -514,17 +514,28 @@ func (m *Model) openFile(t deck.Thread, d deck.Diff, i int) tea.Cmd {
 		m.status = fmt.Sprintf("no file %d on this row", i+1)
 		return nil
 	}
-	return m.openDiff(t, d, d.Files[i].Path)
+	f := d.Files[i]
+	if f.Untracked {
+		m.status = f.Path + " is untracked: git diff shows it once it is added"
+		return nil
+	}
+	return m.openDiff(t, d, f)
 }
 
 // openDiff opens the diff tool on the thread's worktree against the merge
-// base, so it shows what the Files section counts: one file, or with file
-// "" the whole diff.
-func (m *Model) openDiff(t deck.Thread, d deck.Diff, file string) tea.Cmd {
+// base, so it shows what the Files section counts: one file, or with a
+// zero file the whole diff. A rename passes both paths so git pairs them.
+// Untracked files are not in git's diff.
+func (m *Model) openDiff(t deck.Thread, d deck.Diff, f deck.DiffFile) tea.Cmd {
 	open := m.opt.OpenDiff
 	what := "the diff of " + t.ID
-	if file != "" {
-		what = "the diff of " + file
+	var files []string
+	if f.Path != "" {
+		what = "the diff of " + f.Path
+		if f.OldPath != "" {
+			files = append(files, f.OldPath)
+		}
+		files = append(files, f.Path)
 	}
 	if open == nil {
 		m.status = "opening diffs is off"
@@ -535,7 +546,7 @@ func (m *Model) openDiff(t deck.Thread, d deck.Diff, file string) tea.Cmd {
 		base = d.Base
 	}
 	path := t.Worktree
-	return func() tea.Msg { return openedMsg{what: what, err: open(path, base, file)} }
+	return func() tea.Msg { return openedMsg{what: what, err: open(path, base, files)} }
 }
 
 func (m Model) handleKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
@@ -936,7 +947,7 @@ func (m *Model) handleClick(mouse tea.Mouse) (tea.Model, tea.Cmd) {
 				case !ok:
 					return *m, nil
 				case z.file < 0:
-					return *m, m.openDiff(t, d, "")
+					return *m, m.openDiff(t, d, deck.DiffFile{})
 				}
 				return *m, m.openFile(t, d, z.file-1)
 			}

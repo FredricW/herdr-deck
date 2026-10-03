@@ -50,8 +50,8 @@ func newModelWith(t *testing.T, snap deck.Snapshot, w, h int, set func(*Options)
 			o.devs = append(o.devs, t.Worktree)
 			return "started make dev for " + t.ID, nil
 		},
-		OpenDiff: func(path, base, file string) error {
-			o.diffs = append(o.diffs, path+" "+base+" "+file)
+		OpenDiff: func(path, base string, files []string) error {
+			o.diffs = append(o.diffs, strings.TrimSpace(path+" "+base+" "+strings.Join(files, " ")))
 			return nil
 		},
 		Version: testVersion,
@@ -1110,7 +1110,7 @@ func TestFilesOpenDiffs(t *testing.T) {
 	m, _ = press(m, keys("d9")...)
 	want := []string{
 		"/src/worktrees/t-0002 4b825dc apps/admin/src/pages/users/columns.ts",
-		"/src/worktrees/t-0002 4b825dc ",
+		"/src/worktrees/t-0002 4b825dc",
 		"/src/worktrees/t-0002 4b825dc pnpm-lock.yaml",
 	}
 	if !slices.Equal(o.diffs, want) {
@@ -1125,11 +1125,21 @@ func TestFilesOpenDiffs(t *testing.T) {
 	m, _ = press(m, click(x, y))
 	_, y = find(t, m, "11 files")
 	m, _ = press(m, click(40, y))
-	if want := []string{"/src/worktrees/t-0002 4b825dc apps/admin/src/routes.tsx", "/src/worktrees/t-0002 4b825dc "}; !slices.Equal(o.diffs, want) {
+	if want := []string{"/src/worktrees/t-0002 4b825dc apps/admin/src/routes.tsx", "/src/worktrees/t-0002 4b825dc"}; !slices.Equal(o.diffs, want) {
 		t.Errorf("clicks opened %q, want %q", o.diffs, want)
 	}
+	// A rename opens with both paths; an untracked file does not open.
+	o.diffs = nil
+	m, _ = press(m, keys("d4")...)
+	m, _ = press(m, keys("d7")...)
+	if want := []string{"/src/worktrees/t-0002 4b825dc apps/admin/src/pages/members/index.ts apps/admin/src/pages/users/index.ts"}; !slices.Equal(o.diffs, want) {
+		t.Errorf("rename opened %q, want %q", o.diffs, want)
+	}
+	if m.Status() != "docs/users-page.md is untracked: git diff shows it once it is added" {
+		t.Errorf("untracked status %q", m.Status())
+	}
 	// The digits are links again once the chooser is closed.
-	m, _ = press(m, keys("1")...)
+	_, _ = press(m, keys("1")...)
 	if len(o.urls) != 1 {
 		t.Errorf("1 after the chooser opened %q", o.urls)
 	}
@@ -1145,7 +1155,7 @@ func TestFilesKeyEdges(t *testing.T) {
 	m, _ = press(m, snapshotMsg(snap))
 	// One file: d opens the whole diff at once.
 	m, _ = press(m, keys("d")...)
-	if !slices.Equal(o.diffs, []string{"/src/worktrees/t-0002 abc "}) {
+	if !slices.Equal(o.diffs, []string{"/src/worktrees/t-0002 abc a.go"}) {
 		t.Errorf("one file: %q", o.diffs)
 	}
 	m, _ = press(m, keys("j")...)
@@ -1158,9 +1168,9 @@ func TestFilesKeyEdges(t *testing.T) {
 	}
 	// Without herdr the opener fails, and the footer says why.
 	m, _ = press(m, keys("k")...)
-	m.opt.OpenDiff = func(string, string, string) error { return errors.New("a terminal program needs herdr") }
+	m.opt.OpenDiff = func(string, string, []string) error { return errors.New("a terminal program needs herdr") }
 	m, _ = press(m, keys("d")...)
-	if m.Status() != "could not open the diff of t-0002: a terminal program needs herdr" {
+	if m.Status() != "could not open the diff of a.go: a terminal program needs herdr" {
 		t.Errorf("status %q", m.Status())
 	}
 }
@@ -1205,7 +1215,7 @@ func TestDiffReadsFollowSelection(t *testing.T) {
 	m = next.(Model)
 	next, _ = m.Update(keys("j")[0])
 	m = next.(Model)
-	m = run(m, cmd)
+	_ = run(m, cmd)
 	if want := []string{"t-0003"}; !slices.Equal(calls, want) {
 		t.Errorf("calls %q, want %q", calls, want)
 	}

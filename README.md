@@ -462,7 +462,9 @@ worktree or base shows a dim note instead.
 `d` opens the diff tool (`[diff]` in the config file, `hunk` by default)
 with `{base}` set to the merge-base commit, so it shows the same changes:
 a terminal program in a new herdr pane below the deck, in the worktree.
-Untracked files may not show there: `git diff` leaves them out.
+A renamed file opens with its old and new path, so git pairs them. An
+untracked file does not open: `git diff` leaves it out until it is added,
+and the status line says so; the whole diff leaves it out too.
 
 ## Layout
 

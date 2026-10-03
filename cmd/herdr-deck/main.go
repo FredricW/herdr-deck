@@ -111,8 +111,8 @@ func run(args []string) error {
 		OpenEditor: func(path string) error {
 			return runner.Run(cfg.Editor, launch.EditorArgv(cfg.Editor, path), path)
 		},
-		OpenDiff: func(path, base, file string) error {
-			return runner.Run(cfg.Diff, launch.DiffArgv(cfg.Diff, path, base, file), path)
+		OpenDiff: func(path, base string, files []string) error {
+			return runner.Run(cfg.Diff, launch.DiffArgv(cfg.Diff, path, base, files...), path)
 		},
 		Tick:    cfg.RefreshInterval,
 		Version: shortVersionString(),

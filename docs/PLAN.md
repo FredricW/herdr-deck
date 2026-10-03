@@ -181,7 +181,9 @@ Keys:
   into view): the digit opens that file's diff, `d` again, `a` or `enter`
   the whole diff, `esc` cancels. With one file `d` opens the whole diff at
   once. A click on a file opens it, on the total line the whole diff. The
-  diff tool gets the merge-base commit as `{base}`.
+  diff tool gets the merge-base commit as `{base}`. A rename passes both
+  paths (a lone `{file}` argument becomes one per file) so git pairs them;
+  an untracked file does not open, since git diff leaves it out.
 - `u`: run the manifest's `up` command for the worktree, detached (own
   session and process group), logging to
   `$XDG_STATE_HOME/herdr-deck/logs/<slug>-<thread>.log` (else
