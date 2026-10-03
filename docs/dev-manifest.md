@@ -209,6 +209,9 @@ from:
 | `{ "base": N, "range": R }` | Assigned per worktree from the shared [port store](#102-the-port-store): the lowest free port in `N … N+R-1`. `range` defaults to 100. |
 | `{ "state": "key" }` | Read from the project's [state file](#53-ports-from-a-state-file). |
 
+For `{ "base": N, "range": R }`, `N + R - 1` MUST NOT be above 65535; a tool
+MUST report such a port, and allocation never goes above 65535.
+
 Port names MUST match `^[A-Za-z][A-Za-z0-9_]*$`, because they become
 environment variable names (`PORT_web`). The order of `ports` is the order
 tools list them in.
@@ -424,17 +427,19 @@ their command lines and menus.
 |---|---|---|
 | `dev [group]` | `up` | Starts a group (default: the default group). If `commands.dev` exists, it runs that once, in the background, with `DEV_GROUP` set; services' `run`s are not used. Else it starts each service of the group with a `run`, plus their `needs`, in dependency order. |
 | `start <service>` | | Starts one service (its `run`), after its `needs`. |
-| `stop [service]` | `down` | `stop <service>`: runs the service's `stop`, else signals the process a tool started for it. Plain `stop`: runs `commands.stop` if there is one, then stops every process the tools started in this worktree (services and the `dev` command), dependents before what they need. |
-| `restart [service]` | | `stop` then `dev` (or `stop <service>` then `start <service>`). |
+| `stop [service]` | `down` | `stop <service>`: runs the service's `stop` and waits for it, else signals the process a tool started for it. Plain `stop`: runs `commands.stop` if there is one and waits for it to end, then stops every process that still has a [run record](#103-logs-and-run-records) in this worktree (services and `dev` commands), dependents before what they need. |
+| `restart [service]` | | `stop`, and once everything it stopped is gone, `dev` (or `stop <service>`, then `start <service>`). |
 | `<command> [service]` | | Runs a command ([section 7](#7-commands)): `test`, `test web`, `migrate`, `storybook`. |
 | `open` | | Runs `commands.open`, else opens the first link whose `needs` are ready. |
 
 Rules:
 
 - **Already running.** `dev` and `start` skip a service that is ready or
-  starting, and `dev` does not run `commands.dev` again while the process it
-  started is alive or every default-group service is ready. They say what
-  they skipped.
+  starting. `dev <group>` does not run `commands.dev` again while the process
+  it started for that same group is alive, or while every service of that
+  group is ready. They say what they skipped. A `dev` for another group runs
+  `commands.dev` again, with that `DEV_GROUP`; the script decides what that
+  means.
 - **Order.** A service starts only after every service it `needs` is ready.
   Services whose needs are met MAY start in parallel. If a needed service
   fails (its process exits, or it is not ready within its `timeout`), the
@@ -446,6 +451,9 @@ Rules:
   `dev` (or by hand). Tools still show its state and log.
 - **Stopping a process.** Send `SIGTERM` to its process group, wait up to 10
   s, then `SIGKILL` the group. Remove the run record once the process is gone.
+  A stop is finished when every process it signalled is gone, and a
+  `commands.stop` or service `stop` when it has ended (after at most 60 s,
+  when the tool reports it as hanging).
 - `stop` never frees the worktree's ports; only [freeing a
   worktree](#104-freeing-a-worktree) does.
 
@@ -470,11 +478,16 @@ Rules:
   does not wait for it: it MUST keep running when the tool quits.
 - Before starting, the tool appends a line to the log:
   `# <RFC 3339 time> <tool> start <name>: <command>`.
-- The tool writes a [run record](#103-logs-and-run-records), so any tool can
-  see, show and stop it.
-- For a command that ends (`stop`, `open`, a background free-form command),
-  the tool reports its exit status when it ends; it SHOULD NOT block its UI
-  on it.
+- For a service's `run` and for `commands.dev`, which keep running, the tool
+  writes a [run record](#103-logs-and-run-records), so any tool can see, show
+  and stop it.
+- Every other background command (`stop`, a service's `stop`, `open`, a
+  background free-form command) is expected to end. It gets a log but no run
+  record, so a plain `stop` never signals it, and the tool reports its exit
+  status when it ends. It SHOULD NOT block the tool's UI while it runs. A
+  free-form command that starts a daemon (`proxy-start`) is still one that
+  ends: the daemon is the script's business, and a matching command
+  (`proxy-stop`) stops it.
 
 **Terminal** (`terminal: true`):
 
@@ -520,13 +533,20 @@ $XDG_STATE_HOME/dev-manifest/     (else ~/.local/state/dev-manifest/, on macOS t
   lock                            the lock for everything below
   ports.json                      the port store
   runs/<key>/<name>.json          run records
-  logs/<key>/<name>.log           default logs
+  logs/<key>/<name>.log           logs
 ```
 
 `<key>` names a worktree on disk: its `$DIRNAME`, a `-`, and the first 8 hex
 digits of the SHA-256 of its absolute path, e.g. `abc-123-cart-3f9a1c0e`
-(characters outside `A-Za-z0-9._-` in the dirname become `_`). `<name>` is a
-service name, or `dev` for `commands.dev`.
+(characters outside `A-Za-z0-9._-` in the dirname become `_`). `<name>`
+says what ran, in a form that cannot clash, since no service, group or
+command name contains a `.`:
+
+| What | `<name>` |
+|---|---|
+| a service's `run` | `service.<service>` |
+| `commands.dev` for a group | `dev.<group>` |
+| any other background command | `command.<command>` (`command.test.web` for a per-service entry) |
 
 **The lock.** A tool MUST hold the lock while it changes `ports.json` or
 creates or removes run records, and MUST NOT hold it longer than needed (at
@@ -534,10 +554,20 @@ most a few seconds; never across starting a service and waiting for it).
 
 - Take it by creating `lock` exclusively (`O_CREAT|O_EXCL`; Node `fs.openSync(p, "wx")`),
   and write `{"pid": …, "host": "…", "tool": "…", "time": "<RFC 3339>"}` into it.
+- Also write a random `token` into it, so each lock's content is unique.
 - If it exists, retry every 50 ms for up to 5 s. A lock older than 30 s, or
-  one whose `host` is this machine and whose `pid` is not alive, is stale:
-  remove it and retry.
-- Release it by removing the file.
+  one whose `host` is this machine and whose `pid` is not alive, is stale.
+  Take a stale lock away atomically, so two tools that both judge it stale
+  cannot both end up holding the lock:
+  1. read `lock` (content *C*) and judge it stale;
+  2. rename `lock` to `lock.<own pid>.<random>` (only one tool's rename
+     succeeds; on failure, retry from the start);
+  3. read the renamed file: if it is *C*, delete it and retry taking the lock;
+     if it is not (a live lock replaced the stale one in between), put it
+     back with `link(renamed, "lock")`, which fails rather than overwrite a
+     newer lock, delete the renamed name, and retry.
+- Release it by removing the file, after checking that it still holds your
+  `token`.
 
 `flock` is not used because Node has no binding for it, and the extension
 tools that read the manifest include Node ones.
@@ -592,19 +622,19 @@ links, or only when it starts something. Reading assignments needs no lock.
 
 ### 10.3 Logs and run records
 
-A run record says a tool started a background process, so every tool can
-show it and stop it:
+A run record says a tool started a long-running background process (a
+service's `run` or `commands.dev`), so every tool can show it and stop it:
 
 ```json
 {
   "version": 1,
   "worktree": "/home/sam/src/acme-shop-worktrees/abc-123-cart",
-  "name": "api",
+  "name": "service.api",
   "pid": 48213,
   "started": "2026-10-03T09:13:02Z",
   "command": "go run ./cmd/api",
   "dir": "/home/sam/src/acme-shop-worktrees/abc-123-cart/services/api",
-  "log": "/home/sam/.local/state/dev-manifest/logs/abc-123-cart-3f9a1c0e/api.log",
+  "log": "/home/sam/.local/state/dev-manifest/logs/abc-123-cart-3f9a1c0e/service.api.log",
   "tool": "herdr-deck"
 }
 ```
@@ -620,8 +650,10 @@ show it and stop it:
   the same service twice. Waiting for readiness happens after the lock is
   released.
 
-A service's log is its `log` field, else `logs/<key>/<name>.log`; the `dev`
-command's is `logs/<key>/dev.log`.
+A service's log is its `log` field, else `logs/<key>/service.<service>.log`;
+`commands.dev`'s is `logs/<key>/dev.<group>.log`, and another background
+command's `logs/<key>/command.<command>.log`. The run record's `name` is the
+`<name>` above (`service.api`).
 
 ### 10.4 Freeing a worktree
 
@@ -732,8 +764,9 @@ A tool that offers seeding (herdr-deck: `herdr-deck dev init`) writes a first
     than `commands.dev`, so it gets per-service start, stop and logs.
 - Ports: devcontainer `forwardPorts` become fixed ports, named after their
   label (made a valid name) or `port<N>`. Detection cannot know other ports;
-  the tool says which services have none and that a `{ "base": N }` port
-  plus `$PORT` in `run` gives each worktree its own.
+  the tool says which services have none, and that a `{ "base": N }` port
+  gives each worktree its own (the service gets it in `PORT`; in a shell
+  string write `$$PORT`, or `$PORT_<name>`).
 - One link per port of each service, `http://localhost:$PORT_<name>`.
 - It prints what it chose and from where, and the alternatives it skipped.
 
@@ -869,7 +902,7 @@ A web app, an API with a gRPC port, a worker and a Postgres per worktree.
     "storybook": {
       "title": "Storybook",
       "dir": "apps/web",
-      "run": "pnpm storybook --ci --port $PORT"
+      "run": "pnpm storybook --ci --port $$PORT"
     }
   },
   "groups": {
@@ -964,7 +997,7 @@ log. `start api` is refused, because `api` has no `run`.
 | `up` (a shell string) | `commands.dev`, the same string |
 | — | `commands.stop`: until it exists, `stop` signals the process group `dev` started, as herdr-deck could already |
 | `$DIRNAME`, `$BRANCH`, `$WORKTREE`, `$REPO`, `$PORT_<name>`, `$$`, `${…}` | unchanged |
-| log in herdr-deck's own state folder (`<slug>-<thread>.log`) | `dev-manifest/logs/<key>/dev.log`, shared |
+| log in herdr-deck's own state folder (`<slug>-<thread>.log`) | `dev-manifest/logs/<key>/dev.default.log`, shared |
 
 For example:
 

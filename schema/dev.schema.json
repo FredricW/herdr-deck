@@ -167,7 +167,7 @@
           "additionalProperties": false
         },
         {
-          "description": "A port per worktree from the shared port store: the lowest free port in base … base+range-1.",
+          "description": "A port per worktree from the shared port store: the lowest free port in base … base+range-1, which must not be above 65535 (tools check this).",
           "type": "object",
           "required": ["base"],
           "properties": {
