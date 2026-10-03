@@ -65,11 +65,17 @@ func (d *drawer) moreHint(tab tabKind, off, h int) string {
 	return fmt.Sprintf("↓ %d more", below)
 }
 
-// tabStyle is a tab's label style: bold bright white on blue when active,
-// plain on the selection's grey otherwise, dim on it without data.
+// tabStyle is a tab's label style: bold near-black on blue when active,
+// plain on the selection's grey otherwise, dim on it without data. Dark
+// text reads on standard and pastel blues alike, where white is lost on a
+// pastel one.
 func tabStyle(active, enabled, light bool) lipgloss.Style {
 	if active {
-		return lipgloss.NewStyle().Bold(true).Foreground(lipgloss.BrightWhite).Background(colBlue)
+		fg := tabTextDark
+		if light {
+			fg = tabTextLight
+		}
+		return lipgloss.NewStyle().Bold(true).Foreground(lipgloss.ANSIColor(fg)).Background(colBlue)
 	}
 	bg := selDark
 	if light {

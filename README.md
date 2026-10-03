@@ -490,7 +490,7 @@ PR's checks at the right. Under the card are three tabs:
   routines that prompted it, and resolved (inbox items, handled or not).
   An item still in `inbox/` ends in a yellow `✉`.
 
-The active tab is bold white on blue; the others sit on grey, and a tab
+The active tab is bold dark text on blue; the others sit on grey, and a tab
 with nothing behind it (no thread, a resolved thread's files) is dim and
 skipped. The tab stays as you move through the list. `[` and `]` switch
 tabs; `tab` moves the focus into the drawer, where `j`/`k` move a cursor

@@ -13,15 +13,16 @@ no rule and no brackets; counts stay in the labels. The colours:
 
 | Tab | Background | Text |
 |---|---|---|
-| active | blue (named ANSI blue, the terminal theme's shade) | bold bright white |
+| active | blue (named ANSI blue, the terminal theme's shade) | bold near-black (256-colour 234; 16 on a light terminal) |
 | inactive | dark grey, 256-colour 237 (254 on a light terminal), the selection's grey | plain |
 | without data (no thread, a resolved thread's files) | the same grey | dim, no count |
 
 Blue is the accent because it is the one palette colour no status uses:
 red, cyan, magenta, green, yellow and dim all mean something in the list,
 while blue only marks Linear IDs, as text. So the active tab looks the same
-whichever row is selected, and never reads as a status. Bright white on
-blue reads on both dark and light themes.
+whichever row is selected, and never reads as a status. Dark text on
+blue reads on standard and pastel blues alike (the first choice, bright
+white, was lost on pastel blues and was changed on 2026-10-03).
 
 The label's text starts in column 2, where the rest of the drawer's text
 starts, because the tab's own padding fills column 1.

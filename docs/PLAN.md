@@ -162,8 +162,8 @@ lists what the user chose.
     green). A task with several threads shows the most pressing one.
   - **Tab bar**, one line: ` Overview `, ` Files N `, ` Log N ` as plain
     labels with one space of padding on each side, on background colours,
-    one space apart, no rule or brackets. The active tab is bold bright
-    white on blue; inactive tabs plain text on dark grey (256-colour 237,
+    one space apart, no rule or brackets. The active tab is bold dark
+    text (256-colour 234, 16 on a light terminal) on blue; inactive tabs plain text on dark grey (256-colour 237,
     254 on a light terminal). `Files N` counts changed files (`Files …`
     until git has answered once), `Log N` events. A tab with nothing
     behind it (no thread, a resolved thread's files) is dim, has no count
@@ -343,7 +343,7 @@ inbox items yellow, working cyan, review magenta, landing, passing checks and
 listening ports green, and idle and metadata dim. The selected row (and the
 link chooser's line) has a subtle grey background, ANSI 256 colour 237, or 254
 on a light terminal, under the text's own colours. The drawer's active tab is
-bold bright white on blue, the one palette colour no status uses; inactive tabs
+bold near-black text on blue, the one palette colour no status uses; inactive tabs
 sit on the selection's grey. The full drawer colour table is in
 [docs/design/drawer/](design/drawer/README.md#colours). The deck never marks
 inbox items handled.

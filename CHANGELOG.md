@@ -26,9 +26,10 @@ and versions follow [Semantic Versioning](https://semver.org/).
   (Next, PR with commenters and failing checks, Note, Links as numbered
   chips, Dev, Thread), Files (the changed files as a diffstat with a
   bar per file, every file listed) and Log (the thread's timeline from
-  its thread file and its inbox items, handled ones included). `[` and `]`
-  switch tabs; `tab` moves the focus into the drawer, where `j`/`k` and `↵`
-  pick a chip, file or event. The drawer takes half of the pane.
+  its thread file and its inbox items, handled ones included). The
+  active tab is dark text on blue. `[` and `]` switch tabs; `tab` moves
+  the focus into the drawer, where `j`/`k` and `↵` pick a chip, file or
+  event. The drawer takes half of the pane.
 
 ### Changed
 
