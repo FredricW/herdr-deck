@@ -48,7 +48,7 @@ All under the projects root (`$HERDR_PROJECTS_ROOT`, else
 | Thread status | fields `last_group`, `state_line` (e.g. `needs you · ~95%`), `activity`, `percent`, `status` | Updated by the herdr-projects ticker every ~15 s. |
 | PRs | thread `pr`, `pr_state`, `pr_review`; `<slug>/.state/ticker.json` → `prs[thread id]` | `prs` holds `state`, `review_decision`, `failing_checks[]`, `comment_count`, `commenters[]`. Refreshed every 2 min. |
 | Tasks | `<slug>/TASKS.md` | Written freely by the coordinator agent. Expected format is `## <List>` headings and `- [ ] Title (owner) · t-0007` lines with notes indented two spaces (herdr-projects `skill/COORDINATOR.md:78-81`, parser `src/tasks.rs:126`), but real files often use plain `- ` bullets with "thread t-0002" in prose. Parse loosely; see below. |
-| Inbox | `<slug>/inbox/*.md` (not `done/`) | `+++` TOML front matter: `id`, `kind`, `subject`, `created`, `summary`. Count + list of unhandled items. |
+| Inbox | `<slug>/inbox/*.md`; the drawer's Log tab also reads `inbox/done/*.md` | `+++` TOML front matter: `id`, `kind`, `subject`, `created`, `summary`, `event`. Count + list of unhandled items from `inbox/`; handled items in `done/` are the thread history the Log tab shows. |
 | Thread brief / report | `<slug>/threads/t-NNNN.task.md`, `t-NNNN.md` | Free text. Scrape for links. Report may start with `PR: <url>` and has a `## Next` section. |
 | herdr live state | `session.snapshot` over the socket (the same JSON as `herdr api snapshot`) on every reload | Workspaces, panes, agents, tokens (`hp_project`, `hp_sub`, `hp_group`, `port`). A thread's pane has `hp_project` = slug and `hp_group` = `<slug>!1!<rank>!<thread id>`; the coordinator's `hp_group` is `<slug>!0!<pane id>`. Without tokens, the recorded `pane_id` counts when its `cwd` is the thread's worktree. |
 | herdr events | Unix socket `$HERDR_SOCKET_PATH` (else `~/.config/herdr/herdr.sock`), newline-delimited JSON `{id, method, params}`; `events.subscribe {subscriptions:[{type:"pane.agent_status_changed"}, …]}` | Verified in milestone 5 (herdr 0.9.3): after `subscription_started` the connection stays open and streams `{"event","data"}` lines (event names use `_`: `pane_updated`). `pane.updated` fires for every pane each time the herdr-projects ticker rewrites tokens (~15 s) and carries the whole pane. `pane.agent_status_changed` needs a `pane_id`, so the deck subscribes once per agent pane, and again when panes come or go. One unknown pane id fails the whole subscribe and closes the connection. When the subscribe is refused the deck polls every 2.5 s. Reference round-trip: herdr-projects `src/runner.rs:279-291`. Full method list: `herdr api schema --json`. |
@@ -94,7 +94,10 @@ One project per instance, narrow by default (~60–80 columns, full height).
 A compact list on top and a detail drawer below; mockups of every state at
 60 and 80 columns are in [docs/design/d-list-detail.md](design/d-list-detail.md)
 (direction D, chosen 2026-10-02; the alternatives are in
-[docs/design/](design/README.md)).
+[docs/design/](design/README.md)). The drawer was redesigned on 2026-10-03:
+a header card and Overview, Files and Log tabs, mocked up with every state
+in [docs/design/drawer/](design/drawer/README.md), whose *Decisions* section
+lists what the user chose.
 
 ```
  Admin rebuild                           ◐ 2  ◇ 1  ○ 1  ✉ 0
@@ -106,12 +109,17 @@ A compact list on top and a detail drawer below; mockups of every state at
   ◇ Document select for sum…   #2320 review     L F3   ●○
 
   + Backlog (6)
-─ Users page · t-0002 ──────────────────────────────────────
- Status  working · Building overview · ~60% · 4m
- Note    Phase 1 = layout + overview (ABC-1256); report …
- Linear  1 ABC-1246  2 ABC-1256  3 ABC-1257  4 ABC-1250
 ────────────────────────────────────────────────────────────
- 1-9 link  l f n g o first  ↵ pane  z drawer  ? help
+ Users page                                ◐ working  ~60%
+ t-0002 · Building overview                     ▰▰▰▰▰▰▱▱▱▱
+ Overview   Files 11   Log 7                      ↓ 2 more
+ ── Note ──
+ Phase 1 = layout + overview (ABC-1256); report on
+ 1257/1250 before starting them.
+ ── Links ──
+ [1 ABC-1246 done] [2 ABC-1256 in progress]
+────────────────────────────────────────────────────────────
+ 1-9 link  l f n g o first  ↵ pane  [ ] tab  ? help
 ```
 
 - **List.** One row per piece of work: a task joined with the threads it
@@ -132,31 +140,111 @@ A compact list on top and a detail drawer below; mockups of every state at
   headings have no marker. `▸` only ever marks the selected row. *Backlog*
   starts folded, and a folded list still shows its threads' glyphs.
   Folding never hides a need, because those rows are pinned on top.
-- **Drawer.** It shows the selected row: status, PR (review, comments,
-  checks), `next[]`, notes, branch, servers, and every link, numbered `1`–`9`
-  in order Linear, Figma, Notion, GitHub, localhost. The numbered links
-  replace a separate chooser. With no row selected (or in an empty project)
-  the drawer shows the project's goal and repos. `z` cycles the drawer
-  through ~40 % height, full height and hidden.
-- **Files.** The drawer's last section lists the selected thread's
-  changed files (`internal/source/diff`): its worktree against the
-  merge-base with the thread's `base` (else `origin/HEAD`), `git diff
-  --raw --numstat -z -M <merge-base>` (the raw records give each file's
-  `deck.Change`) plus untracked files from `git ls-files --others
-  --exclude-standard`, under a total line. Each file has a status letter
+- **Drawer.** It shows the selected row, and takes half of the pane below
+  the header (the list keeps the rest; it scrolls to keep the cursor in
+  view). `z` cycles the drawer through that height, full height and hidden.
+  From the top:
+  - **Header card**, two lines. Line 1: the row's title (bold); at the right
+    a status pill, the status glyph plus a word (`● needs you`, `◐ working`,
+    `◇ review`, `↻ landing`, `○ idle`, `○ no thread`, `✓ done`, `✉ inbox`),
+    and the percent (`~95%`), both in the status colour. Line 2, dim: the
+    thread id, the thread's own title when the row is a task (not at 60
+    columns), the activity while working, the pane (not at 60), the owner
+    of a task; at the right a ten-cell bar `▰▱` in the status colour, or,
+    with no percent, the PR (`#2320` magenta, `✕ 2 failing` red or `✓`
+    green). A task with several threads shows the most pressing one.
+  - **Tab bar**, one line: ` Overview `, ` Files N `, ` Log N ` as plain
+    labels with one space of padding on each side, on background colours,
+    one space apart, no rule or brackets. The active tab is bold bright
+    white on blue; inactive tabs plain text on dark grey (256-colour 237,
+    254 on a light terminal). `Files N` counts changed files (`Files …`
+    until git has answered once), `Log N` events. A tab with nothing
+    behind it (no thread, a resolved thread's files) is dim, has no count
+    and is skipped by keys and clicks. At the right end, dim, what is below
+    the drawer's end: Overview's section names at 80 columns, else
+    `↓ N more` lines.
+  - **The tab's content**, which scrolls (`pgup`/`pgdn`, the wheel).
+
+  The tab stays as the cursor moves through the list, except that the
+  needs-you jump shows Overview, and a row without a thread shows Overview
+  until the cursor is back on a thread. An inbox row's card shows the item
+  (summary as title, `✉ inbox` and its age yellow, then kind, time and file);
+  its Files and Log tabs are the subject thread's. A list heading, or no
+  row (an empty project), shows a card with the list's or project's name,
+  no tabs, and the list's note, the goal, repos and folder as today.
+- **Overview tab.** Titled sections, each a dim `── Name ──` rule with the
+  name bold, in this order, empty ones left out, separated by a blank line
+  only when they all fit:
+  - *Next*: the thread's `next[]` lines after a bold `→`; the rule's name
+    red while the thread needs you.
+  - *PR*: `[5 #2320] open · review required · 2 comments (sam, alex)`, then
+    `✕ N failing: lint, test` (red) or `✓ no failing checks` (green), and at
+    full height `checked 1m ago` (ticker `last_pr_check`). Review text:
+    required magenta, approved green, changes requested red. The PR's chip
+    is here and never also in *Links*.
+  - *Note*: the task's notes.
+  - *Links*: every Linear, Figma, Notion and other GitHub link as a chip,
+    `[1 ABC-1246 done]`: dim brackets, bold digit, label in the kind's
+    colour, a Linear issue's state in its state colour. A run
+    of one kind shows the kind word on its first chip only
+    (`[2 Figma 598-48083] [3 1138-88367]`); a closed issue's chip is dim.
+  - *Dev*: the servers (`:5181 frontend ●`, `~` for a fallback port,
+    `starting…` / `up exited`) and, under them, the manifest's localhost
+    links as chips with their dot.
+  - *Thread*: dim labels for metadata: `pane` with the agent's live state,
+    `branch`, `report` (changed time, `r shows it`), `base` and merge-base,
+    `log` while the deck runs an `up` command. A task with several threads
+    lists each.
+
+  Links are numbered `1`–`9` across sections in the order Linear, Figma,
+  Notion, GitHub, localhost, wherever their chip sits; the numbered links
+  replace a separate chooser.
+- **Files tab.** The selected thread's changed files
+  (`internal/source/diff`): its worktree against the merge-base with the
+  thread's `base` (else `origin/HEAD`), `git diff --raw --numstat -z -M
+  <merge-base>` (the raw records give each file's `deck.Change`) plus
+  untracked files from `git ls-files --others --exclude-standard`. A total
+  line (`11 files  +447 -68  vs origin/main`, the view and `t` at its
+  right), then one row per file as a diffstat: digit, a status letter
   coloured by its change (`A` green, `M` yellow, `D` red, `R` cyan, `?`
-  untracked faint green; faint when binary) and green `+N` / red `-M`
-  counts: only `+N` for an added or untracked file, only `-M` for a
-  deleted one (`binary`, `untracked`, `old → new`). `d t` switches between
-  this list and a folder tree (`internal/ui/filetree.go`): folders first,
-  single-folder chains joined (`src/pages/users/`), folder names and
-  their summed counts faint; files are numbered in display order, so digits and clicks
-  follow the tree. `diff_view` (list or tree, default list) sets the view
-  at start; the toggle never writes the file. Nine files, numbered, then
-  `+K more`. Git runs off the UI goroutine (5 s timeout,
-  `GIT_OPTIONAL_LOCKS=0`) when the selection moves to another thread and on
-  every reload; answers are reused for 2 s. No section for a resolved
-  thread; a missing worktree or base is a dim note.
+  untracked faint green; faint when binary), the path (losing its start
+  when long; a rename folded git-style, `pages/{members → users}/index.ts`),
+  green `+N` / red `-M` counts (only `+N` for an added or untracked file,
+  only `-M` for a deleted one, `binary` for a binary file), and a bar of 8
+  cells at 80 columns, 5 at 60: cells ∝ added plus deleted lines, scaled to
+  the thread's largest file, at least one cell for any change, green cells
+  for added then red for deleted, the rest a dim `▁`; no bar for a binary
+  file. Files stay in path order. `t` switches between this list and the
+  folder tree (`internal/ui/filetree.go`): folders first, single-folder
+  chains joined (`src/pages/users/`), folder names and their summed counts
+  faint and without a bar; files numbered in display order. `diff_view`
+  (list or tree, default list) sets the view at start; the toggle never
+  writes the file. Every file is listed and the tab scrolls; files 1–9 take
+  the digits, the rest show a dim `·` and open by click or the drawer
+  cursor. Git runs off the UI goroutine (5 s timeout,
+  `GIT_OPTIONAL_LOCKS=0`) when the selection moves to another thread and
+  on every reload; answers are reused for 2 s. A missing worktree or base
+  is a dim note.
+- **Log tab.** The thread's timeline, newest first, one line per event:
+  age (dim, right-aligned), a glyph in its colour, the text, and at 80
+  columns the clock time (dim, with the weekday before today). Only what
+  herdr-projects records: `created`, `launched_at` and `brief_seen_at` from
+  the thread file, and inbox items whose `subject` is the thread, from
+  `inbox/` and `inbox/done/` (read-only; read only files whose name holds
+  the thread id, cached by name), by their `event`: `new report` `≡`,
+  `waiting on you` and `blocked on a prompt` red `●`, `PR opened` / `PR
+  updated` magenta `◇` with the PR's chip, `PR checks failing` red `✕`, `PR
+  merged` green `✓`, `resolved` dim `✓`, `prompted its thread` (routine)
+  dim `»`; created `+` and launched `▶` dim. An item still in `inbox/` ends
+  in a yellow `✉`. At full height a dim rule heads each day, a dim `│`
+  marks a gap of over an hour, and a dim last line names the sources. No
+  git commits, no earlier working/idle changes (only `last_state_change` is
+  kept), no percent history. On an inbox row the Log cursor starts on that
+  item.
+- **New reads for the drawer:** the thread's `percent` as a number (may be
+  `null`), its `created`, `launched_at`, `brief_seen_at`,
+  `last_state_change`, `last_report_change` and `resolved_reason`, and
+  ticker.json's `commenters[]` and `last_pr_check`.
 - **Missing sources.** `! N` in the header (yellow), and `!` shows a
   *Sources* view in the drawer. Stale rows are dim with `as of HH:MM`, and
   fallback ports are marked `~`.
@@ -168,9 +256,18 @@ A compact list on top and a detail drawer below; mockups of every state at
 Keys:
 
 - `j`/`k` move (the drawer follows), `space` folds a list.
-- `1`–`9` open the drawer's numbered links. `l` Linear, `f` Figma,
-  `n` Notion, `g` GitHub PR open the first link of that kind. When there
-  are several, the key highlights that drawer line and waits: a digit opens
+- `[`/`]` switch to the previous / next drawer tab, from the list or the
+  drawer. `tab` moves the focus into the drawer: the list's `▸` turns dim
+  and a drawer cursor (`▸` and the selection background) appears; inside
+  the drawer `tab`/`shift+tab` switch tabs, `j`/`k` move the drawer cursor,
+  `enter` acts on the item under it (Overview: opens the link; Files: opens
+  the file's diff, numbered or not; Log: a report event shows the report,
+  a PR event opens the PR, other events focus the pane), and `esc` returns
+  the focus to the list. A click in the drawer focuses it too.
+- `1`–`9` open the drawer's numbered links on Overview and Log, and the
+  numbered files' diffs on Files. `l` Linear, `f` Figma,
+  `n` Notion, `g` GitHub PR open the first link of that kind, on any tab. When there
+  are several, the key highlights that kind's chips and waits: a digit opens
   one, `a` opens all of that kind, `d` opens a Figma link in the desktop
   app, the same letter again opens the first, and `esc` cancels. With
   `figma_desktop` set (milestone 8) every Figma link the deck opens, by
@@ -185,12 +282,14 @@ Keys:
   take over the deck's own pane; since the config file (below), an editor
   with `terminal = true` opens in a new herdr pane instead. `$VISUAL` and
   `$EDITOR` are still not read implicitly. `r`: the
-  thread's report in the drawer at full height. `!`: sources. `?`: help.
-- `d`: the Files section waits for a file's digit (highlighted, scrolled
-  into view): the digit opens that file's diff, `d` again, `a` or `enter`
-  the whole diff, `t` switches list and tree and keeps waiting, `esc`
-  cancels. With one file `d` opens the whole diff at
-  once. A click on a file opens it, on the total line the whole diff. The
+  thread's report in the drawer at full height, under the thread's card,
+  with `Report · esc returns` where the tab bar was. `!` sources, `?` help,
+  `s` settings and `w` What's new replace the whole drawer (today's title
+  rule, no card or tabs); `esc` returns to the tab you were on.
+- `d`: switches the drawer to the Files tab, so `d 3` opens file 3 as
+  before; on Files, `d` again, `a` or `enter` opens the whole diff. With one
+  file `d` opens the whole diff at once. `t` on Files switches list and
+  tree. A click on a file opens it, on the total line the whole diff. The
   diff tool gets the merge-base commit as `{base}`. A rename passes both
   paths (a lone `{file}` argument becomes one per file) so git pairs them;
   an untracked file does not open, since git diff leaves it out.
@@ -203,17 +302,21 @@ Keys:
   until the ports answer.
 - Open URLs with `open` (macOS) / `xdg-open`.
 
-Mouse: a click selects a row, a click on a drawer link opens it, and clicks on
-`! N` and on a list heading work like their keys. The wheel scrolls the list or
-drawer under the pointer.
+Mouse: a click selects a row, a click on a tab switches to it, a click on a
+chip, file or Log event opens it, and clicks on `! N` and on a list heading
+work like their keys. A click on the card does nothing. The wheel scrolls the
+list or the drawer's tab under the pointer.
 
 Colours are named ANSI colours, so the terminal theme applies (full table in
 [docs/design/README.md](design/README.md#colours)). Needs you is bold red,
 inbox items yellow, working cyan, review magenta, landing, passing checks and
 listening ports green, and idle and metadata dim. The selected row (and the
 link chooser's line) has a subtle grey background, ANSI 256 colour 237, or 254
-on a light terminal, under the text's own colours. The deck never marks inbox
-items handled.
+on a light terminal, under the text's own colours. The drawer's active tab is
+bold bright white on blue, the one palette colour no status uses; inactive tabs
+sit on the selection's grey. The full drawer colour table is in
+[docs/design/drawer/](design/drawer/README.md#colours). The deck never marks
+inbox items handled.
 
 ## herdr integration
 
