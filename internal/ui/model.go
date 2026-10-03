@@ -703,7 +703,7 @@ func (m Model) handleKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	case key.Matches(msg, m.keys.Focus):
 		if m.dfocus {
 			m.cycleTab(1)
-		} else if r, ok := m.selected(); ok && r.kind == rowWork {
+		} else if r, ok := m.selected(); ok && r.kind == rowWork && m.size != sizeHidden {
 			m.setMode(modeRow)
 			m.dfocus, m.dcur = true, 0
 		}
@@ -750,6 +750,9 @@ func (m Model) handleKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		m.toggleReport()
 	case key.Matches(msg, m.keys.Drawer):
 		m.size = (m.size + 1) % 3
+		if m.size == sizeHidden {
+			m.dfocus = false
+		}
 		m.drawerOff = 0
 		m.ensureVisible()
 	case key.Matches(msg, m.keys.Sources):
@@ -789,6 +792,9 @@ func (m *Model) move(delta int) {
 
 func (m *Model) setMode(mode drawerMode) {
 	m.mode = mode
+	if mode != modeRow {
+		m.dfocus = false // a full view has no drawer cursor
+	}
 	m.drawerOff = 0
 	m.ensureVisible()
 }
@@ -1122,7 +1128,7 @@ func (m *Model) handleClick(mouse tea.Mouse) (tea.Model, tea.Cmd) {
 
 // focusDrawer gives a row's drawer the focus, as a click in it does.
 func (m *Model) focusDrawer() {
-	if r, ok := m.selected(); ok && r.kind == rowWork && m.mode == modeRow {
+	if r, ok := m.selected(); ok && r.kind == rowWork && m.mode == modeRow && m.size != sizeHidden {
 		m.dfocus = true
 	}
 }
