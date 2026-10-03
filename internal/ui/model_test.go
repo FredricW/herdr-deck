@@ -7,6 +7,7 @@ import (
 	"image/color"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -31,8 +32,14 @@ type opened struct{ urls, dirs, panes, devs []string }
 
 func newModel(t *testing.T, snap deck.Snapshot, w, h int) (Model, *opened) {
 	t.Helper()
+	return newModelWith(t, snap, w, h, func(*Options) {})
+}
+
+// newModelWith is newModel with options changed by set.
+func newModelWith(t *testing.T, snap deck.Snapshot, w, h int, set func(*Options)) (Model, *opened) {
+	t.Helper()
 	o := &opened{}
-	m := New(snap, Options{
+	opt := Options{
 		Now:        func() time.Time { return now },
 		Location:   time.UTC,
 		OpenURL:    func(u string) error { o.urls = append(o.urls, u); return nil },
@@ -43,7 +50,9 @@ func newModel(t *testing.T, snap deck.Snapshot, w, h int) (Model, *opened) {
 			return "started make dev for " + t.ID, nil
 		},
 		Version: testVersion,
-	})
+	}
+	set(&opt)
+	m := New(snap, opt)
 	m, _ = press(m, tea.WindowSizeMsg{Width: w, Height: h})
 	return m, o
 }
@@ -508,6 +517,43 @@ func TestThreadsNoTaskNames(t *testing.T) {
 	}
 	if strings.Contains(out, "Old work") {
 		t.Errorf("resolved threads should start folded")
+	}
+}
+
+// With FigmaDesktop every way of opening a Figma link opens the desktop
+// app; other links still open in the browser.
+func TestFigmaDesktopSetting(t *testing.T) {
+	const web = "https://www.figma.com/design/abc123/Document-select?node-id=1138-88367"
+	const app = "figma://design/abc123/Document-select?node-id=1138-88367"
+	for _, desktop := range []bool{false, true} {
+		// Document select: Linear link 1, Figma links 2-4.
+		m, o := newModelWith(t, calm(), 80, 28, func(o *Options) { o.FigmaDesktop = desktop })
+		m, _ = press(m, keys("jj")...)
+		want := web
+		if desktop {
+			want = app
+		}
+		m, _ = press(m, keys("f3")...) // a digit in the chooser
+		m, _ = press(m, keys("3")...)  // a digit straight away
+		m, _ = press(m, keys("ff")...) // the first
+		m, _ = press(m, keys("fa")...) // all three
+		if len(o.urls) != 6 || o.urls[0] != want || o.urls[1] != want || !slices.Contains(o.urls[3:], want) {
+			t.Fatalf("FigmaDesktop %v: opened %q, want %s", desktop, o.urls, want)
+		}
+		for _, u := range o.urls {
+			if strings.HasPrefix(u, "figma://") != desktop {
+				t.Errorf("FigmaDesktop %v: opened %q", desktop, u)
+			}
+		}
+		x, y := find(t, m, "3 1138-88367")
+		m, _ = press(m, click(x+2, y))
+		if got := o.urls[len(o.urls)-1]; len(o.urls) != 7 || got != want {
+			t.Errorf("FigmaDesktop %v: click opened %q, want %s", desktop, o.urls[6:], want)
+		}
+		press(m, keys("1")...)
+		if got := o.urls[len(o.urls)-1]; !strings.HasPrefix(got, "https://linear.app/") {
+			t.Errorf("FigmaDesktop %v: 1 (a Linear link) opened %q", desktop, got)
+		}
 	}
 }
 

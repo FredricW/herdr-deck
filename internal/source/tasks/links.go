@@ -86,6 +86,35 @@ func Scrape(text, workspace string) []deck.Link {
 	return links
 }
 
+// Pick finds the first URL or Linear ID in text a person picked out, such
+// as a selection in a terminal. Unlike Scrape it also reads code spans and
+// Remember sections: the person chose the text. A Linear ID, or a URL of a
+// kind the deck knows, comes back as Scrape would link it, with known set;
+// a URL of another site comes back with only Label and URL set. ok is false
+// when text holds neither.
+func Pick(text, workspace string) (l deck.Link, known, ok bool) {
+	first := len(text)
+	if loc := anyURL.FindStringIndex(text); loc != nil {
+		first = loc[0]
+		raw := trimURL(text[loc[0]:loc[1]])
+		if l, known = classify(raw); !known {
+			l = deck.Link{Label: raw, URL: raw}
+		}
+		ok = true
+	}
+	// Only IDs before the first URL can come first, and none of them is
+	// inside a URL.
+	for _, m := range linearID.FindAllStringSubmatchIndex(text, -1) {
+		if m[2] >= first {
+			break
+		}
+		if id := text[m[2]:m[3]]; isTicket(id) {
+			return linearLink(workspace, id), true, true
+		}
+	}
+	return l, known, ok
+}
+
 var (
 	fence         = regexp.MustCompile("^ {0,3}(`{3,}|~{3,})")
 	atxHeading    = regexp.MustCompile(`^ {0,3}(#{1,6})(?:\s|$)`)

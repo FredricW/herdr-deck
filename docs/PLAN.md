@@ -153,7 +153,9 @@ Keys:
   `n` Notion, `g` GitHub PR open the first link of that kind. When there
   are several, the key highlights that drawer line and waits: a digit opens
   one, `a` opens all of that kind, `d` opens a Figma link in the desktop
-  app, the same letter again opens the first, and `esc` cancels. `o` opens
+  app, the same letter again opens the first, and `esc` cancels. With
+  `figma_desktop` set (milestone 8) every Figma link the deck opens, by
+  key, digit or click, opens in the desktop app. `o` opens
   the first localhost link whose dev server is running, without a chooser
   (milestone 6): links to servers that are down open only by their digit.
 - `enter`: on a thread row, focus its herdr pane (`herdr pane focus
@@ -231,8 +233,21 @@ live under that home, apart from the user's own herdr):
   child) and calls `layout.set_split_ratio`. The deck gets 40 % of the
   split, 60–80 columns, and the left pane keeps at least 60; below that they
   share it evenly.
-- Optional later: `[[link_handlers]]` so `ABC-123` and Figma URLs are
-  clickable in any pane, coordinator included.
+- `[[link_handlers]] id="figma"` sends Ctrl+clicked Figma URLs to the
+  `open-link` action (`herdr-deck plugin open-link`), which opens the
+  `figma://` rewrite when `figma_desktop` is set, else the URL, as the deck
+  itself does. Verified in
+  milestone 8 on herdr 0.9.3: a link handler only ever sees a URL. herdr
+  turns text into a link only for `http://`/`https://` (`url_byte_range` in
+  its `src/app/actions.rs`), or takes an OSC 8 hyperlink's URI, and only on
+  a Ctrl+click. A bare `ABC-123` is never a link, so Linear IDs go through
+  the same action on a selection instead: a `[[keys.command]] type =
+  "plugin_action"` key passes the selection as `selected_text`, and the
+  action opens its first link or Linear ID with the deck's scraper rules.
+  With no Linear workspace it opens nothing, shows a herdr notification and
+  logs why. herdr re-reads a linked plugin's manifest on each click, so a
+  new handler needs no relink and no `reload-config`; the binary must be
+  rebuilt for a new subcommand.
 
 Install with `herdr plugin install FredricW/herdr-deck`, or `herdr plugin
 link <checkout>` for development (link never builds); see the README.
@@ -340,9 +355,10 @@ marked parallel.
    groups, browser tab reuse (`launch.Browser`: on macOS, AppleScript
    finds a tab of the default browser showing the same page, as `pageKey`
    defines it, and focuses it; else `open`/`xdg-open`; the README's
-   "Browser tabs" has the rules), and `u` starts dev servers (the
-   manifest's `up`). Still to do: Linear issue status next to IDs
-   (GraphQL; key from env or `op`), link handlers, multi-project view.
+   "Browser tabs" has the rules), `u` starts dev servers (the manifest's
+   `up`), and Figma link handlers with the open-link action (see herdr
+   integration). Still to do: Linear issue status next to IDs (GraphQL;
+   key from env or `op`), multi-project view.
 
 ## Definition of done (v1 = milestones 1–7)
 

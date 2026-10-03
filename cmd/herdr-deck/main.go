@@ -87,7 +87,8 @@ func run(args []string) error {
 		}
 	}
 	opt := ui.Options{
-		OpenURL: launch.Browser{Reuse: cfg.ReuseTabs}.OpenURL,
+		OpenURL:      launch.Browser{Reuse: cfg.ReuseTabs}.OpenURL,
+		FigmaDesktop: cfg.FigmaDesktop,
 		OpenEditor: func(path string) error {
 			return runner.Run(cfg.Editor, launch.EditorArgv(cfg.Editor, path), path)
 		},
@@ -142,9 +143,9 @@ func run(args []string) error {
 	return err
 }
 
-// runPlugin runs a command herdr-plugin.toml gives herdr: the toggle action
-// or the auto-open hook. herdr logs its output (`herdr plugin log list`),
-// config problems included; they never stop the hook.
+// runPlugin runs a command herdr-plugin.toml gives herdr: the toggle and
+// open-link actions or the auto-open hook. herdr logs its output (`herdr
+// plugin log list`), config problems included; they never stop the hook.
 func runPlugin(args []string) error {
 	cfg, err := config.Resolve(config.Flags{}, os.Getenv, exec.LookPath)
 	if err != nil {
@@ -159,5 +160,11 @@ func runPlugin(args []string) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 	defer cancel()
 	h := plugin.Socket{Client: herdr.Client{Socket: herdr.SocketPath(os.Getenv)}}
-	return plugin.Run(ctx, h, plugin.Env{Getenv: os.Getenv, Root: cfg.ProjectsRoot}, args)
+	env := plugin.Env{
+		Getenv:  os.Getenv,
+		Root:    cfg.ProjectsRoot,
+		Links:   plugin.LinkSettings{LinearWorkspace: cfg.LinearWorkspace, FigmaDesktop: cfg.FigmaDesktop},
+		OpenURL: launch.Browser{Reuse: cfg.ReuseTabs}.OpenURL,
+	}
+	return plugin.Run(ctx, h, env, args)
 }

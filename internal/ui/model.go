@@ -29,6 +29,9 @@ type Options struct {
 	// replace both so nothing is ever opened.
 	OpenURL    func(url string) error
 	OpenEditor func(path string) error
+	// FigmaDesktop opens Figma links in the desktop app (their figma://
+	// rewrite) wherever a key or click opens a link, not only after d.
+	FigmaDesktop bool
 	// FocusPane focuses a herdr pane by id. Tests replace it so no real
 	// pane is ever focused.
 	FocusPane func(paneID string) error
@@ -470,7 +473,7 @@ func (m *Model) chooserKey(msg tea.KeyPressMsg) (tea.Cmd, bool) {
 		var cmds []tea.Cmd
 		for _, l := range links {
 			if l.Kind == kind {
-				cmds = append(cmds, m.openURL(l.URL, l.Label))
+				cmds = append(cmds, m.openLink(l))
 			}
 		}
 		return tea.Batch(cmds...), true
@@ -515,7 +518,15 @@ func (m *Model) openNumbered(i int) tea.Cmd {
 		m.status = fmt.Sprintf("no link %d on this row", i+1)
 		return nil
 	}
-	return m.openURL(links[i].URL, links[i].Label)
+	return m.openLink(links[i])
+}
+
+// openLink opens l, a Figma link in the desktop app when FigmaDesktop is set.
+func (m *Model) openLink(l deck.Link) tea.Cmd {
+	if d := l.DesktopURL(); d != "" && m.opt.FigmaDesktop {
+		return m.openURL(d, l.Label+" in Figma")
+	}
+	return m.openURL(l.URL, l.Label)
 }
 
 func (m *Model) openDesktop(links []deck.Link, i int) tea.Cmd {
