@@ -78,6 +78,10 @@ func TestFileTreeEdges(t *testing.T) {
 	if l.dir.added != 3 || l.dir.deleted != 4 {
 		t.Errorf("a/b/c sums +%d -%d, want +3 -4", l.dir.added, l.dir.deleted)
 	}
+	// A collapsed chain sorts by its shown name: "a-b" < "a/x".
+	if got := treeText([]deck.DiffFile{{Path: "a/x/f.go"}, {Path: "a-b/g.go"}}); !slices.Equal(got, []string{"a-b/", "  g.go", "a/x/", "  f.go"}) {
+		t.Errorf("collapsed sort = %q", got)
+	}
 	if fileTree(nil) != nil {
 		t.Error("an empty diff has tree lines")
 	}

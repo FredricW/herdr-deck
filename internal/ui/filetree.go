@@ -137,12 +137,15 @@ func fileTree(files []deck.DiffFile) []treeLine {
 	var lines []treeLine
 	var walk func(d *fileDir, depth int)
 	walk = func(d *fileDir, depth int) {
-		sort.Slice(d.dirs, func(i, j int) bool { return d.dirs[i].name < d.dirs[j].name })
+		// Chains collapse first, so folders sort by the name they show.
 		for _, c := range d.dirs {
 			for len(c.files) == 0 && len(c.dirs) == 1 {
 				only := c.dirs[0]
 				c.name, c.dirs, c.files = c.name+"/"+only.name, only.dirs, only.files
 			}
+		}
+		sort.Slice(d.dirs, func(i, j int) bool { return d.dirs[i].name < d.dirs[j].name })
+		for _, c := range d.dirs {
 			lines = append(lines, treeLine{depth: depth, dir: c})
 			walk(c, depth+1)
 		}
