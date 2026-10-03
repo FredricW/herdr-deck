@@ -8,18 +8,22 @@ and versions follow [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.1.1] - 2026-10-03
+
 ### Added
 
 - A Files section in the drawer lists the files the selected thread changed,
-  with `+N -M` counts. `d` opens the diff tool on one file or the whole diff.
+  with `+N -M` counts. `d` opens the diff tool on one file or on the whole
+  diff.
 - A settings page (`s`) shows every setting, its value and where it comes
   from, and edits the config file in place. Most changes apply at once.
 - What's new (`w`) shows this changelog in the deck. After an update the
-  deck says once which version it now runs, and while `↑` shows it also
-  lists what the newer version brings.
-- Releases carry prebuilt binaries for macOS and Linux (arm64 and amd64),
-  with `SHA256SUMS`. Installing a release through herdr downloads the
-  binary instead of building it, so Go is only needed for other commits.
+  deck says once which version it now runs, and while `↑` shows, it lists
+  what the newer version brings.
+- Releases carry prebuilt binaries for macOS and Linux (arm64 and amd64)
+  with a `SHA256SUMS` file. Installing a release through herdr downloads
+  the binary instead of building it, so Go is only needed for other commits.
+- The README shows the deck in short demo GIFs.
 
 ### Changed
 
