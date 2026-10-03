@@ -1,8 +1,10 @@
 package projects
 
 import (
+	"errors"
+	"io/fs"
 	"os"
-	"path/filepath"
+	"path"
 	"regexp"
 	"sort"
 	"strings"
@@ -24,9 +26,13 @@ type inboxFile struct {
 // readInbox lists the unhandled items: inbox/*.md, not inbox/done/. A missing
 // inbox folder is an empty inbox. Items are newest first.
 func (r Reader) readInbox(note func(string, ...any)) []deck.InboxItem {
-	dir := filepath.Join(r.Dir(), "inbox")
-	entries, err := os.ReadDir(dir)
-	if os.IsNotExist(err) {
+	return inboxItems(os.DirFS(r.Dir()), note)
+}
+
+// inboxItems reads inbox/ in a project folder, as readInbox does.
+func inboxItems(project fs.FS, note func(string, ...any)) []deck.InboxItem {
+	entries, err := fs.ReadDir(project, "inbox")
+	if errors.Is(err, fs.ErrNotExist) {
 		return nil
 	}
 	if err != nil {
@@ -40,7 +46,7 @@ func (r Reader) readInbox(note func(string, ...any)) []deck.InboxItem {
 		}
 		name := strings.TrimSuffix(e.Name(), ".md")
 		item := deck.InboxItem{ID: name}
-		data, err := os.ReadFile(filepath.Join(dir, e.Name()))
+		data, err := fs.ReadFile(project, path.Join("inbox", e.Name()))
 		if err != nil {
 			note("inbox/%s: %v", e.Name(), short(err))
 			items = append(items, item)

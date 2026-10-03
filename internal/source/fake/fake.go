@@ -150,3 +150,56 @@ func Diff(_ context.Context, t deck.Thread) deck.Diff {
 		},
 	}
 }
+
+// Projects returns the sample projects root for the project picker, with
+// snap as its own project: Billing export has a thread waiting on the user
+// and an inbox item, Docs site an inbox item, Search spike is paused and
+// Mobile onboarding archived. now anchors the times.
+func Projects(snap deck.Snapshot, now time.Time) []deck.ProjectInfo {
+	resolved := func(id, title string) deck.Thread {
+		return deck.Thread{ID: id, Title: title, Status: deck.StatusDone, StateLine: "resolved · merged"}
+	}
+	return []deck.ProjectInfo{
+		{Project: snap.Project, Status: "active", Threads: snap.Threads, Inbox: snap.Inbox},
+		{
+			Project: deck.Project{Slug: "billing-export", Name: "Billing export", Dir: "/projects/billing-export", PaneID: "w4J:p1"},
+			Status:  "active",
+			Threads: []deck.Thread{
+				{ID: "t-0002", Title: "Invoice PDF fonts", Status: deck.StatusReview, PaneID: "w4L:p1", Pane: &deck.Pane{ID: "w4L:p1", Agent: "claude", AgentStatus: "idle"}},
+				{
+					ID: "t-0003", Title: "CSV export job", Status: deck.StatusNeedsYou, StateLine: "needs you · blocked on a prompt", PaneID: "w4K:p3",
+					Pane:    &deck.Pane{ID: "w4K:p3", Agent: "claude", AgentStatus: "blocked", Since: now.Add(-2 * time.Minute)},
+					Changed: now.Add(-9 * time.Minute),
+				},
+				{ID: "t-0004", Title: "Ledger totals fix", Status: deck.StatusReview, PaneID: "w4M:p1"},
+			},
+			Inbox: []deck.InboxItem{{
+				ID: "20261002T143300Z-thread-state-t-0002-3", Kind: "thread-state", Thread: "t-0002", Subject: "t-0002",
+				Summary: "t-0002 has a failing check", Created: now.Add(-8 * time.Minute),
+			}},
+		},
+		{
+			Project: deck.Project{Slug: "docs-site", Name: "Docs site", Dir: "/projects/docs-site"},
+			Status:  "active",
+			Threads: []deck.Thread{
+				{ID: "t-0001", Title: "Search page", Status: deck.StatusUnknown, StateLine: "idle", PaneID: "w5A:p1"},
+				resolved("t-0002", "Sidebar order"),
+			},
+			Inbox: []deck.InboxItem{{
+				ID: "20261002T120500Z-note-2", Kind: "note", Summary: "Decide the docs domain before launch", Created: now.Add(-2*time.Hour - 36*time.Minute),
+			}},
+		},
+		{
+			Project: deck.Project{Slug: "search-spike", Name: "Search spike", Dir: "/projects/search-spike"},
+			Status:  "paused",
+		},
+		{
+			Project: deck.Project{Slug: "mobile-onboarding", Name: "Mobile onboarding", Dir: "/projects/mobile-onboarding"},
+			Status:  "archived",
+			Threads: []deck.Thread{
+				resolved("t-0001", "Welcome screens"), resolved("t-0002", "Push permission"), resolved("t-0003", "Sign-in with email"),
+				resolved("t-0004", "Profile photo"), resolved("t-0005", "Analytics events"), resolved("t-0006", "Store listing"),
+			},
+		},
+	}
+}

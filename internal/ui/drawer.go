@@ -656,10 +656,11 @@ var helpLines = [][2]string{
 	{"pgup pgdn", "scroll the drawer"},
 	{"!", "sources: what could not be read"},
 	{"s", "settings: every setting with its value and source; ↵ edits, toggles or cycles one in the config file"},
+	{"p", "projects and what needs you in each; type to filter, ↵ goes there"},
 	{"w", "what's new: the changelog, newest first; with ↑ in the header, also what the newer version brings"},
 	{"?", "this help; esc returns"},
 	{"q", "quit"},
-	{"mouse", "click a row, link, list heading or ! N; the wheel moves the list or scrolls the drawer"},
+	{"mouse", "click a row, link, list heading, ! N or the other-projects line; the wheel moves the list or scrolls the drawer"},
 }
 
 // tilde shortens a path under the home folder to ~/….

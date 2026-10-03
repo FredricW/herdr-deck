@@ -534,3 +534,55 @@ func TestLiveStatusOnlyBlockedNeedsYou(t *testing.T) {
 		t.Errorf("blocked for %v: %v, want the group", BlockedAfter-time.Second, got)
 	}
 }
+
+func TestApplyProjects(t *testing.T) {
+	r := &Reader{}
+	st := State{Panes: []Pane{
+		{ID: "w40:p1", Agent: "claude", AgentStatus: "blocked",
+			Tokens: map[string]string{"hp_project": "billing", "hp_group": "billing!1!1!t-0003"}},
+		{ID: "w41:p1", Agent: "claude", AgentStatus: "idle",
+			Tokens: map[string]string{"hp_project": "billing", "hp_group": "billing!0!w41:p1"}},
+		// docs' recorded coordinator, without tokens or its folder as cwd.
+		{ID: "w50:p1", Agent: "claude", AgentStatus: "idle", Cwd: "/elsewhere"},
+		// A shell where search's recorded coordinator was: no agent, so none runs.
+		{ID: "w60:p1", Cwd: "/root/search"},
+	}}
+	list := func() []deck.ProjectInfo {
+		return []deck.ProjectInfo{
+			{Project: deck.Project{Slug: "billing", Dir: "/root/billing"}, Threads: []deck.Thread{
+				{ID: "t-0003", Status: deck.StatusWorking, Worktree: "/wt/billing-3"},
+			}},
+			{Project: deck.Project{Slug: "docs", Dir: "/root/docs"}, RecordedPane: "w50:p1"},
+			{Project: deck.Project{Slug: "search", Dir: "/root/search"}, RecordedPane: "w60:p1"},
+		}
+	}
+
+	// Without a state from Apply the list stays as it is.
+	l := list()
+	r.ApplyProjects(l, "", t0)
+	if l[0].Threads[0].Pane != nil || l[1].PaneID != "" {
+		t.Fatalf("applied without a state: %+v", l)
+	}
+
+	snap := deck.Snapshot{Project: deck.Project{Slug: "docs", Dir: "/root/docs"}}
+	r.apply(&snap, st, t0)
+	r.apply(&snap, st, t0.Add(BlockedAfter))
+	l = list()
+	r.ApplyProjects(l, "docs", t0.Add(BlockedAfter))
+	th := l[0].Threads[0]
+	if th.Pane == nil || th.Pane.ID != "w40:p1" || th.Status != deck.StatusNeedsYou || !th.Pane.Since.Equal(t0) {
+		t.Errorf("billing t-0003: %+v pane %+v", th, th.Pane)
+	}
+	if l[0].PaneID != "w41:p1" || l[1].PaneID != "w50:p1" || l[2].PaneID != "" {
+		t.Errorf("coordinators %q %q %q, want w41:p1 w50:p1 none", l[0].PaneID, l[1].PaneID, l[2].PaneID)
+	}
+
+	// A failed read forgets the state.
+	r.Client = Client{}
+	r.Apply(context.Background(), &snap, t0)
+	l = list()
+	r.ApplyProjects(l, "", t0)
+	if l[0].PaneID != "" {
+		t.Errorf("applied after a failed read: %+v", l[0])
+	}
+}

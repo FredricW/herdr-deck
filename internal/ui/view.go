@@ -18,6 +18,8 @@ type frame struct {
 	drawerTop, drawerH int // the drawer's first content line and height
 	drawer             *drawer
 	bang               zone // the header's `! N`, if shown
+	// attn is the screen line saying other projects need the user, or 0.
+	attn int
 }
 
 func (m Model) View() tea.View {
@@ -57,6 +59,11 @@ func (m Model) layout() frame {
 		f.drawerTop = f.listTop + f.listH + 1
 		f.drawerH = body - 1 - f.listH - 1
 	}
+	// Other projects' needs take the list's last line while it has two.
+	if f.listH >= 2 && m.otherNeeds() > 0 {
+		f.listH--
+		f.attn = f.listTop + f.listH
+	}
 	if f.drawerH > 0 {
 		f.drawer = m.drawerFor(m.width)
 	}
@@ -92,9 +99,17 @@ func (m Model) render() string {
 	rule := dim.Render(strings.Repeat("─", w))
 
 	lines := []string{m.header(w), rule}
+	if m.pick.open {
+		lines = append(lines, m.pickerLines(w, m.pickH())...)
+		lines = append(lines, rule, m.footer(w))
+		return strings.Join(lines, "\n")
+	}
 	if f.listH > 0 || m.effectiveSize() != sizeFull {
 		lines = append(lines, dim.Render(fit(m.columnTitles(w), w)))
 		lines = append(lines, m.listLines(w, f.listH)...)
+	}
+	if f.attn > 0 {
+		lines = append(lines, attentionLine(m.otherNeeds(), w))
 	}
 	if f.drawer != nil {
 		lines = append(lines, drawerRule(f.drawer.title, w))
@@ -498,6 +513,8 @@ func (m Model) footer(w int) string {
 	var hint string
 	r, ok := m.selected()
 	switch {
+	case m.pick.open:
+		hint = m.pickerFooter()
 	case m.choosing != noKind:
 		var nums []int
 		for i, l := range m.links() {

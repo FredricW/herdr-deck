@@ -1,0 +1,28 @@
+ Admin rebuild                           ◐ 2  ◇ 1  ○ 1  ✉ 0
+────────────────────────────────────────────────────────────
+    WORK                        STATUS           LINKS  DEV
+  In progress
+ ▸◐ Users page                  Building overv…  L4
+  ◐ Templates page              Writing tests    L F    ●●●
+  ◇ Document select for summa…  #2320 review     L F3   ●○
+
+  On hold until Monday 2026-10-05
+  ○ Subscriptions list          idle             L N    ~○
+
+  + Backlog (3)
+
+
+
+
+ ● 1 other project needs you  p to see
+─ Users page · t-0002 ──────────────────────────────────────
+ Status  working · ~60% · Building overview
+ Note    Phase 1 = layout + overview (ABC-1256); report on
+         1257/1250 before starting them.
+ Linear  1 ABC-1246 done  2 ABC-1256 in progress
+         3 ABC-1257 todo  4 ABC-1250
+ Report  threads/t-0002.md · r shows it
+ Dev     not started: no .dev/t-0002/state.json
+
+────────────────────────────────────────────────────────────
+ 1-9 link  l f n g o first  ↵ pane  z drawer  ? help  v9.9.9
