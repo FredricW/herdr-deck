@@ -73,6 +73,8 @@ func (m Model) drawerFor(width int) *drawer {
 		return m.helpDrawer(width)
 	case modeSettings:
 		return m.settingsDrawer(width)
+	case modeNews:
+		return m.newsDrawer(width)
 	case modeReport:
 		if ok {
 			return m.reportDrawer(r, width)
@@ -488,6 +490,9 @@ func (m Model) finish(s string, sel bool, w int) string {
 func (m Model) footer(w int) string {
 	if m.status != "" {
 		return warnStyle.Render(fit(" "+m.status, w))
+	}
+	if m.notice != "" {
+		return footerLine(okStyle.Render(" "+m.notice), m.opt.Version, w)
 	}
 	narrow := w < wideMin
 	var hint string

@@ -131,18 +131,28 @@ func Path(flag string, getenv func(string) string) (path string, named bool) {
 	return filepath.Join(home, ".config", "herdr-deck", "config.toml"), false
 }
 
-// LogDir is where the deck keeps the logs of the commands it starts:
-// $XDG_STATE_HOME/herdr-deck/logs, else ~/.local/state/herdr-deck/logs. A
-// relative $XDG_STATE_HOME is ignored. It returns "" when no home is known.
-func LogDir(getenv func(string) string) string {
+// StateDir is where the deck keeps state that outlives it, such as the
+// version it last ran: $XDG_STATE_HOME/herdr-deck, else
+// ~/.local/state/herdr-deck. A relative $XDG_STATE_HOME is ignored. It
+// returns "" when no home is known.
+func StateDir(getenv func(string) string) string {
 	if x := getenv("XDG_STATE_HOME"); x != "" && filepath.IsAbs(x) {
-		return filepath.Join(x, "herdr-deck", "logs")
+		return filepath.Join(x, "herdr-deck")
 	}
 	home := homeDir(getenv)
 	if home == "" {
 		return ""
 	}
-	return filepath.Join(home, ".local", "state", "herdr-deck", "logs")
+	return filepath.Join(home, ".local", "state", "herdr-deck")
+}
+
+// LogDir is where the deck keeps the logs of the commands it starts:
+// StateDir's logs folder. It returns "" when no home is known.
+func LogDir(getenv func(string) string) string {
+	if d := StateDir(getenv); d != "" {
+		return filepath.Join(d, "logs")
+	}
+	return ""
 }
 
 // CacheDir is where the deck keeps throwaway state, such as the last update

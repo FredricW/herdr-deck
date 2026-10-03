@@ -97,7 +97,12 @@ updates on its own: the deck only shows `↑ <version>` in its header when
 something newer exists (checked at most once an hour, shared by all decks;
 a failed check shows only in the `!` sources view). Running decks notice
 the new binary within a refresh or two and restart in place, in the same
-pane.
+pane. The first time a deck starts on a newer version, its footer says
+`Updated to vX.Y.Z · w what's new` once; `w` shows the changelog
+([CHANGELOG.md](CHANGELOG.md), built into the deck). While `↑` shows, `w`
+also lists what the newer version brings, read from its CHANGELOG.md (from
+GitHub at the newer tag, or `git show` of origin's commit for a linked
+checkout); without a network it just leaves that out.
 
 To remove it, `herdr plugin uninstall herdr-deck`, or `herdr plugin unlink
 herdr-deck` for a linked checkout, and delete the keybinding.
@@ -139,17 +144,26 @@ tar -xzf herdr-deck_0.2.0_darwin_arm64.tar.gz herdr-deck
 A checksum guards against a broken download, not against a tampered
 release.
 
+Every PR with a user-facing change adds a line to `## [Unreleased]` in
+[CHANGELOG.md](CHANGELOG.md) ([Keep a Changelog](https://keepachangelog.com/en/1.1.0/)
+style: `### Added`, `### Changed`, `### Fixed`). Write for people who use
+the deck, not for reviewers.
+
 To cut a release:
 
-1. In a PR, bump `version` in `herdr-plugin.toml` (say to `0.2.0`) and
-   merge it.
+1. In a PR, bump `version` in `herdr-plugin.toml` (say to `0.2.0`), and in
+   CHANGELOG.md rename `## [Unreleased]` to `## [0.2.0] - YYYY-MM-DD` (the
+   day you tag) with a new, empty `## [Unreleased]` above it. Merge it.
 2. Tag the merge commit on main and push the tag:
    `git tag v0.2.0 origin/main && git push origin v0.2.0`.
 
 The tag push runs `.github/workflows/release.yml`: it fails unless the tag
-matches the manifest's version, then builds the four archives, writes
-`SHA256SUMS` and creates the GitHub Release, with notes listing the PRs
-and commits since the previous tag. To try the workflow without publishing,
+matches the manifest's version and CHANGELOG.md has a section for it
+(`scripts/check-version.sh`; CI's version job checks the same on the tag),
+then builds the four archives, writes `SHA256SUMS` and creates the GitHub
+Release. The release notes are the version's CHANGELOG.md section
+(`scripts/release-notes.sh`); a tag the changelog does not cover gets the
+list of PRs and commits since the previous tag instead. To try the workflow without publishing,
 run it from the Actions tab with `dry_run` on (the default): the archives
 and notes are kept as a workflow artifact. Pull requests that change the
 release files run that dry run too. Running it by hand with a tag and
@@ -437,6 +451,7 @@ carries on.
 | `pgup` / `pgdn` | scroll the drawer |
 | `!` | sources the deck could not read |
 | `s` | settings: every setting, its value and source; `↵` edits or toggles, `x` removes it from the file (see Configuration) |
+| `w` | what's new: the changelog, newest first, with the running release marked; with `↑` in the header, also what the newer version brings |
 | `?` | all keys |
 | `esc` | back to the selected row |
 | `q`, `ctrl+c` | quit |

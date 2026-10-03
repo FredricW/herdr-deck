@@ -342,8 +342,9 @@ prebuilt binaries, and herdr's build step uses them when it can.
   builds darwin and linux on arm64 and amd64 with `CGO_ENABLED=0` and
   `-X main.version=<tag>`, packs `herdr-deck_<version>_<os>_<arch>.tar.gz`
   (binary and README) with `SHA256SUMS`, and creates the GitHub Release with
-  notes from `scripts/changelog.sh` (first-parent PRs and commits since the
-  previous tag). Only the publish job gets `contents: write`. Pull requests
+  the tag's CHANGELOG.md section as its notes (`scripts/release-notes.sh`),
+  falling back to `scripts/changelog.sh` (first-parent PRs and commits since
+  the previous tag) for a tag the changelog does not cover. Only the publish job gets `contents: write`. Pull requests
   that touch the release files, and a manual run with `dry_run` on, only
   build and keep the files as a workflow artifact; a manual run with a tag
   and `dry_run` off publishes a tag that has no release yet. Artifact
@@ -360,8 +361,29 @@ prebuilt binaries, and herdr's build step uses them when it can.
   build; `HERDR_DECK_DOWNLOAD_URL` points at another release host (tests).
   `scripts/test-build.sh` covers these cases against a fake release and a
   fake `go`, in CI's version job. `make build` is unchanged.
-- Cutting a release: bump `version` in `herdr-plugin.toml` in a PR, merge,
-  then push the `vX.Y.Z` tag on that merge commit.
+- Cutting a release: in a PR, bump `version` in `herdr-plugin.toml` and
+  move CHANGELOG.md's Unreleased items into a `## [X.Y.Z] - date` section;
+  merge, then push the `vX.Y.Z` tag on that merge commit.
+  `check-version.sh` fails a tag without a CHANGELOG.md section (it skips
+  the check in a checkout with no CHANGELOG.md, such as v0.1.0's).
+- CHANGELOG.md (Keep a Changelog) is the one source of release notes. The
+  deck embeds it (`go:embed` in the root package `herdrdeck`) and
+  `internal/changelog` parses it into releases: a section it cannot read is
+  left out and named as a problem (a test keeps the repo's file clean).
+  `w` toggles What's new in the drawer: the releases newest first, the
+  running one marked (a release build is its release; a build past one,
+  a git describe or a bare commit, is Unreleased, which a release build
+  does not show). `$XDG_STATE_HOME/herdr-deck/last-version` (else
+  `~/.local/state/herdr-deck/`) records the last X.Y.Z a deck ran; a deck
+  that starts on a newer one says `Updated to vX.Y.Z · w what's new` in the
+  footer until the first key or click. The first run, a bare commit and a
+  downgrade say nothing. While `↑` shows, the check also reads the newer
+  version's CHANGELOG.md (`Updater.Changelog`: GitHub's raw host at the
+  tag, or `git show <origin head>:CHANGELOG.md`, else the fetched origin
+  branch, for a linked checkout, which is read again on the next check),
+  once per newer version. What's new lists its Unreleased and its releases
+  newer than the running one, without items this build's changelog already
+  lists. Failures leave the list out, silently.
 
 - `herdr-deck update [--check]` (`internal/update`) reads `herdr plugin list
   --plugin herdr-deck --json`. A GitHub install compares the newest `vX.Y.Z`
@@ -489,9 +511,9 @@ marked parallel.
    `up`), Figma link handlers with the open-link action (see herdr
    integration), and Linear issue status next to IDs (see "Linear issue
    status" above), the drawer's Files section, whose `d` opens the diff
-   tool (see UI), and the settings page (`s`, see Configuration). Still to
-   do: multi-project view (design directions to
-   choose from in
+   tool (see UI), the settings page (`s`, see Configuration), and
+   CHANGELOG.md with What's new (`w`, see Updates). Still to do:
+   multi-project view (design directions to choose from in
    [docs/design/multi-project/](design/multi-project/README.md)).
 
 ## Definition of done (v1 = milestones 1–7)

@@ -12,6 +12,7 @@ import (
 	"charm.land/bubbles/v2/key"
 	tea "charm.land/bubbletea/v2"
 
+	"github.com/FredricW/herdr-deck/internal/changelog"
 	"github.com/FredricW/herdr-deck/internal/deck"
 )
 
@@ -68,6 +69,11 @@ type Options struct {
 	RestartFailed string
 	// Settings backs the settings page (s); nil turns it off.
 	Settings *SettingsHooks
+	// Changelog is this deck's own changelog, which What's new shows.
+	Changelog changelog.Log
+	// Updated is the X.Y.Z this deck was just updated to: the footer says
+	// so until the first key. "" says nothing.
+	Updated string
 }
 
 // DefaultUpdateEvery is how often CheckUpdate runs.
@@ -80,6 +86,9 @@ type Update struct {
 	Available string
 	// Problem says why the check failed. It shows only in Sources.
 	Problem string
+	// News is what the newer version's changelog lists beyond this deck,
+	// for What's new; empty when it could not be read.
+	News []changelog.Release
 }
 
 // RefreshMsg asks the model to reload its snapshot, e.g. after the project
@@ -144,6 +153,7 @@ type Model struct {
 	files     bool          // d waits for a file's digit
 	desktop   bool          // the Figma chooser opens the desktop app
 	status    string        // a one-off message in the footer
+	notice    string        // "Updated to …", until the first key or click
 
 	width, height int
 	light         bool // the terminal's background is light
@@ -186,6 +196,9 @@ func New(snap deck.Snapshot, opt Options) Model {
 		height:   defaultHeight,
 		loaded:   opt.Load == nil,
 		loading:  opt.Load != nil, // Init starts the first load
+	}
+	if opt.Updated != "" {
+		m.notice = "Updated to v" + opt.Updated + " · " + m.keys.News.Keys()[0] + " what's new"
 	}
 	m.SetSnapshot(snap)
 	return m
@@ -568,7 +581,7 @@ func (m *Model) openDiff(t deck.Thread, d deck.Diff, f deck.DiffFile) tea.Cmd {
 }
 
 func (m Model) handleKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
-	m.status = ""
+	m.status, m.notice = "", ""
 	if m.mode == modeSettings {
 		if cmd, done := m.settingsKey(msg); done {
 			return m, cmd
@@ -626,6 +639,8 @@ func (m Model) handleKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		m.toggleMode(modeHelp)
 	case key.Matches(msg, m.keys.Settings):
 		return m, m.openSettings()
+	case key.Matches(msg, m.keys.News):
+		m.toggleMode(modeNews)
 	case key.Matches(msg, m.keys.PageDown):
 		m.scrollDrawer(max(m.layout().drawerH/2, 1))
 	case key.Matches(msg, m.keys.PageUp):
@@ -938,7 +953,7 @@ func (m *Model) handleClick(mouse tea.Mouse) (tea.Model, tea.Cmd) {
 	if mouse.Button != tea.MouseLeft {
 		return *m, nil
 	}
-	m.status = ""
+	m.status, m.notice = "", ""
 	l := m.layout()
 	switch {
 	case mouse.Y == 0 && mouse.X >= l.bang.x0 && mouse.X < l.bang.x1:
