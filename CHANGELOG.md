@@ -8,6 +8,8 @@ and versions follow [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.1.3] - 2026-10-03
+
 ### Added
 
 - `p` opens a project picker over the deck: every project under the
