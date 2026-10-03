@@ -40,6 +40,43 @@ type Value struct {
 	// Note says what else decides the setting, such as $LINEAR_API_KEY
 	// winning over the key command.
 	Note string
+	// File is the value the config file holds, valid or not, when InFile;
+	// a flag or env var may hide it.
+	File   string
+	InFile bool
+}
+
+// fileValues are the values the file sets, as text, by key.
+func fileValues(f File) map[string]string {
+	out := map[string]string{}
+	str := func(k string, v *string) {
+		if v != nil {
+			out[k] = strings.TrimSpace(*v)
+		}
+	}
+	boolean := func(k string, v *bool) {
+		if v != nil {
+			out[k] = strconv.FormatBool(*v)
+		}
+	}
+	str(KeyLinearWorkspace, f.LinearWorkspace)
+	boolean(KeyLinearStatus, f.LinearStatus)
+	str(KeyLinearAPIKeyCommand, f.LinearAPIKeyCommand)
+	boolean(KeyReuseTabs, f.ReuseTabs)
+	boolean(KeyFigmaDesktop, f.FigmaDesktop)
+	boolean(KeyUpdateCheck, f.UpdateCheck)
+	boolean(KeyAutoRestart, f.AutoRestart)
+	str(KeyProjectsRoot, f.ProjectsRoot)
+	if f.RefreshInterval != nil {
+		out[KeyRefreshInterval] = f.RefreshInterval.String()
+	}
+	for table, p := range map[string]*Program{"editor": f.Editor, "diff": f.Diff} {
+		if p != nil {
+			str(table+".command", p.Command)
+			boolean(table+".terminal", p.Terminal)
+		}
+	}
+	return out
 }
 
 // Kind is how a setting is written and edited.

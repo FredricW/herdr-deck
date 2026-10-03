@@ -46,9 +46,20 @@ terminal = false
 		KeyProjectsRoot:    {Text: filepath.Join(home, ".herdr-projects"), Source: FromDefault},
 	}
 	for _, sp := range Specs {
-		if got := s.Values[sp.Key]; got != want[sp.Key] {
+		got := s.Values[sp.Key]
+		got.File, got.InFile = "", false
+		if got != want[sp.Key] {
 			t.Errorf("%s = %+v, want %+v", sp.Key, got, want[sp.Key])
 		}
+	}
+	// The file's own values show even where a flag or env var hides them.
+	for k, f := range map[string]string{KeyEditorCommand: "zed {path}", KeyDiffTerminal: "false", KeyRefreshInterval: "30s"} {
+		if v := s.Values[k]; !v.InFile || v.File != f {
+			t.Errorf("%s file value = %q, %v; want %q", k, v.File, v.InFile, f)
+		}
+	}
+	if v := s.Values[KeyUpdateCheck]; v.InFile {
+		t.Errorf("update_check is not in the file, got %q", v.File)
 	}
 	if len(s.Values) != len(Specs) {
 		t.Errorf("%d values for %d specs", len(s.Values), len(Specs))

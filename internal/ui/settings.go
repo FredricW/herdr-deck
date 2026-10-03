@@ -34,6 +34,7 @@ type settingsPage struct {
 	err     string // why the settings could not be read
 	cursor  int    // index into config.Specs
 	editing bool
+	saving  bool // a save runs; the page takes no other change meanwhile
 	input   textinput.Model
 	invalid string // why the input does not validate
 }
@@ -113,7 +114,7 @@ func (m *Model) settingsKey(msg tea.KeyPressMsg) (tea.Cmd, bool) {
 	case msg.String() == "enter" || msg.String() == "space":
 		return m.editSetting(), true
 	case msg.String() == "x":
-		if !m.set.loaded {
+		if !m.set.loaded || m.set.saving {
 			return nil, true
 		}
 		return m.saveSetting(config.Specs[m.set.cursor].Key, nil), true
@@ -154,14 +155,20 @@ func (m *Model) followSetting() {
 
 // editSetting toggles a switch or starts editing a value in place.
 func (m *Model) editSetting() tea.Cmd {
-	if !m.set.loaded {
+	if !m.set.loaded || m.set.saving {
 		return nil
 	}
 	sp := config.Specs[m.set.cursor]
 	v := m.set.cfg.Values[sp.Key]
+	// The file's own value is what changes, even when a flag or env var
+	// hides it.
+	cur := v.Text
+	if v.InFile {
+		cur = v.File
+	}
 	if sp.Kind == config.KindBool {
 		next := "true"
-		if v.Text == "true" {
+		if cur == "true" {
 			next = "false"
 		}
 		return m.saveSetting(sp.Key, &next)
@@ -169,7 +176,7 @@ func (m *Model) editSetting() tea.Cmd {
 	in := textinput.New()
 	in.Prompt = ""
 	in.CharLimit = 1024
-	in.SetValue(v.Text)
+	in.SetValue(cur)
 	in.CursorEnd()
 	m.set.input = in
 	m.set.editing = true
@@ -186,6 +193,7 @@ func (m *Model) saveSetting(key string, value *string) tea.Cmd {
 	}
 	path := m.set.cfg.Path
 	before := m.set.cfg.Values[key]
+	m.set.saving = true
 	return func() tea.Msg {
 		msg := settingsSavedMsg{key: key, removed: value == nil, before: before}
 		if msg.err = hooks.Save(path, key, value); msg.err != nil {
@@ -198,6 +206,7 @@ func (m *Model) saveSetting(key string, value *string) tea.Cmd {
 
 // settingsSaved applies new settings and says what came of the save.
 func (m *Model) settingsSaved(msg settingsSavedMsg) tea.Cmd {
+	m.set.saving = false
 	if msg.err != nil {
 		m.status = "could not save " + msg.key + ": " + msg.err.Error()
 		return nil

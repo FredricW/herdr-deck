@@ -232,6 +232,8 @@ func run(args []string) error {
 		err = restart.Exec(exe)
 		opt.BinaryChanged = nil
 		opt.RestartFailed = err.Error()
+		// Keep what the settings page saved since the start.
+		opt.Tick, opt.FigmaDesktop = cur.Load().RefreshInterval, cur.Load().FigmaDesktop
 		model = ui.New(m.Snapshot(), opt)
 	}
 }

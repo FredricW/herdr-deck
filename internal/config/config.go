@@ -310,8 +310,7 @@ func Resolve(fl Flags, getenv func(string) string, lookPath func(string) (string
 		s.note(KeyLinearWorkspace, "", FromDefault)
 	}
 
-	s.RefreshInterval = DefaultRefreshInterval
-	from := FromDefault
+	var from Source
 	if fl.RefreshInterval != "" {
 		d, err := parseInterval(fl.RefreshInterval)
 		if err != nil {
@@ -399,6 +398,11 @@ func Resolve(fl Flags, getenv func(string) string, lookPath func(string) (string
 
 	s.UpdateCheck = s.resolveBool(KeyUpdateCheck, fl.UpdateCheck, EnvUpdateCheck, f.UpdateCheck, true, getenv)
 	s.AutoRestart = s.resolveBool(KeyAutoRestart, fl.AutoRestart, EnvAutoRestart, f.AutoRestart, true, getenv)
+	for k, text := range fileValues(f) {
+		v := s.Values[k]
+		v.File, v.InFile = text, true
+		s.Values[k] = v
+	}
 	// The Sources view is narrow: show the file as ~/… where it fits.
 	if home := homeDir(getenv); home != "" && strings.HasPrefix(s.Path, home+string(filepath.Separator)) {
 		short := "~" + strings.TrimPrefix(s.Path, home)

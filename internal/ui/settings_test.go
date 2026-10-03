@@ -205,6 +205,56 @@ func TestSettingsOverrideStillWins(t *testing.T) {
 	}
 }
 
+// The toggle flips the file's value, not the overriding env var's, so it
+// can go both ways while the override stays.
+func TestSettingsToggleUnderOverrideFlipsFileValue(t *testing.T) {
+	e := newSettingsEnv(t, "update_check = true\n", map[string]string{config.EnvUpdateCheck: "true"})
+	m := settingsModel(t, e, config.Flags{}, 80, 28)
+	for m.set.cursor != indexOf(config.KeyUpdateCheck) {
+		m, _ = press(m, keys("j")...)
+	}
+	m, _ = press(m, tea.KeyPressMsg{Code: tea.KeyEnter})
+	if got := e.file(t); got != "update_check = false\n" {
+		t.Fatalf("first toggle: file = %q", got)
+	}
+	m, _ = press(m, tea.KeyPressMsg{Code: tea.KeyEnter})
+	if got := e.file(t); got != "update_check = true\n" {
+		t.Errorf("second toggle: file = %q", got)
+	}
+	// Editing starts from the file's value too.
+	e = newSettingsEnv(t, "[editor]\ncommand = \"zed {path}\"\n", map[string]string{config.EnvEditor: "nvim {path}"})
+	m = settingsModel(t, e, config.Flags{}, 80, 28)
+	for m.set.cursor != indexOf(config.KeyEditorCommand) {
+		m, _ = press(m, keys("j")...)
+	}
+	m, _ = press(m, tea.KeyPressMsg{Code: tea.KeyEnter})
+	if got := m.set.input.Value(); got != "zed {path}" {
+		t.Errorf("edit starts from %q, want the file's value", got)
+	}
+}
+
+// While a save runs, the page takes no other change: two quick presses
+// would both start from the old value.
+func TestSettingsOneSaveAtATime(t *testing.T) {
+	e := newSettingsEnv(t, "", nil)
+	m := settingsModel(t, e, config.Flags{}, 80, 28)
+	m, _ = press(m, keys("j")...) // linear_status
+	next, cmd := m.Update(tea.KeyPressMsg{Code: tea.KeyEnter})
+	m = next.(Model)
+	if cmd == nil || !m.set.saving {
+		t.Fatal("no save started")
+	}
+	next, again := m.Update(tea.KeyPressMsg{Code: tea.KeyEnter})
+	m = next.(Model)
+	if again != nil {
+		t.Error("a second save started while the first ran")
+	}
+	m = run(m, cmd)
+	if m.set.saving || e.file(t) != "linear_status = false\n" {
+		t.Errorf("saving %v, file %q", m.set.saving, e.file(t))
+	}
+}
+
 func TestSettingsRestartNeeded(t *testing.T) {
 	e := newSettingsEnv(t, "", nil)
 	m := settingsModel(t, e, config.Flags{}, 80, 28)

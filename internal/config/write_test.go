@@ -145,6 +145,8 @@ func TestSaveLayouts(t *testing.T) {
 			"update_check = false\n\n# Editor\n[editor]\ncommand = \"vi\"\n"},
 		{"dotted keys stay dotted", "editor.command = \"vi\"\n", KeyEditorTerminal, ptr("true"),
 			"editor.command = \"vi\"\neditor.terminal = true\n"},
+		{"dotted prefix added once", "editor.command = \"vi\"\neditor.extra = 1\n", KeyEditorTerminal, ptr("true"),
+			"editor.command = \"vi\"\neditor.extra = 1\neditor.terminal = true\n"},
 		{"dotted key replaced", "editor.command = \"vi\"\n", KeyEditorCommand, ptr("nvim"),
 			"editor.command = \"nvim\"\n"},
 		{"CRLF kept", "update_check = true\r\n", KeyAutoRestart, ptr("false"),

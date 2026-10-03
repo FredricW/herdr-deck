@@ -375,19 +375,19 @@ func scanValue(s string, i int) (int, error) {
 	case s[i] == '[' || s[i] == '{':
 		depth := 0
 		for j := i; j < len(s); {
-			switch c := s[j]; {
-			case c == '[' || c == '{':
+			switch s[j] {
+			case '[', '{':
 				depth++
 				j++
-			case c == ']' || c == '}':
+			case ']', '}':
 				depth--
 				j++
 				if depth == 0 {
 					return j, nil
 				}
-			case c == '#':
+			case '#':
 				j = lineEnd(s, j)
-			case c == '"' || c == '\'':
+			case '"', '\'':
 				end, err := scanValue(s, j)
 				if err != nil {
 					return 0, err
@@ -426,8 +426,9 @@ func patch(s, key, lit string, set bool) (string, error) {
 		if table != "" && e.table == "" && len(e.key) == 1 && e.key[0] == table {
 			return "", fmt.Errorf("%s is not a [%s] table in the config file; edit %s by hand", table, table, key)
 		}
-		if !(e.table == table && len(e.key) == 1 && e.key[0] == name) &&
-			!(table != "" && e.table == "" && len(e.key) == 2 && e.key[0] == table && e.key[1] == name) {
+		inTable := e.table == table && len(e.key) == 1 && e.key[0] == name
+		dotted := table != "" && e.table == "" && len(e.key) == 2 && e.key[0] == table && e.key[1] == name
+		if !inTable && !dotted {
 			continue
 		}
 		if !set {
@@ -462,10 +463,11 @@ func patch(s, key, lit string, set bool) (string, error) {
 	for _, e := range es {
 		if e.table == "" && len(e.key) == 2 && e.key[0] == table {
 			at = e.end
-			line = table + "." + line
 		}
 	}
-	if at < 0 {
+	if at >= 0 {
+		line = table + "." + line
+	} else {
 		for _, h := range hs {
 			if h.name == table {
 				at = h.end
