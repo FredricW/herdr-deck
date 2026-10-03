@@ -2,24 +2,57 @@
 
 Static mockups for the next drawer, the detail view under the list in
 [design D](../d-list-detail.md). Nothing here is code. The user chose the
-direction (2026-10-03): a **header card** on top, then **tabs**:
-**Overview · Files · Log**. These files work it out in detail so the user
-can pick the variants before anything is built.
+direction on 2026-10-03: a **header card** on top, then **tabs**:
+**Overview · Files · Log**. The same day they settled the variants and the
+open questions; the [decisions](#decisions) are below, and
+[PLAN.md's UI section](../../PLAN.md#ui) describes the result for the build.
 
 | File | What it shows |
 |---|---|
 | [overview.md](overview.md) | The Overview tab: a thread that needs you, a working thread with dev servers, a thread in review with failing checks, a task without a thread, an inbox item; normal and full height |
 | [files.md](files.md) | The Files tab as a diffstat: list and tree views, a thread with many files, the drawer cursor |
 | [log.md](log.md) | The Log tab: the thread's timeline, what herdr-projects records for it, and what it does not |
-| [variants.md](variants.md) | Tab bar styles, status pill styles, links as chips or lines |
+| [variants.md](variants.md) | The tab bar (chosen style, and separated versus touching tabs), status pill styles, links as chips or lines |
 
 Every state is drawn at 80 and 60 columns, in the 28-row frame the earlier
-design docs use, where the drawer has its normal height (the list's bottom
-rule plus eight lines), and again at full height (`z`). A real pane is
-usually taller; the extra rows go to the list and the drawer as today. The
-sample data is the made-up `admin-rebuild` project of the
-[design README](../README.md#sample-data), plus a few invented events,
+design docs use, where the drawer has its normal height (half of the pane:
+the list's bottom rule plus eleven lines), and again at full height (`z`).
+A real pane is usually taller; the extra rows are split between the list
+and the drawer. The sample data is the made-up `admin-rebuild` project of
+the [design README](../README.md#sample-data), plus a few invented events,
 files and check names. The box around a frame is not part of the pane.
+Plain text cannot show the tab bar's backgrounds, so the note beside each
+frame names the active tab.
+
+## Decisions
+
+Made by the user on 2026-10-03.
+
+- **Tab bar:** plain text labels on background colours, one space of
+  padding on each side (` Overview `, ` Files 11 `), no rule and no
+  brackets, counts in the labels, and one space between tabs (touching
+  tabs merge the inactive ones into one grey strip). The active tab is bold
+  bright white on **blue**, the inactive tabs plain text on dark grey (256-colour
+  237, 254 on a light terminal), a tab without data dim on that grey. Blue
+  is the one palette colour no status uses, so the active tab never reads
+  as a status. Comparison in [variants.md](variants.md#tab-bar). This
+  replaces the earlier proposal of tabs on a rule (T1).
+- **Status pill:** P1, the status glyph plus a word (`● needs you`).
+- **Links:** L1, chips (`[1 ABC-1246 done]`), with the kind word only on
+  the first chip of a run of one kind.
+- **The PR's chip** lives in the *PR* section only, never also in *Links*.
+- The six open questions, answered as proposed:
+  1. **Drawer height:** the drawer takes **50 %** of the pane (was 40 %).
+     In a 28-row pane that leaves eight lines for the tab's content.
+  2. **Section order:** *Next*, *PR*, *Note*, *Links*, *Dev*, *Thread*.
+  3. **Tab memory:** the tab stays as you move through the list; the
+     needs-you jump shows Overview, and a row without a thread shows
+     Overview until the cursor is back on a thread.
+  4. **Focus:** `tab` moves the focus into the drawer, and inside it `tab` /
+     `shift+tab` switch tabs; `[`/`]` switch tabs from anywhere; a click in
+     the drawer focuses it; `esc` returns to the list.
+  5. **Log** keeps to what herdr-projects records: no git commits.
+  6. **Files** stay in path order, as git prints them.
 
 ## What moves where
 
@@ -51,8 +84,8 @@ Every line the drawer shows today, and where it goes:
 ──────────────────────────────────────────────────  the list's bottom rule
  Users page                     ● needs you  ~95%    card, line 1: title · pill · percent
  t-0002 · Members /admin/users       ▰▰▰▰▰▰▰▰▰▱    card, line 2 (dim) · progress bar
-━┫ Overview ┣━── Files 11 ──── Log 7 ── ↓ 4 more ─  tab bar · counts · what is below
- ── Next ──                                          the tab's content: five lines
+ Overview   Files 11   Log 7           ↓ 7 more    tabs on blue / grey · what is below
+ ── Next ──                                          the tab's content: eight lines
  → Approve phase 1 (ABC-1256 overview)               at the normal height in a
  …                                                   28-row pane, 21 at full height
 ```
@@ -66,11 +99,12 @@ Every line the drawer shows today, and where it goes:
   percent, the PR (`#2320 ✕ 2 failing`). Several threads on one task: the
   card shows the most pressing one, as the list does, and *Thread* lists
   them all.
-- **Tab bar.** `Files N` counts changed files (`Files …` until git has
+- **Tab bar.** ` Overview `, ` Files N `, ` Log N ` on their backgrounds,
+  one space apart. `Files N` counts changed files (`Files …` until git has
   answered once), `Log N` counts events. A tab with nothing behind it (no
   thread, a resolved thread's files) is dim, has no count and is skipped.
   At the right, dim, what is below the drawer's end: section names on
-  Overview at 80 columns, else `↓ N more`.
+  Overview at 80 columns, else `↓ N more` lines.
 - **Overview's sections** are `── Name ──` rules, dim with the name bold,
   in a fixed order: *Next*, *PR*, *Note*, *Links*, *Dev*, *Thread*. Empty
   ones are left out; blank lines go between them only when all of them fit.
@@ -90,8 +124,9 @@ applied to the new parts:
 | Card title | bold |
 | Card second line | dim |
 | Pill, percent and bar | the status colour: needs you red bold, working cyan, review magenta, landing green, idle / no thread / done dim, inbox yellow; empty bar cells `▱` dim |
-| Active tab | bold, its `━┫ ┣━` bracket in the status colour |
-| Other tabs, the rule, the `↓` hint | dim |
+| Active tab | blue background, bold bright white text |
+| Inactive tabs | dark grey background (256-colour 237; 254 on a light terminal), plain text; a tab without data dim text |
+| The `↓` hint | dim |
 | Section rules | dim rule, bold name; *Next* red while the thread needs you |
 | Link chips | brackets dim, digit bold, Linear ID blue, Figma magenta, Notion and GitHub default; Linear state in its state colour (as today); a closed issue's chip dim |
 | PR section | `#2320` magenta; *review required* magenta, *approved* green, *changes requested* red; `✕ N failing` red, `✓ no failing checks` green |
@@ -102,8 +137,8 @@ applied to the new parts:
 | Log: age, clock, day rules, rail `│` | dim |
 | Drawer cursor | `▸` and the selection's grey background (237, or 254 on a light terminal), as in the list |
 
-New glyphs, all one column wide: `▰` `▱` (progress), `━` `┫` `┣` (active
-tab), `▇` `▁` (diffstat), `≡` `▶` `»` (log), `↓` (more below).
+New glyphs, all one column wide: `▰` `▱` (progress), `▇` `▁` (diffstat),
+`≡` `▶` `»` (log), `↓` (more below).
 
 ## Keys, focus and mouse
 
@@ -149,38 +184,3 @@ read-only:
   thread id and cache them by name.
 - **ticker.json**: `commenters[]` and `last_pr_check`, next to the fields
   the deck reads now.
-
-## Recommendation
-
-- **T1, tabs on a rule.** It separates card and content, and the active tab
-  is visible without colour. (T2 and T3 in [variants.md](variants.md).)
-- **P1, glyph-and-word pills.** Same glyphs and colours as the list; P2's
-  filled pills fight light themes.
-- **L1, chips**, with the kind word only on a run's first chip. Four links
-  on one line at 80 columns leaves room for *Next* in a short drawer. If the
-  chips feel noisy in use, L2 (a line per kind) is the fallback and costs a
-  line per extra kind.
-- **The PR's chip in the *PR* section only**, so no link shows twice.
-- **Keep the 28-row budget honest:** at the normal height the tab content is
-  five lines. Either accept that (the `↓` hint names what is below, and `z`
-  is one key), or give the drawer half of the pane instead of 40 % once it
-  has tabs (two more lines at 28 rows). The second is a one-line change.
-
-## Open questions
-
-1. **Drawer height.** Keep 40 % (five content lines at 28 rows) or raise it
-   to 50 % now that the drawer has a card and a tab bar?
-2. **Section order.** Proposed: *Next*, *PR*, *Note*, *Links*, *Dev*,
-   *Thread*, so what asks something of you comes first. The task named
-   *PR* last; which do you prefer?
-3. **Tab memory.** Proposed: the tab stays as you move through the list
-   (except the needs-you jump). Or should every row open on Overview?
-4. **`tab` for focus.** `tab` both enters the drawer and, inside it,
-   switches tabs, while `[`/`]` switch tabs from anywhere. Is that one key
-   too many meanings, or should `tab` only switch tabs and a click or `↵`
-   on the drawer give it the focus?
-5. **Commits in Log.** The branch's commits (`git log <merge-base>..`) are
-   real, dated events, but they come from git, not herdr-projects. Add them
-   to Log (dim, `·` glyph), or keep Log to what herdr-projects records?
-6. **Files order.** Path order, as git prints it (shown), or largest change
-   first, which the bars make easy to read?

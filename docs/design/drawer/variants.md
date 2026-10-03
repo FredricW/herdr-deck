@@ -1,80 +1,90 @@
 # Drawer · variants
 
-Small alternatives where the choice matters. Each frame here is only the
-drawer at its normal height (the list's bottom rule plus eight lines), not
-the whole pane; the list above it is as in the other files. The
-[README](README.md#recommendation) says which one is recommended.
+The alternatives offered for the tab bar, the status pill and the links,
+and which one the user chose on 2026-10-03 (see the
+[README](README.md#decisions)). The frames here are excerpts of the drawer,
+not the whole pane; the list above it is as in the other files.
 
 ## Tab bar
 
-**T1 · Tabs on a rule (used in every mockup).** The bar doubles as the
-line between card and content. The active tab sits in a heavy bracket
-`━┫ … ┣━` in the status colour, bold; the others are dim on a dim rule.
-Readable without colour, which matters for a glance.
+**Chosen: plain labels on background colours.** Each tab is its label with
+one space of padding on each side (` Overview `, ` Files 11 `, ` Log 7 `),
+no rule and no brackets; counts stay in the labels. The colours:
+
+| Tab | Background | Text |
+|---|---|---|
+| active | blue (named ANSI blue, the terminal theme's shade) | bold bright white |
+| inactive | dark grey, 256-colour 237 (254 on a light terminal), the selection's grey | plain |
+| without data (no thread, a resolved thread's files) | the same grey | dim, no count |
+
+Blue is the accent because it is the one palette colour no status uses:
+red, cyan, magenta, green, yellow and dim all mean something in the list,
+while blue only marks Linear IDs, as text. So the active tab looks the same
+whichever row is selected, and never reads as a status. Bright white on
+blue reads on both dark and light themes.
+
+The label's text starts in column 2, where the rest of the drawer's text
+starts, because the tab's own padding fills column 1.
+
+**One space between tabs, or touching.** Plain text cannot show the
+backgrounds, so each is drawn twice: as the pane shows its text, and as a
+map of its backgrounds (`█` blue, `░` grey, blank the drawer's own
+background).
+
+Separated by one space (chosen):
 
 ```text
-┌────────────────────────────────────────────────────────────────────────────────┐
-│────────────────────────────────────────────────────────────────────────────────│
-│ Users page                                                   ● needs you  ~95% │
-│ t-0002 · Members /admin/users · pane w1Z:p1                         ▰▰▰▰▰▰▰▰▰▱ │
-│━┫ Overview ┣━── Files 11 ──── Log 7 ─────────────────── ↓ Note · Dev · Thread ─│
-│ ── Next ──                                                                     │
-│ → Approve phase 1 (ABC-1256 overview)                                          │
-│ → Say whether to start ABC-1257 and ABC-1250                                   │
-│ ── Links ──                                                                    │
-│ [1 ABC-1246 done] [2 ABC-1256 in progress] [3 ABC-1257 todo] [4 ABC-1250]      │
-└────────────────────────────────────────────────────────────────────────────────┘
+┌────────────────────────────────────────────────────────────┐
+│ Users page                               ● needs you  ~95% │
+│ t-0002 · Members /admin/users                   ▰▰▰▰▰▰▰▰▰▱ │
+│ Overview   Files 11   Log 7                       ↓ 7 more │
+│ ── Next ──                                                 │
+│ → Approve phase 1 (ABC-1256 overview)                      │
+└────────────────────────────────────────────────────────────┘
 ```
-
-**T2 · Pill tabs.** Plain words; the active one on the selection's grey
-background, bold, with half-block ends (`▐ ▌`) drawn in the same grey so
-it looks rounded. Lighter, but the bar no longer separates card and
-content, and without colour the active tab is only the one with ends.
 
 ```text
-┌────────────────────────────────────────────────────────────────────────────────┐
-│────────────────────────────────────────────────────────────────────────────────│
-│ Users page                                                   ● needs you  ~95% │
-│ t-0002 · Members /admin/users · pane w1Z:p1                         ▰▰▰▰▰▰▰▰▰▱ │
-│▐ Overview ▌ Files 11   Log 7                             ↓ Note · Dev · Thread │
-│ ── Next ──                                                                     │
-│ → Approve phase 1 (ABC-1256 overview)                                          │
-│ → Say whether to start ABC-1257 and ABC-1250                                   │
-│ ── Links ──                                                                    │
-│ [1 ABC-1246 done] [2 ABC-1256 in progress] [3 ABC-1257 todo] [4 ABC-1250]      │
-└────────────────────────────────────────────────────────────────────────────────┘
+ Overview   Files 11   Log 7
+██████████ ░░░░░░░░░░ ░░░░░░░
 ```
 
-**T3 · Card in the rule.** The title and pill move onto the list's bottom
-rule, as today's drawer title does. One more line for content (six instead
-of five), at the cost of a card that reads less like a card.
+Touching:
 
 ```text
-┌────────────────────────────────────────────────────────────────────────────────┐
-│─ Users page ─────────────────────────────────────────────── ● needs you  ~95% ─│
-│ t-0002 · Members /admin/users · pane w1Z:p1                         ▰▰▰▰▰▰▰▰▰▱ │
-│━┫ Overview ┣━── Files 11 ──── Log 7 ────────────────────────── ↓ Dev · Thread ─│
-│ ── Next ──                                                                     │
-│ → Approve phase 1 (ABC-1256 overview)                                          │
-│ → Say whether to start ABC-1257 and ABC-1250                                   │
-│ ── Note ──                                                                     │
-│ Phase 1 = layout + overview (ABC-1256); report on 1257/1250 before starting    │
-│ them.                                                                          │
-└────────────────────────────────────────────────────────────────────────────────┘
+┌────────────────────────────────────────────────────────────┐
+│ Users page                               ● needs you  ~95% │
+│ t-0002 · Members /admin/users                   ▰▰▰▰▰▰▰▰▰▱ │
+│ Overview  Files 11  Log 7                         ↓ 7 more │
+│ ── Next ──                                                 │
+│ → Approve phase 1 (ABC-1256 overview)                      │
+└────────────────────────────────────────────────────────────┘
 ```
 
-With T3 the *Links* section still sits below the fold here, because the
-extra line went to *Note*: a 28-row pane is tight either way.
+```text
+ Overview  Files 11  Log 7
+██████████░░░░░░░░░░░░░░░░░
+```
+
+**Pick: one space between.** Touching tabs make the inactive ones one grey
+strip (` Files 11  Log 7 ` above), so a glance cannot tell where *Files*
+ends, and a click near the join is a guess. The one-column gap shows the
+drawer's background between every pair, costs two columns, and the bar
+still fits at 60 columns with the `↓` hint beside it.
+
+*Earlier options, not taken:* T1, tabs on a rule (`━┫ Overview ┣━── Files
+11 ──`); T2, pill tabs with half-block ends; T3, the card's title on the
+list's bottom rule to win a line. The 50 % drawer height gives the room T3
+was after.
 
 ## Status pill
 
-**P1 · Glyph and word (used).** `● needs you`, `◐ working`, `◇ review`,
+**P1 · Glyph and word (chosen).** `● needs you`, `◐ working`, `◇ review`,
 `○ idle`, in the status colour, the same glyphs as the list.
 
-**P2 · Filled pill.** The word on a background of the status colour, black
-text: ` needs you ` on red, ` working ` on cyan. Louder; on a light
-terminal theme the cyan and yellow backgrounds are hard to read, which is
-why the deck has so far used coloured text only.
+**P2 · Filled pill (not taken).** The word on a background of the status
+colour, black text: ` needs you ` on red, ` working ` on cyan. Louder; on a
+light terminal theme the cyan and yellow backgrounds are hard to read, and
+next to background-coloured tabs it would be one filled shape too many.
 
 ```text
 ┌────────────────────────────────────────────────────────────┐
@@ -91,7 +101,7 @@ only to set it apart.)
 The review row's links (one Linear issue, three Figma frames; the PR's own
 chip is in the *PR* section).
 
-**L1 · Chips (used).** Each link one bracketed chip: digit bold, label in
+**L1 · Chips (chosen).** Each link one bracketed chip: digit bold, label in
 the kind's colour, state after it. A run of one kind drops the kind word
 after its first chip. Densest; four links in one line at 80 columns.
 
@@ -110,10 +120,10 @@ after its first chip. Densest; four links in one line at 80 columns.
 └────────────────────────────────────────────────────────────┘
 ```
 
-**L2 · A line per kind.** Today's layout inside the section: dim kind
-label, numbered links after it. One line per kind present, so it costs a
-line more when there are several kinds, but the kind is always named and
-the numbers line up the same way every time.
+**L2 · A line per kind (not taken).** Today's layout inside the section:
+dim kind label, numbered links after it. One line per kind present, so it
+costs a line more when there are several kinds, but the kind is always
+named. The fallback if chips turn out noisy in use.
 
 ```text
 ┌────────────────────────────────────────────────────────────────────────────────┐
@@ -131,8 +141,8 @@ the numbers line up the same way every time.
 └────────────────────────────────────────────────────────────┘
 ```
 
-**L3 · A line per link.** Easiest to scan and to click, but four links take
-four of the five content lines at the normal height.
+**L3 · A line per link (not taken).** Easiest to scan and to click, but
+four links take half of the tab's eight lines.
 
 ```text
 ┌────────────────────────────────────────────────────────────────────────────────┐

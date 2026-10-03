@@ -34,7 +34,7 @@ already shows), percent or activity over time, when a review was given or
 a check started (ticker.json keeps the PR's current state only, plus
 `last_pr_check`), and the coordinator's messages to the thread. Commits on
 the branch would be real, dated events too, but they come from git, not
-herdr-projects; see the [open questions](README.md#open-questions).
+herdr-projects, so Log leaves them out ([decided](README.md#decisions)).
 
 ## A thread that needs you
 
@@ -56,18 +56,18 @@ herdr-projects; see the [open questions](README.md#open-questions).
 │  On hold until Monday 2026-10-05                                               │
 │  ○ Subscriptions list           t-0001  idle                        L N    ~○  │
 │                                                                                │
-│  + Backlog (3)                                                                 │
-│                                                                                │
-│                                                                                │
 │────────────────────────────────────────────────────────────────────────────────│
 │ Users page                                                   ● needs you  ~95% │
 │ t-0002 · Members /admin/users · pane w1Z:p1                         ▰▰▰▰▰▰▰▰▰▱ │
-│── Overview ──── Files 11 ──━┫ Log 7 ┣━────────────────────────────── ↓ 2 more ─│
+│ Overview   Files 11   Log 7                                                    │
 │   3m  ● waiting on you · needs you in pane w1Z:p1                      14:38 ✉ │
 │   5m  ≡ new report · r shows it                                        14:36   │
 │   1h  ≡ new report                                                     13:40   │
 │   5h  ● blocked on a prompt                                            09:12   │
 │  21h  ≡ new report                                                 Thu 17:30   │
+│  22h  ▶ launched in pane w1Z:p1 · brief read 16:12                 Thu 16:11   │
+│  22h  + created from origin/main                                   Thu 16:10   │
+│                                                                                │
 │────────────────────────────────────────────────────────────────────────────────│
 │ r report  ↵ go to pane  [ ] tab  z drawer  ? help                       v9.9.9 │
 └────────────────────────────────────────────────────────────────────────────────┘
@@ -91,29 +91,31 @@ herdr-projects; see the [open questions](README.md#open-questions).
 │  On hold until Monday 2026-10-05                           │
 │  ○ Subscriptions list          idle             L N    ~○  │
 │                                                            │
-│  + Backlog (3)                                             │
-│                                                            │
-│                                                            │
 │────────────────────────────────────────────────────────────│
 │ Users page                               ● needs you  ~95% │
 │ t-0002 · Members /admin/users                   ▰▰▰▰▰▰▰▰▰▱ │
-│── Overview ──── Files 11 ──━┫ Log 7 ┣━────────── ↓ 2 more ─│
+│ Overview   Files 11   Log 7                                │
 │   3m  ● waiting on you · pane w1Z:p1                     ✉ │
 │   5m  ≡ new report · r shows it                            │
 │   1h  ≡ new report                                         │
 │   5h  ● blocked on a prompt                                │
 │  21h  ≡ new report                                         │
+│  22h  ▶ launched in pane w1Z:p1                            │
+│  22h  + created from origin/main                           │
+│                                                            │
 │────────────────────────────────────────────────────────────│
 │ r report  ↵ go to pane  [ ] tab  z drawer  ? help   v9.9.9 │
 └────────────────────────────────────────────────────────────┘
 ```
 
+- *Log* active (blue background), *Overview* and *Files* on dark grey.
+  All seven events fit at this height.
 - **Columns.** Age right-aligned and dim (`now`, `3m`, `5h`, `2d`, as the
   list's inbox rows count), the event glyph in its colour, the text plain
   with its details dim. At 80 columns the clock time sits at the right edge,
   dim, with the weekday for anything before today.
-- **Newest first**, so the top of the tab answers "what just happened"; the
-  start of the thread is a `pgdn` away.
+- **Newest first**, so the top of the tab answers "what just happened"; on a
+  longer-lived thread the start is a `pgdn` away.
 
 ## Full height (`z`)
 
@@ -125,7 +127,7 @@ herdr-projects; see the [open questions](README.md#open-questions).
 │────────────────────────────────────────────────────────────────────────────────│
 │ Users page                                                   ● needs you  ~95% │
 │ t-0002 · Members /admin/users · pane w1Z:p1                         ▰▰▰▰▰▰▰▰▰▱ │
-│── Overview ──── Files 11 ──━┫ Log 7 ┣━─────────────────────────────────────────│
+│ Overview   Files 11   Log 7                                                    │
 │ ── Today · Fri 2 Oct ──                                                        │
 │   3m  ● waiting on you · needs you in pane w1Z:p1                      14:38 ✉ │
 │   5m  ≡ new report · r shows it                                        14:36   │
@@ -160,7 +162,7 @@ herdr-projects; see the [open questions](README.md#open-questions).
 │────────────────────────────────────────────────────────────│
 │ Users page                               ● needs you  ~95% │
 │ t-0002 · Members /admin/users                   ▰▰▰▰▰▰▰▰▰▱ │
-│── Overview ──── Files 11 ──━┫ Log 7 ┣━─────────────────────│
+│ Overview   Files 11   Log 7                                │
 │ ── Today · Fri 2 Oct ──                                    │
 │   3m  ● waiting on you · pane w1Z:p1                     ✉ │
 │   5m  ≡ new report · r shows it                            │
@@ -187,6 +189,7 @@ herdr-projects; see the [open questions](README.md#open-questions).
 └────────────────────────────────────────────────────────────┘
 ```
 
+- *Log* active (blue), the other tabs grey.
 - **The rail.** With room to spare, a dim `│` under the glyph column marks
   a gap of more than an hour between two events, and a dim rule heads each
   day. At the normal height neither is drawn: every line is an event.
@@ -213,18 +216,18 @@ herdr-projects; see the [open questions](README.md#open-questions).
 │  + Backlog (3)                                                                 │
 │                                                                                │
 │                                                                                │
-│                                                                                │
-│                                                                                │
-│                                                                                │
 │────────────────────────────────────────────────────────────────────────────────│
 │ Document select for summary                                           ◇ review │
 │ t-0004 · Summary select documents · pane w21:p1              #2320 ✕ 2 failing │
-│── Overview ──── Files 4 ──━┫ Log 9 ┣━─────────────────────────────── ↓ 4 more ─│
+│ Overview   Files 4   Log 9                                            ↓ 1 more │
 │   2m  ✕ checks failing: lint, test (ubuntu-latest)                     14:39 ✉ │
 │  25m  ◇ [5 #2320] updated · open · 2 comments                          14:16   │
 │   3h  ≡ new report · r shows it                                        11:05   │
 │   3h  ◇ [5 #2320] opened                                               11:03   │
 │   4h  ≡ new report                                                     10:40   │
+│   4h  ● waiting on you                                                 10:12   │
+│   5h  » prompted by routine pr-followup                                09:30   │
+│   6h  ▶ launched in pane w21:p1 · brief read 08:56                     08:55   │
 │────────────────────────────────────────────────────────────────────────────────│
 │ 1-9 link  g PR  r report  [ ] tab  z drawer  ? help                     v9.9.9 │
 └────────────────────────────────────────────────────────────────────────────────┘
@@ -248,18 +251,18 @@ herdr-projects; see the [open questions](README.md#open-questions).
 │  + Backlog (3)                                             │
 │                                                            │
 │                                                            │
-│                                                            │
-│                                                            │
-│                                                            │
 │────────────────────────────────────────────────────────────│
 │ Document select for summary                       ◇ review │
 │ t-0004 · Summary select documents                #2320 ✕ 2 │
-│── Overview ──── Files 4 ──━┫ Log 9 ┣━─────────── ↓ 4 more ─│
+│ Overview   Files 4   Log 9                        ↓ 1 more │
 │   2m  ✕ checks failing: lint, test (ubunt…               ✉ │
 │  25m  ◇ [5 #2320] updated · 2 comments                     │
 │   3h  ≡ new report · r shows it                            │
 │   3h  ◇ [5 #2320] opened                                   │
 │   4h  ≡ new report                                         │
+│   4h  ● waiting on you                                     │
+│   5h  » prompted by routine pr-followup                    │
+│   6h  ▶ launched in pane w21:p1                            │
 │────────────────────────────────────────────────────────────│
 │ 1-9 link  g PR  r report  [ ] tab  ? help           v9.9.9 │
 └────────────────────────────────────────────────────────────┘
@@ -273,7 +276,7 @@ Full height, 80 columns:
 │────────────────────────────────────────────────────────────────────────────────│
 │ Document select for summary                                           ◇ review │
 │ t-0004 · Summary select documents · pane w21:p1              #2320 ✕ 2 failing │
-│── Overview ──── Files 4 ──━┫ Log 9 ┣━──────────────────────────────────────────│
+│ Overview   Files 4   Log 9                                                     │
 │ ── Today · Fri 2 Oct ──                                                        │
 │   2m  ✕ checks failing: lint, test (ubuntu-latest)                     14:39 ✉ │
 │  25m  ◇ [5 #2320] updated · open · 2 comments                          14:16   │
@@ -300,6 +303,8 @@ Full height, 80 columns:
 └────────────────────────────────────────────────────────────────────────────────┘
 ```
 
+- *Log* active (blue), the other tabs grey; eight of the nine events fit,
+  `↓ 1 more` holds the thread's creation.
 - PR events carry the PR's chip, `[5 #2320]`, with the same digit as on
   Overview, so `5` opens the PR from here too. Digits never mean anything
   on Log that they do not mean on Overview.
@@ -328,18 +333,18 @@ cursor starts on the item. 80 columns:
 │  On hold until Monday 2026-10-05                                               │
 │  ○ Subscriptions list           t-0001  idle                        L N    ~○  │
 │                                                                                │
-│  + Backlog (3)                                                                 │
-│                                                                                │
-│                                                                                │
 │────────────────────────────────────────────────────────────────────────────────│
 │ t-0002 is now Waiting on you                                       ✉ inbox  3m │
 │ thread-state · 14:38 · inbox/20261002T143012Z-thread-state-t-0002-7.md         │
-│── Overview ──── Files 11 ──━┫ Log 7 ┣━────────────────────────────── ↓ 2 more ─│
+│ Overview   Files 11   Log 7                                                    │
 │▸  3m  ● waiting on you · needs you in pane w1Z:p1                      14:38 ✉ │
 │   5m  ≡ new report · r shows it                                        14:36   │
 │   1h  ≡ new report                                                     13:40   │
 │   5h  ● blocked on a prompt                                            09:12   │
 │  21h  ≡ new report                                                 Thu 17:30   │
+│  22h  ▶ launched in pane w1Z:p1 · brief read 16:12                 Thu 16:11   │
+│  22h  + created from origin/main                                   Thu 16:10   │
+│                                                                                │
 │────────────────────────────────────────────────────────────────────────────────│
 │ ↵ go to pane  r report  [ ] tab  z drawer  ? help                       v9.9.9 │
 └────────────────────────────────────────────────────────────────────────────────┘
@@ -363,23 +368,24 @@ cursor starts on the item. 80 columns:
 │  On hold until Monday 2026-10-05                           │
 │  ○ Subscriptions list          idle             L N    ~○  │
 │                                                            │
-│  + Backlog (3)                                             │
-│                                                            │
-│                                                            │
 │────────────────────────────────────────────────────────────│
 │ t-0002 is now Waiting on you                   ✉ inbox  3m │
 │ thread-state · 14:38 · inbox/20261002T1430…                │
-│── Overview ──── Files 11 ──━┫ Log 7 ┣━────────── ↓ 2 more ─│
+│ Overview   Files 11   Log 7                                │
 │▸  3m  ● waiting on you · pane w1Z:p1                     ✉ │
 │   5m  ≡ new report · r shows it                            │
 │   1h  ≡ new report                                         │
 │   5h  ● blocked on a prompt                                │
 │  21h  ≡ new report                                         │
+│  22h  ▶ launched in pane w1Z:p1                            │
+│  22h  + created from origin/main                           │
+│                                                            │
 │────────────────────────────────────────────────────────────│
 │ ↵ go to pane  r report  [ ] tab  ? help             v9.9.9 │
 └────────────────────────────────────────────────────────────┘
 ```
 
+- *Log* active (blue), the other tabs grey.
 - The item's line has the selection background and `▸`, as the drawer
   cursor does on Files. It is the same item as the list row, so this
   shows what happened just before it without leaving the row.
