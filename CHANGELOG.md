@@ -8,14 +8,22 @@ and versions follow [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.1.2] - 2026-10-03
+
 ### Changed
 
 - The Files section colours each file by how it changed: a status letter
   `A` added (green), `M` modified (yellow), `D` deleted (red), `R` renamed
   (cyan) and `?` untracked (faint green). Line counts are green and red;
-  an added file shows only `+N` and a deleted one only `-M`. `d t` switches
-  between the list and a folder tree, and `diff_view = "tree"` in the
-  config file (or the settings page) starts in the tree.
+  an added file shows only `+N` and a deleted one only `-M`.
+- `d t` switches the Files section between the list and a folder tree, with
+  folder names and their summed counts muted so the files stand out.
+  `diff_view = "tree"` in the config file (or the settings page) starts in
+  the tree.
+
+### Fixed
+
+- The settings page scrolls to keep an invalid value's error in view.
 
 ## [0.1.1] - 2026-10-03
 
