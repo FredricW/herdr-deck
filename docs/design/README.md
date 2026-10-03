@@ -16,7 +16,8 @@ long lists such as Backlog.** PLAN.md's [UI section](../PLAN.md#ui) describes it
 | D | [Compact list + detail drawer](d-list-detail.md) | One dense row per piece of work, and a drawer with everything about the selected row. |
 
 The multi-project view (milestone 8) has its own directions, E–H, in
-[multi-project/](multi-project/README.md).
+[multi-project/](multi-project/README.md). The next drawer, a header card
+with Overview, Files and Log tabs, is mocked up in [drawer/](drawer/README.md).
 
 Each direction file shows six states, each at 80 and at 60 columns: normal
 use, a thread that needs you, unhandled inbox items, the chooser for a row
