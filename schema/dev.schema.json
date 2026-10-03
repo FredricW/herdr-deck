@@ -1,0 +1,312 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://raw.githubusercontent.com/FredricW/herdr-deck/main/schema/dev.schema.json",
+  "title": "Dev manifest, version 1 (.config/dev.json)",
+  "description": "How tools work a repository's checkout: its services and ports, how to start and stop them, its commands and its links. Specification: docs/dev-manifest.md in github.com/FredricW/herdr-deck. The schema checks shape only; tools also check variables, cross-references (needs, groups, ports) and dependency cycles.",
+  "type": "object",
+  "required": ["version"],
+  "properties": {
+    "$schema": { "type": "string" },
+    "version": {
+      "description": "The manifest format's version. Tools refuse a version they do not know.",
+      "const": 1
+    },
+    "name": {
+      "description": "Display name. Default: the main checkout's folder name.",
+      "type": "string",
+      "minLength": 1
+    },
+    "env": { "$ref": "#/$defs/env" },
+    "path": {
+      "description": "Folders put in front of PATH for every command, first one first; relative to the worktree.",
+      "type": "array",
+      "items": { "$ref": "#/$defs/template" }
+    },
+    "ports": {
+      "description": "Named ports, in display order: a fixed number, a per-worktree port from the shared port store ({base, range}), or a key in the project's state file ({state}).",
+      "type": "object",
+      "propertyNames": { "$ref": "#/$defs/name" },
+      "additionalProperties": { "$ref": "#/$defs/port" }
+    },
+    "state": { "$ref": "#/$defs/state" },
+    "services": {
+      "description": "Long-running processes, in display order.",
+      "type": "object",
+      "propertyNames": { "$ref": "#/$defs/serviceName" },
+      "additionalProperties": { "$ref": "#/$defs/service" }
+    },
+    "groups": {
+      "description": "Named lists of services. `dev <group>` starts one; the group `default` (else every service) is what plain `dev` starts.",
+      "type": "object",
+      "propertyNames": { "$ref": "#/$defs/groupName" },
+      "additionalProperties": {
+        "type": "array",
+        "minItems": 1,
+        "uniqueItems": true,
+        "items": { "$ref": "#/$defs/name" }
+      }
+    },
+    "commands": {
+      "description": "Named commands. null means the repository has none. A string runs with /bin/sh -c, an array is an argv, an object with `run` adds options, and an object without `run` maps service names (and `*`) to commands.",
+      "type": "object",
+      "propertyNames": { "$ref": "#/$defs/commandName" },
+      "properties": {
+        "setup": { "description": "Make a fresh checkout or worktree ready. Runs in a terminal.", "$ref": "#/$defs/command" },
+        "dev": { "description": "Start the dev services in one command, in the background. One repository-wide command.", "$ref": "#/$defs/repoCommand" },
+        "stop": { "description": "Stop what `dev` started, in the background. One repository-wide command.", "$ref": "#/$defs/repoCommand" },
+        "test": { "description": "Run the tests. Runs in a terminal.", "$ref": "#/$defs/command" },
+        "lint": { "description": "Lint and type-check. Runs in a terminal.", "$ref": "#/$defs/command" },
+        "format": { "description": "Format the code in place. Runs in a terminal.", "$ref": "#/$defs/command" },
+        "migrate": { "description": "Apply database migrations. Runs in a terminal.", "$ref": "#/$defs/command" },
+        "seed": { "description": "Load development data. Runs in a terminal.", "$ref": "#/$defs/command" },
+        "open": { "description": "Open the app, instead of the first link.", "$ref": "#/$defs/command" },
+        "teardown": { "description": "Free what the worktree holds outside itself before it is removed. Runs in a terminal.", "$ref": "#/$defs/command" }
+      },
+      "additionalProperties": { "$ref": "#/$defs/command" }
+    },
+    "links": {
+      "description": "Pages to open for a worktree.",
+      "type": "array",
+      "items": { "$ref": "#/$defs/link" }
+    },
+    "detect": { "$ref": "#/$defs/detect" }
+  },
+  "patternProperties": {
+    "^x-": { "description": "One tool's settings; other tools ignore them." },
+    "^\\$comment$": { "type": "string" }
+  },
+  "additionalProperties": false,
+
+  "$defs": {
+    "name": {
+      "description": "A port or service name; it becomes part of environment variable names (PORT_<name>).",
+      "type": "string",
+      "pattern": "^[A-Za-z][A-Za-z0-9_]*$"
+    },
+    "serviceName": {
+      "allOf": [
+        { "$ref": "#/$defs/name" },
+        { "not": { "const": "run" } }
+      ]
+    },
+    "groupName": {
+      "type": "string",
+      "pattern": "^[A-Za-z][A-Za-z0-9_-]*$"
+    },
+    "commandName": {
+      "type": "string",
+      "pattern": "^[A-Za-z][A-Za-z0-9_-]*$",
+      "not": { "enum": ["up", "down", "start", "restart"] }
+    },
+    "envName": {
+      "type": "string",
+      "pattern": "^[A-Za-z_][A-Za-z0-9_]*$"
+    },
+    "template": {
+      "description": "A string in which $WORKTREE, $REPO, $DIRNAME, $BRANCH, $PORT_<name>, $env(NAME|fallback) and ${…} are expanded; $$ is a literal $.",
+      "type": "string"
+    },
+    "duration": {
+      "type": "string",
+      "pattern": "^[0-9]+(ms|s|m)$"
+    },
+    "needs": {
+      "description": "A service (or port) name, or a list of them.",
+      "oneOf": [
+        { "$ref": "#/$defs/name" },
+        {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/name" }
+        }
+      ]
+    },
+    "envMap": {
+      "type": "object",
+      "propertyNames": { "$ref": "#/$defs/envName" },
+      "additionalProperties": { "$ref": "#/$defs/template" }
+    },
+    "env": {
+      "type": "object",
+      "properties": {
+        "files": {
+          "description": "dotenv files, relative to the worktree; later files win. They feed $env(…), and a command's environment when it sets loadEnv.",
+          "type": "array",
+          "items": { "$ref": "#/$defs/template" }
+        },
+        "vars": { "description": "Variables for every command and service.", "$ref": "#/$defs/envMap" }
+      },
+      "patternProperties": { "^x-": {}, "^\\$comment$": { "type": "string" } },
+      "additionalProperties": false
+    },
+    "state": {
+      "description": "The project's own per-worktree state file, which ports of the form {state: key} read.",
+      "type": "object",
+      "required": ["file"],
+      "properties": {
+        "file": { "$ref": "#/$defs/template" }
+      },
+      "patternProperties": { "^x-": {}, "^\\$comment$": { "type": "string" } },
+      "additionalProperties": false
+    },
+    "portNumber": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 65535
+    },
+    "port": {
+      "oneOf": [
+        { "description": "A fixed port, the same in every worktree.", "$ref": "#/$defs/portNumber" },
+        {
+          "description": "A fixed port, the same in every worktree.",
+          "type": "object",
+          "required": ["fixed"],
+          "properties": { "fixed": { "$ref": "#/$defs/portNumber" } },
+          "patternProperties": { "^x-": {}, "^\\$comment$": { "type": "string" } },
+          "additionalProperties": false
+        },
+        {
+          "description": "A port per worktree from the shared port store: the lowest free port in base … base+range-1.",
+          "type": "object",
+          "required": ["base"],
+          "properties": {
+            "base": { "$ref": "#/$defs/portNumber" },
+            "range": { "type": "integer", "minimum": 1, "maximum": 1000, "default": 100 }
+          },
+          "patternProperties": { "^x-": {}, "^\\$comment$": { "type": "string" } },
+          "additionalProperties": false
+        },
+        {
+          "description": "A port the project writes in its state file, under this key.",
+          "type": "object",
+          "required": ["state"],
+          "properties": { "state": { "type": "string", "minLength": 1 } },
+          "patternProperties": { "^x-": {}, "^\\$comment$": { "type": "string" } },
+          "additionalProperties": false
+        }
+      ]
+    },
+    "run": {
+      "description": "A string runs with /bin/sh -c; an array is an argv, run without a shell.",
+      "oneOf": [
+        { "type": "string", "minLength": 1 },
+        {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/template" }
+        }
+      ]
+    },
+    "commandSpec": {
+      "type": "object",
+      "required": ["run"],
+      "properties": {
+        "run": { "$ref": "#/$defs/run" },
+        "dir": { "description": "Where it runs, relative to the worktree.", "$ref": "#/$defs/template" },
+        "env": { "$ref": "#/$defs/envMap" },
+        "loadEnv": { "description": "Also load env.files into the environment.", "type": "boolean", "default": false },
+        "terminal": { "description": "true: run where the user sees it; false: in the background with a log.", "type": "boolean" },
+        "needs": { "description": "Services that must be ready before it runs.", "$ref": "#/$defs/needs" },
+        "title": { "type": "string" },
+        "description": { "type": "string" }
+      },
+      "patternProperties": { "^x-": {}, "^\\$comment$": { "type": "string" } },
+      "additionalProperties": false
+    },
+    "runOrSpec": {
+      "oneOf": [
+        { "$ref": "#/$defs/run" },
+        { "$ref": "#/$defs/commandSpec" }
+      ]
+    },
+    "perService": {
+      "description": "A command per service; `*` is what the plain command runs (else every entry, in order).",
+      "type": "object",
+      "minProperties": 1,
+      "not": { "required": ["run"] },
+      "propertyNames": {
+        "anyOf": [
+          { "$ref": "#/$defs/serviceName" },
+          { "const": "*" }
+        ]
+      },
+      "additionalProperties": { "$ref": "#/$defs/runOrSpec" }
+    },
+    "repoCommand": {
+      "oneOf": [
+        { "type": "null" },
+        { "$ref": "#/$defs/run" },
+        { "$ref": "#/$defs/commandSpec" }
+      ]
+    },
+    "command": {
+      "oneOf": [
+        { "description": "The repository has no such command.", "type": "null" },
+        { "$ref": "#/$defs/run" },
+        { "$ref": "#/$defs/commandSpec" },
+        { "$ref": "#/$defs/perService" }
+      ]
+    },
+    "ready": {
+      "description": "When the service counts as ready. Default: its main port answers.",
+      "type": "object",
+      "properties": {
+        "port": { "description": "One of the service's ports; default its main one.", "$ref": "#/$defs/name" },
+        "http": { "description": "A path that must answer 200–399 to a GET.", "type": "string", "pattern": "^/" },
+        "timeout": { "description": "How long to wait while starting what needs it. Default 60s.", "$ref": "#/$defs/duration" }
+      },
+      "patternProperties": { "^x-": {}, "^\\$comment$": { "type": "string" } },
+      "additionalProperties": false
+    },
+    "service": {
+      "type": "object",
+      "properties": {
+        "title": { "type": "string" },
+        "description": { "type": "string" },
+        "dir": { "description": "Where run runs, relative to the worktree.", "$ref": "#/$defs/template" },
+        "run": { "description": "Runs the service in the foreground; tools run it detached. Without run, something else starts it.", "$ref": "#/$defs/runOrSpec" },
+        "stop": { "description": "Stops the service, instead of a signal.", "$ref": "#/$defs/runOrSpec" },
+        "ports": {
+          "description": "The service's ports, main one first. Default: the port with the service's name.",
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/name" }
+        },
+        "needs": { "description": "Services that must be ready before this one starts.", "$ref": "#/$defs/needs" },
+        "ready": { "$ref": "#/$defs/ready" },
+        "env": { "$ref": "#/$defs/envMap" },
+        "loadEnv": { "type": "boolean", "default": false },
+        "log": { "description": "The file holding the service's log. Default: the shared state folder.", "$ref": "#/$defs/template" }
+      },
+      "patternProperties": { "^x-": {}, "^\\$comment$": { "type": "string" } },
+      "additionalProperties": false
+    },
+    "link": {
+      "type": "object",
+      "required": ["url"],
+      "properties": {
+        "title": { "$ref": "#/$defs/template" },
+        "url": { "$ref": "#/$defs/template", "minLength": 1 },
+        "needs": { "description": "Services or ports that must be ready. Default: the ports the URL uses.", "$ref": "#/$defs/needs" }
+      },
+      "patternProperties": { "^x-": {}, "^\\$comment$": { "type": "string" } },
+      "additionalProperties": false
+    },
+    "detect": {
+      "description": "Drift checks: warnings when the manifest and the repository's task runners disagree.",
+      "type": "object",
+      "properties": {
+        "drift": { "description": "false turns drift checks off.", "type": "boolean", "default": true },
+        "ignore": {
+          "description": "Drift IDs to silence, e.g. missing:lint or dangling:commands.test.api; * matches any characters.",
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "type": "string", "pattern": "^(missing|dangling):." }
+        }
+      },
+      "patternProperties": { "^x-": {}, "^\\$comment$": { "type": "string" } },
+      "additionalProperties": false
+    }
+  }
+}
