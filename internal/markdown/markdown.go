@@ -47,18 +47,40 @@ func Render(src string, width int, dark bool) []string {
 		return lines
 	}
 	renders++
-	out, err := render(src, width, dark)
-	var lines []string
+	lines, err := renderLines(src, width, dark)
+	// glamour's word wrap can overshoot by a column in lists and quotes;
+	// one column less fixes that, and fit catches anything left over.
+	if err == nil && wider(lines, width) {
+		lines, err = renderLines(src, width-1, dark)
+		lines = fit(lines, width)
+	}
 	if err != nil {
 		lines = plain(src, width)
-	} else {
-		lines = trim(strings.Split(out, "\n"))
 	}
 	if len(cache) >= maxCached {
 		cache = map[key][]string{}
 	}
 	cache[k] = lines
 	return lines
+}
+
+// renderLines renders src with glamour and tidies its lines.
+func renderLines(src string, width int, dark bool) ([]string, error) {
+	out, err := render(src, width, dark)
+	if err != nil {
+		return nil, err
+	}
+	return trim(strings.Split(out, "\n")), nil
+}
+
+// wider reports whether any line is wider than width.
+func wider(lines []string, width int) bool {
+	for _, l := range lines {
+		if ansi.StringWidth(l) > width {
+			return true
+		}
+	}
+	return false
 }
 
 func renderGlamour(src string, width int, dark bool) (string, error) {
@@ -81,6 +103,20 @@ func style(dark bool) gansi.StyleConfig {
 	s.Document.Margin = &zero
 	s.List.LevelIndent = 2
 	return s
+}
+
+// fit wraps again any line glamour leaves wider than width, which the
+// drawer would otherwise cut off.
+func fit(lines []string, width int) []string {
+	out := lines[:0:0]
+	for _, l := range lines {
+		if ansi.StringWidth(l) <= width {
+			out = append(out, l)
+			continue
+		}
+		out = append(out, strings.Split(ansi.Wrap(l, width, ""), "\n")...)
+	}
+	return out
 }
 
 // plain wraps src to width without styles: the fallback when glamour fails.

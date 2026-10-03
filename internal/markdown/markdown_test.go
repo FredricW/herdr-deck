@@ -130,3 +130,19 @@ func TestRenderCache(t *testing.T) {
 		t.Errorf("cache holds %d entries, want at most %d", n, maxCached)
 	}
 }
+
+// glamour's word wrap overshoots by a column in list items and quotes at
+// some widths; no line may end up wider than asked.
+func TestRenderListWidth(t *testing.T) {
+	body := "Inbox items no longer get rows under Needs you, which now holds only threads waiting on you. A thread with unhandled items has a yellow title and shows them, marked `x`, in its Log."
+	for _, src := range []string{"- " + body, "- a\n  - " + body, "> " + body} {
+		for w := 20; w <= 100; w++ {
+			reset(t)
+			for _, l := range Render(src, w, true) {
+				if ansi.StringWidth(l) > w {
+					t.Errorf("width %d: %q is %d wide", w, ansi.Strip(l), ansi.StringWidth(l))
+				}
+			}
+		}
+	}
+}

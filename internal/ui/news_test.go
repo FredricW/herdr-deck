@@ -165,3 +165,21 @@ func TestNewsSummaryParagraphs(t *testing.T) {
 		t.Errorf("summary paragraphs ran together:\n%s", text)
 	}
 }
+
+// A task's notes render as Markdown in the Overview, one line at a time.
+func TestOverviewNoteMarkdown(t *testing.T) {
+	s := fakeSnap()
+	s.TaskLists[0].Tasks[0].Notes = "Run `make test` first.\n**Then** ship it."
+	m, _ := newModel(t, s, 80, 40)
+	var lines []string
+	for _, l := range m.layout().drawer.lines {
+		lines = append(lines, strings.TrimSpace(ansi.Strip(l.text)))
+	}
+	text := strings.Join(lines, "\n")
+	if !strings.Contains(text, "make test") || !strings.Contains(text, "first.\nThen ship it.") {
+		t.Errorf("notes are not rendered one line at a time:\n%s", text)
+	}
+	if strings.Contains(text, "`") || strings.Contains(text, "**") {
+		t.Errorf("Markdown markers left in the notes:\n%s", text)
+	}
+}

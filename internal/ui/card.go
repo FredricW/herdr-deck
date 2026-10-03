@@ -328,13 +328,14 @@ func (m Model) projectDrawer(r row, width int) *drawer {
 	return d
 }
 
-// reportDrawer is the thread's report under its card, with a line saying
+// reportDrawer is the thread's report, rendered as Markdown, under its card, with a line saying
 // how to return where the tab bar was.
 func (m Model) reportDrawer(r row, width int) *drawer {
 	t, _ := r.thread()
 	d := newDrawer(width, "")
 	d.card = m.card(r, width)
+	d.light = m.light
 	d.tabs = fit(" "+bold.Render("Report")+dim.Render(" · threads/"+t.ID+".md · esc returns"), width)
-	d.text(strings.TrimSpace(t.Report), plain)
+	d.markdown(t.Report)
 	return d
 }
