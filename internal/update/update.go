@@ -15,6 +15,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"net/http"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -199,6 +200,10 @@ type Updater struct {
 	IsInstalled func(bin string) bool
 	// Out gets one line per step of an update.
 	Out io.Writer
+	// HTTP fetches a GitHub install's changelog; nil uses a client with a
+	// timeout. RawBase replaces GitHub's raw host (tests).
+	HTTP    *http.Client
+	RawBase string
 }
 
 func (u Updater) herdr() string {
