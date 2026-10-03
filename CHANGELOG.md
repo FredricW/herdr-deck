@@ -40,6 +40,12 @@ and versions follow [Semantic Versioning](https://semver.org/).
 - `d` shows the Files tab instead of a chooser; `d 3` still opens file 3
   and `d d` the whole diff, and `t` on the tab switches list and tree.
 
+### Changed
+
+- A thread's report (`r`) and What's new (`w`) render their Markdown the
+  way glow does: headings, bold, code, lists, quotes and highlighted code
+  blocks, wrapped to the pane and styled for a dark or a light terminal.
+
 ## [0.1.2] - 2026-10-03
 
 ### Changed

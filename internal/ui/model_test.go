@@ -775,7 +775,7 @@ func TestQuit(t *testing.T) {
 
 func TestDrawerScrollStaysInContent(t *testing.T) {
 	s := fakeSnap()
-	s.Threads[1].Report = strings.Repeat("line\n", 60)
+	s.Threads[1].Report = strings.Repeat("line\n\n", 60)
 	m, _ := newModel(t, s, 80, 28)
 	m, _ = press(m, keys("r")...)
 	for range 10 {

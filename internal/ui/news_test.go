@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	tea "charm.land/bubbletea/v2"
+	"github.com/charmbracelet/x/ansi"
 
 	"github.com/FredricW/herdr-deck/internal/changelog"
 	"github.com/FredricW/herdr-deck/internal/deck"
@@ -103,8 +104,12 @@ func TestNewsKey(t *testing.T) {
 	if m.mode != modeNews {
 		t.Fatalf("w: mode %d, want What's new", m.mode)
 	}
-	if sc := screen(m); !strings.Contains(sc, "v0.1.0 · 2026-09-01 · ● running") {
-		t.Errorf("the running release is not marked:\n%s", sc)
+	var text strings.Builder
+	for _, l := range m.layout().drawer.lines {
+		text.WriteString(ansi.Strip(l.text) + "\n")
+	}
+	if !strings.Contains(text.String(), "v0.1.0 · 2026-09-01 · ● running") {
+		t.Errorf("the running release is not marked:\n%s", text.String())
 	}
 	m, _ = press(m, keys("w")...)
 	if m.mode != modeRow {

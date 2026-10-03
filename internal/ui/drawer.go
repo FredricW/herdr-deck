@@ -12,6 +12,7 @@ import (
 
 	"github.com/FredricW/herdr-deck/internal/changelog"
 	"github.com/FredricW/herdr-deck/internal/deck"
+	"github.com/FredricW/herdr-deck/internal/markdown"
 )
 
 // drawerMode says what the drawer shows.
@@ -285,6 +286,18 @@ func (d *drawer) text(s string, st lipgloss.Style) {
 	}
 }
 
+// markdown adds Markdown rendered the way glow does, wrapped to the
+// drawer's width in the style that suits the terminal's background.
+func (d *drawer) markdown(src string) {
+	for _, l := range markdown.Render(src, d.width-1, !d.light) {
+		if l == "" {
+			d.lines = append(d.lines, dline{})
+			continue
+		}
+		d.lines = append(d.lines, dline{text: " " + ansi.Truncate(l, d.width-1, "…")})
+	}
+}
+
 // truncateLeft shortens plain text s to w columns by dropping its start.
 func truncateLeft(s string, w int) string {
 	if ansi.StringWidth(s) <= w {
@@ -471,7 +484,7 @@ func ageText(d time.Duration) string {
 // runs marked.
 func (m Model) newsDrawer(width int) *drawer {
 	d := newDrawer(width, "What's new")
-	d.labelW = 9
+	d.light = m.light
 	if v := m.update.Available; v != "" {
 		d.text(okStyle.Render("↑ "+v+" is available: run `herdr-deck update`"), plain)
 		for _, r := range m.update.News {
@@ -506,8 +519,8 @@ func (m Model) newsDrawer(width int) *drawer {
 	return d
 }
 
-// release adds one changelog release: its title, date and tag, its summary,
-// then each section's items under the section's name.
+// release adds one changelog release: its title, date and tag, then its
+// summary and each section's items as Markdown under the section's name.
 func (d *drawer) release(r changelog.Release, tag string) {
 	head := " " + bold.Render(r.Title())
 	if r.Date != "" {
@@ -517,17 +530,19 @@ func (d *drawer) release(r changelog.Release, tag string) {
 		head += dim.Render(" · ") + tag
 	}
 	d.line(head)
+	var b strings.Builder
 	if r.Summary != "" {
-		d.text(r.Summary, plain)
+		b.WriteString(r.Summary + "\n\n")
 	}
 	for _, s := range r.Sections {
-		var gs []group
+		b.WriteString("### " + s.Name + "\n\n")
 		for _, it := range s.Items {
-			g := words(it, plain)
-			g.items = append([]item{span("·", dim)}, g.items...)
-			g.hang = 2
-			gs = append(gs, g)
+			b.WriteString("- " + it + "\n")
 		}
-		d.field(s.Name, false, gs...)
+		b.WriteString("\n")
+	}
+	if b.Len() > 0 {
+		d.line("")
+		d.markdown(b.String())
 	}
 }
