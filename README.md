@@ -14,12 +14,20 @@ for the plan and milestones.
 
 ## Install as a herdr plugin
 
-Needs herdr 0.9.3 or newer and Go 1.27 or newer: herdr builds the deck from
-source when it installs the plugin.
+Needs herdr 0.9.3 or newer, on macOS or Linux.
 
 ```sh
-herdr plugin install FredricW/herdr-deck            # add --ref v0.1.0 to pin a release
+herdr plugin install FredricW/herdr-deck --ref v0.2.0   # a release
+herdr plugin install FredricW/herdr-deck                # the latest commit on main
 ```
+
+herdr runs `scripts/build.sh` as the plugin's build step. When the checkout
+is exactly the release named by `herdr-plugin.toml`'s `version`, it
+downloads that release's prebuilt binary for your machine (darwin or linux,
+arm64 or amd64), checks it against the release's `SHA256SUMS`, and installs
+it as `bin/herdr-deck`; no Go needed. Any other commit, or a failed download
+or check, builds from source instead, which needs Go 1.27 or newer. Set
+`HERDR_DECK_BUILD=source` to always build from source.
 
 For local development, link a checkout instead. `link` never builds, so
 build first and again after each change:
@@ -111,7 +119,41 @@ make lint                               # golangci-lint if installed, else gofmt
 `make build` stamps the version from `git describe --tags --always --dirty`;
 other builds fall back to the module version and commit Go records.
 CI (`.github/workflows/ci.yml`) runs gofmt, `go vet`, `go test -race` and
-golangci-lint on Linux and macOS.
+golangci-lint on Linux and macOS, and `scripts/test-build.sh`, which tests
+the plugin's build script against a fake release.
+
+### Releases
+
+Each release on GitHub has a `herdr-deck_<version>_<os>_<arch>.tar.gz` for
+darwin and linux on arm64 and amd64, and a `SHA256SUMS` file. To install one
+by hand and check it:
+
+```sh
+curl -fLO https://github.com/FredricW/herdr-deck/releases/download/v0.2.0/herdr-deck_0.2.0_darwin_arm64.tar.gz
+curl -fLO https://github.com/FredricW/herdr-deck/releases/download/v0.2.0/SHA256SUMS
+shasum -a 256 --check --ignore-missing SHA256SUMS   # sha256sum --check --ignore-missing on Linux
+tar -xzf herdr-deck_0.2.0_darwin_arm64.tar.gz herdr-deck
+./herdr-deck --version
+```
+
+A checksum guards against a broken download, not against a tampered
+release.
+
+To cut a release:
+
+1. In a PR, bump `version` in `herdr-plugin.toml` (say to `0.2.0`) and
+   merge it.
+2. Tag the merge commit on main and push the tag:
+   `git tag v0.2.0 origin/main && git push origin v0.2.0`.
+
+The tag push runs `.github/workflows/release.yml`: it fails unless the tag
+matches the manifest's version, then builds the four archives, writes
+`SHA256SUMS` and creates the GitHub Release, with notes listing the PRs
+and commits since the previous tag. To try the workflow without publishing,
+run it from the Actions tab with `dry_run` on (the default): the archives
+and notes are kept as a workflow artifact. Pull requests that change the
+release files run that dry run too. Running it by hand with a tag and
+`dry_run` off publishes the release of an existing tag that has none.
 
 The project slug comes from, in order:
 

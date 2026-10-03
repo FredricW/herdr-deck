@@ -1,0 +1,129 @@
+name: release
+
+# A vX.Y.Z tag push builds the deck for darwin and linux on arm64 and amd64
+# and publishes a GitHub Release with herdr-deck_<version>_<os>_<arch>.tar.gz
+# archives and SHA256SUMS. scripts/build.sh, herdr's build step, downloads
+# from it.
+#
+# A pull request that changes the release files, and a manual run
+# (workflow_dispatch) with dry_run on, only build: the archives and notes are
+# kept as a workflow artifact and nothing is published. A manual run with a
+# tag and dry_run off publishes the release of a tag that has none yet.
+on:
+  push:
+    tags: ["v*"]
+  pull_request:
+    paths:
+      - .github/workflows/release.yml
+      - scripts/build.sh
+      - scripts/changelog.sh
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Tag to build, such as v0.2.0; empty builds the chosen branch as v<manifest version>"
+        required: false
+        default: ""
+      dry_run:
+        description: "Build only; publish nothing"
+        type: boolean
+        default: true
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ inputs.tag || github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    outputs:
+      tag: ${{ steps.tag.outputs.tag }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ inputs.tag || github.ref }}
+          fetch-depth: 0 # tags and history, for the changelog
+      - name: pick the tag
+        id: tag
+        env:
+          INPUT_TAG: ${{ inputs.tag }}
+        run: |
+          if [ "$GITHUB_REF_TYPE" = tag ] && [ -z "$INPUT_TAG" ]; then
+            tag=$GITHUB_REF_NAME
+          elif [ -n "$INPUT_TAG" ]; then
+            tag=$INPUT_TAG
+          else
+            tag=v$(awk '/^[[:space:]]*\[/ { exit } /^[[:space:]]*version[[:space:]]*=/ { sub(/^[^=]*=[[:space:]]*"/, ""); sub(/".*$/, ""); print; exit }' herdr-plugin.toml)
+          fi
+          if ! printf '%s\n' "$tag" | grep -Eqx 'v[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.]+)?'; then
+            echo "not a vX.Y.Z tag: $tag" >&2; exit 1
+          fi
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
+          # A branch build has no tag yet; its notes run up to HEAD.
+          if git rev-parse -q --verify "refs/tags/$tag" >/dev/null; then
+            echo "rev=$tag" >> "$GITHUB_OUTPUT"
+          else
+            echo "rev=HEAD" >> "$GITHUB_OUTPUT"
+          fi
+      - name: tag matches manifest
+        env:
+          TAG: ${{ steps.tag.outputs.tag }}
+        run: scripts/check-version.sh "$TAG"
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version-file: go.mod
+          cache-dependency-path: go.sum
+      - name: build
+        env:
+          TAG: ${{ steps.tag.outputs.tag }}
+        run: |
+          version=${TAG#v}
+          mkdir -p dist
+          for target in darwin/arm64 darwin/amd64 linux/arm64 linux/amd64; do
+            os=${target%/*} arch=${target#*/}
+            out=build/${os}_${arch}
+            mkdir -p "$out"
+            CGO_ENABLED=0 GOOS=$os GOARCH=$arch go build -trimpath \
+              -ldflags "-s -w -X main.version=$TAG" -o "$out/herdr-deck" ./cmd/herdr-deck
+            cp README.md "$out/"
+            tar -czf "dist/herdr-deck_${version}_${os}_${arch}.tar.gz" -C "$out" herdr-deck README.md
+          done
+          (cd dist && sha256sum -- *.tar.gz > SHA256SUMS)
+          cat dist/SHA256SUMS
+      - name: the linux/amd64 binary reports the tag
+        env:
+          TAG: ${{ steps.tag.outputs.tag }}
+        run: |
+          got=$(build/linux_amd64/herdr-deck --version)
+          echo "$got"
+          case $got in "herdr-deck $TAG" | "herdr-deck $TAG "*) ;; *) exit 1 ;; esac
+      - name: changelog
+        env:
+          REV: ${{ steps.tag.outputs.rev }}
+        run: scripts/changelog.sh "$REV" > notes.md && cat notes.md
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: release
+          path: |
+            dist/
+            notes.md
+          if-no-files-found: error
+
+  publish:
+    needs: build
+    if: github.event_name == 'push' || (inputs.tag != '' && !inputs.dry_run)
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: release
+      - name: create the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          TAG: ${{ needs.build.outputs.tag }}
+        run: gh release create "$TAG" --verify-tag --title "$TAG" --notes-file notes.md dist/*

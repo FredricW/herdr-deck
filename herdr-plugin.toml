@@ -5,10 +5,12 @@ min_herdr_version = "0.9.3"
 description = "A status pane next to each herdr-projects coordinator: tasks, threads, links and dev servers."
 platforms = ["macos", "linux"]
 
-# Needs Go 1.27 or newer. The version stamped into the binary is this
-# manifest's version; keep the two in step (CI checks the tag against it).
+# Downloads the prebuilt binary of the release named by `version` and checks
+# it against the release's SHA256SUMS; builds from source (Go 1.27 or newer)
+# when there is none or the checkout is not that release. A release tag must
+# match `version` (CI checks it).
 [[build]]
-command = ["go", "build", "-ldflags", "-X main.version=0.1.0", "-o", "bin/herdr-deck", "./cmd/herdr-deck"]
+command = ["sh", "scripts/build.sh"]
 
 # The deck itself. Opened by the toggle action and the auto-open hook, which
 # pass the project through HERDR_DECK_PROJECT and start it in the project
