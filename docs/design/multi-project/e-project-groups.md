@@ -43,20 +43,22 @@ unfolded by hand. 80 columns:
 │ ▸◐ Users page                    t-0002  Building overview           L4        │
 │  ◐ Templates page                t-0003  Writing tests               L F    ●●●│
 │  ◇ Document select for summary   t-0004  review required     #2320   L F3   ●○ │
+│                                                                                │
 │  On hold until Monday 2026-10-05                                               │
 │  ○ Subscriptions list            t-0001  idle                        L N       │
+│                                                                                │
 │ Billing export                                                   ◐ 1  ◇ 1  ↻ 1 │
 │  In progress                                                                   │
 │  ◐ CSV export job                t-0003  Streaming rows              L      ●● │
 │  ◇ Invoice PDF fonts             t-0002  checks ✕ 1          #418    L         │
 │  ↻ Ledger totals fix             t-0004  landing             #415    L2        │
+│                                                                                │
 │  + Backlog (3)                                                                 │
 │ + Docs site                                                           ○ 1  ✉ 1 │
 │ + Search spike · paused                                             no threads │
 │─ Users page · Admin rebuild ───────────────────────────────────────────────────│
 │ Status   working · Building overview · ~60% · 4m                               │
 │ Linear   1 ABC-1246   2 ABC-1256   3 ABC-1257   4 ABC-1250                     │
-│                                                                                │
 │                                                                                │
 │                                                                                │
 │────────────────────────────────────────────────────────────────────────────────│
@@ -76,20 +78,22 @@ unfolded by hand. 80 columns:
 │ ▸◐ Users page                 Building overv…  L4          │
 │  ◐ Templates page             Writing tests    L F    ●●●  │
 │  ◇ Document select for summ…  #2320 review     L F3   ●○   │
+│                                                            │
 │  On hold until Monday 2026-10-05                           │
 │  ○ Subscriptions list         idle             L N         │
+│                                                            │
 │ Billing export                               ◐ 1  ◇ 1  ↻ 1 │
 │  In progress                                               │
 │  ◐ CSV export job             Streaming rows   L      ●●   │
 │  ◇ Invoice PDF fonts          #418 ✕ 1         L           │
 │  ↻ Ledger totals fix          #415 landing     L2          │
+│                                                            │
 │  + Backlog (3)                                             │
 │ + Docs site                                       ○ 1  ✉ 1 │
 │ + Search spike · paused                         no threads │
 │─ Users page · t-0002 ──────────────────────────────────────│
 │ Status  working · Building overview · ~60% · 4m            │
 │ Linear  1 ABC-1246  2 ABC-1256  3 ABC-1257  4 ABC-1250     │
-│                                                            │
 │                                                            │
 │                                                            │
 │────────────────────────────────────────────────────────────│
@@ -120,21 +124,27 @@ back:
 │ ▸◐ Users page                   t-0002  Building overvi…         L4      │ Pane     w1Z:p1                             │
 │  ◐ Templates page               t-0003  Writing tests            L F ●●● │ Status   working · Building overview        │
 │  ◇ Document select for summary  t-0004  review required   #2320  L F3 ●○ │          ~60% · 4m                          │
+│                                                                          │                                             │
 │  On hold until Monday 2026-10-05                                         │ Note     Phase 1 = layout + overview        │
 │  ○ Subscriptions list           t-0001  idle                     L N     │          (ABC-1256); report on 1257/1250    │
+│                                                                          │                                             │
 │ Billing export · acme/ledger                               ◐ 1  ◇ 1  ↻ 1 │          before starting them.              │
 │  In progress                                                             │ Linear   1 ABC-1246   2 ABC-1256            │
 │  ◐ CSV export job               t-0003  Streaming rows           L ●●    │          3 ABC-1257   4 ABC-1250            │
 │  ◇ Invoice PDF fonts            t-0002  checks ✕ 1        #418   L       │ Branch   hp/admin-rebuild/t-0002-members-…  │
 │  ↻ Ledger totals fix            t-0004  landing           #415   L2      │ Dev      none running (frontend, api, pg)   │
+│                                                                          │                                             │
 │  + Backlog (3)                                                           │                                             │
 │ Docs site · acme/docs                                           ○ 1  ✉ 1 │                                             │
 │  Inbox                                                                   │                                             │
 │  ✉ inbox: t-0001 is now Idle: report written                          2d │                                             │
+│                                                                          │                                             │
 │  Other threads                                                           │                                             │
 │  ○ Search page                  t-0001  idle                     L       │                                             │
+│                                                                          │                                             │
 │  + Resolved (1)                                                          │                                             │
 │ + Search spike · paused                                       no threads │                                             │
+│                                                                          │                                             │
 │                                                                          │                                             │
 │────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────│
 │ j k move  1-9 link  l f n g o first  ↵ pane  e edit  space fold  [ ] project  A archived  z drawer  ? help             │
@@ -160,13 +170,16 @@ now waits on you, and *Billing export* is folded. 80 columns:
 │  Needs you                                                                     │
 │ ▸● Billing · CSV export job      t-0003  needs you · 2m              L      ●● │
 │  ✉ Billing · inbox: t-0003 is now Waiting on you                         2m    │
+│                                                                                │
 │ Admin rebuild                                                    ◐ 2  ◇ 1  ○ 1 │
 │  In progress                                                                   │
 │  ◐ Users page                    t-0002  Building overview           L4        │
 │  ◐ Templates page                t-0003  Writing tests               L F    ●●●│
 │  ◇ Document select for summary   t-0004  review required     #2320   L F3   ●○ │
+│                                                                                │
 │  On hold until Monday 2026-10-05                                               │
 │  ○ Subscriptions list            t-0001  idle                        L N       │
+│                                                                                │
 │ + Billing export                                                 ● 1  ◇ 1  ↻ 1 │
 │ + Docs site                                                           ○ 1  ✉ 1 │
 │ + Search spike · paused                                             no threads │
@@ -176,7 +189,6 @@ now waits on you, and *Billing export* is folded. 80 columns:
 │ Next     → Choose: one CSV per account, or one zip for all (BIL-210)           │
 │          → Confirm a 50 000-row cap per file                                   │
 │ Linear   1 BIL-210                                                             │
-│                                                                                │
 │                                                                                │
 │────────────────────────────────────────────────────────────────────────────────│
 │ ↵ go to pane  1-9 link  r report  [ ] project  z drawer  ? help                │
@@ -193,13 +205,16 @@ now waits on you, and *Billing export* is folded. 80 columns:
 │  Needs you                                                 │
 │ ▸● Billing · CSV export job   needs you · 2m   L      ●●   │
 │  ✉ Billing · t-0003 is now Waiting on you               2m │
+│                                                            │
 │ Admin rebuild                                ◐ 2  ◇ 1  ○ 1 │
 │  In progress                                               │
 │  ◐ Users page                 Building overv…  L4          │
 │  ◐ Templates page             Writing tests    L F    ●●●  │
 │  ◇ Document select for summ…  #2320 review     L F3   ●○   │
+│                                                            │
 │  On hold until Monday 2026-10-05                           │
 │  ○ Subscriptions list         idle             L N         │
+│                                                            │
 │ + Billing export                             ● 1  ◇ 1  ↻ 1 │
 │ + Docs site                                       ○ 1  ✉ 1 │
 │ + Search spike · paused                         no threads │
@@ -209,7 +224,6 @@ now waits on you, and *Billing export* is folded. 80 columns:
 │           for all (BIL-210)                                │
 │         → Confirm a 50 000-row cap per file                │
 │ Linear  1 BIL-210                                          │
-│                                                            │
 │                                                            │
 │────────────────────────────────────────────────────────────│
 │ ↵ go to pane  1-9 link  r report  ? help                   │
@@ -244,6 +258,7 @@ which is paused and has no tasks or threads yet. 80 columns:
 │▸Search spike · paused                                               no threads │
 │    Nothing yet. Rows appear when the coordinator writes TASKS.md               │
 │    or starts a thread.                                                         │
+│                                                                                │
 │  Archived                                                                      │
 │ + Mobile onboarding                                                 resolved 6 │
 │─ Search spike ─────────────────────────────────────────────────────────────────│
@@ -252,6 +267,7 @@ which is paused and has no tasks or threads yet. 80 columns:
 │          one to keep.                                                          │
 │ Repos    ~/src/docs                                                            │
 │ Coord    no coordinator running                                                │
+│                                                                                │
 │                                                                                │
 │                                                                                │
 │                                                                                │
@@ -277,6 +293,7 @@ which is paused and has no tasks or threads yet. 80 columns:
 │▸Search spike · paused                           no threads │
 │    Nothing yet. Rows appear when the coordinator           │
 │    writes TASKS.md or starts a thread.                     │
+│                                                            │
 │  Archived                                                  │
 │ + Mobile onboarding                             resolved 6 │
 │─ Search spike ─────────────────────────────────────────────│
@@ -285,6 +302,7 @@ which is paused and has no tasks or threads yet. 80 columns:
 │         and write down which one to keep.                  │
 │ Repos   ~/src/docs                                         │
 │ Coord   none running                                       │
+│                                                            │
 │                                                            │
 │                                                            │
 │                                                            │
@@ -323,8 +341,10 @@ does not parse. 80 columns:
 │ ▸◐ Users page                    t-0002  Building overview           L4        │
 │  ◐ Templates page                t-0003  Writing tests               L F    ●●●│
 │  ◇ Document select for summary   t-0004  review required     #2320   L F3   ●○ │
+│                                                                                │
 │  On hold until Monday 2026-10-05                                               │
 │  ○ Subscriptions list            t-0001  idle                        L N       │
+│                                                                                │
 │ Billing export                                                   ◐ 1  ◇ 1  ↻ 1 │
 │  In progress                                                                   │
 │  ◐ CSV export job                t-0003  Streaming rows              L      ●● │
@@ -356,8 +376,10 @@ does not parse. 80 columns:
 │ ▸◐ Users page                 Building overv…  L4          │
 │  ◐ Templates page             Writing tests    L F    ●●●  │
 │  ◇ Document select for summ…  #2320 review     L F3   ●○   │
+│                                                            │
 │  On hold until Monday 2026-10-05                           │
 │  ○ Subscriptions list         idle             L N         │
+│                                                            │
 │ Billing export                               ◐ 1  ◇ 1  ↻ 1 │
 │  In progress                                               │
 │  ◐ CSV export job             Streaming rows   L      ●●   │

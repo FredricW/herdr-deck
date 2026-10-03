@@ -37,8 +37,10 @@ Everything in the single-project [conventions](../README.md#shared-conventions)
 holds: colours, glyphs, keys, the `▸` and grey background for the selected
 row, D's drawer and its numbered links. Additions:
 
-- **Frames** are 26 rows tall (the single-project mockups use 28). The box
-  around a frame is not part of the pane.
+- **Frames** are 28 rows tall, as in the single-project mockups (E's
+  120-column frame is 32). The box around a frame is not part of the pane.
+- **A blank line separates list groups**, as in today's deck; in E it also
+  separates projects.
 - **Project names** come from PROJECT.md's `name`. Where space is short a
   project is shown by the first word of its name (`Billing`), longer when two
   projects would share it.

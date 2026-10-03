@@ -39,8 +39,10 @@ project, `1`–`9` stay link digits (projects are not numbered).
 │ ▸◐ Users page                    t-0002  Building overview           L4        │
 │  ◐ Templates page                t-0003  Writing tests               L F    ●●●│
 │  ◇ Document select for summary   t-0004  review required     #2320   L F3   ●○ │
+│                                                                                │
 │  On hold until Monday 2026-10-05                                               │
 │  ○ Subscriptions list            t-0001  idle                        L N       │
+│                                                                                │
 │  + Backlog (6)                                                                 │
 │                                                                                │
 │─ Users page ───────────────────────────────────────────────────────────────────│
@@ -72,8 +74,10 @@ project, `1`–`9` stay link digits (projects are not numbered).
 │ ▸◐ Users page                 Building overv…  L4          │
 │  ◐ Templates page             Writing tests    L F    ●●●  │
 │  ◇ Document select for summ…  #2320 review     L F3   ●○   │
+│                                                            │
 │  On hold until Monday 2026-10-05                           │
 │  ○ Subscriptions list         idle             L N         │
+│                                                            │
 │  + Backlog (6)                                             │
 │                                                            │
 │─ Users page · t-0002 ──────────────────────────────────────│
@@ -120,8 +124,10 @@ rebuild*. 80 columns:
 │ ▸◐ Users page                    t-0002  Building overview           L4        │
 │  ◐ Templates page                t-0003  Writing tests               L F    ●●●│
 │  ◇ Document select for summary   t-0004  review required     #2320   L F3   ●○ │
+│                                                                                │
 │  On hold until Monday 2026-10-05                                               │
 │  ○ Subscriptions list            t-0001  idle                        L N       │
+│                                                                                │
 │  + Backlog (6)                                                                 │
 │─ Users page ───────────────────────────────────────────────────────────────────│
 │ Thread   t-0002 Members /admin/users · pane w1Z:p1                             │
@@ -151,9 +157,11 @@ After `]`, 80 columns:
 │  Needs you                                                                     │
 │ ▸● CSV export job                t-0003  needs you · 2m              L      ●● │
 │  ✉ inbox: t-0003 is now Waiting on you                                   2m    │
+│                                                                                │
 │  In progress                                                                   │
 │  ◇ Invoice PDF fonts             t-0002  checks ✕ 1          #418    L         │
 │  ↻ Ledger totals fix             t-0004  landing             #415    L2        │
+│                                                                                │
 │  + Backlog (3)                                                                 │
 │─ CSV export job · not this tab's project (h home) ─────────────────────────────│
 │ Thread   t-0003 CSV export /exports · pane w4K:p3                              │
@@ -186,8 +194,10 @@ After `]`, 80 columns:
 │ ▸◐ Users page                 Building overv…  L4          │
 │  ◐ Templates page             Writing tests    L F    ●●●  │
 │  ◇ Document select for summ…  #2320 review     L F3   ●○   │
+│                                                            │
 │  On hold until Monday 2026-10-05                           │
 │  ○ Subscriptions list         idle             L N         │
+│                                                            │
 │  + Backlog (6)                                             │
 │─ Users page · t-0002 ──────────────────────────────────────│
 │ Status  working · Building overview · ~60% · 4m            │
@@ -215,9 +225,11 @@ After `]`, 80 columns:
 │  Needs you                                                 │
 │ ▸● CSV export job             needs you · 2m   L      ●●   │
 │  ✉ inbox: t-0003 is now Waiting on you                  2m │
+│                                                            │
 │  In progress                                               │
 │  ◇ Invoice PDF fonts          #418 ✕ 1         L           │
 │  ↻ Ledger totals fix          #415 landing     L2          │
+│                                                            │
 │  + Backlog (3)                                             │
 │─ CSV export job · t-0003 · away ───────────────────────────│
 │ Status  needs you · ~70% · since 14:31                     │
@@ -279,6 +291,8 @@ After `]`, 80 columns:
 │                                                                                │
 │                                                                                │
 │                                                                                │
+│                                                                                │
+│                                                                                │
 │────────────────────────────────────────────────────────────────────────────────│
 │ type to filter  ↵ show  A hide archived  esc close                             │
 └────────────────────────────────────────────────────────────────────────────────┘
@@ -302,6 +316,8 @@ After `]`, 80 columns:
 │ Repos   ~/src/docs                                         │
 │ Folder  ~/.herdr-projects/search-spike                     │
 │ Coord   none running                                       │
+│                                                            │
+│                                                            │
 │                                                            │
 │                                                            │
 │                                                            │
@@ -338,6 +354,7 @@ The herdr socket is gone, *Billing export* has no `.state/ticker.json`, and
 │ ▸◐ CSV export job                t-0003  Streaming rows              L      ●● │
 │  ◇ Invoice PDF fonts             t-0002  ?                   #418    L         │
 │  ↻ Ledger totals fix             t-0004  landing · ?         #415    L2        │
+│                                                                                │
 │  + Backlog (3)                                                                 │
 │                                                                                │
 │─ Sources · Billing export ─────────────────────────────────────────────────────│
@@ -345,6 +362,7 @@ The herdr socket is gone, *Billing export* has no `.state/ticker.json`, and
 │ ! herdr socket   not found (all projects): ↵ cannot focus panes                │
 │ ✓ PROJECT.md, TASKS.md, inbox/, thread list --json                  read 14:41 │
 │ Other projects: Docs site has 1 problem (] to see it)                          │
+│                                                                                │
 │                                                                                │
 │                                                                                │
 │                                                                                │
@@ -371,6 +389,7 @@ The herdr socket is gone, *Billing export* has no `.state/ticker.json`, and
 │ ▸◐ CSV export job             Streaming rows   L      ●●   │
 │  ◇ Invoice PDF fonts          #418 ?           L           │
 │  ↻ Ledger totals fix          #415 landing ?   L2          │
+│                                                            │
 │  + Backlog (3)                                             │
 │                                                            │
 │─ Sources · Billing export ─────────────────────────────────│
@@ -378,6 +397,7 @@ The herdr socket is gone, *Billing export* has no `.state/ticker.json`, and
 │ ! herdr socket  missing everywhere: no pane focus          │
 │ ✓ project files, thread list                    read 14:41 │
 │ Docs site: 1 problem (] to see it)                         │
+│                                                            │
 │                                                            │
 │                                                            │
 │                                                            │

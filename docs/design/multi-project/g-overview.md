@@ -43,6 +43,7 @@ thread's pane), `esc`/`backspace` up, `c` focus the project's coordinator,
 │    Billing export            ◐ 1  ◇ 1  ↻ 1    #418 ✕  #415 ⋯          1m       │
 │    Docs site                 ○ 1                               ✉ 1    2d       │
 │    Search spike       paused · no threads                                      │
+│                                                                                │
 │  + Archived (1)                                                                │
 │                                                                                │
 │─ Admin rebuild ────────────────────────────────────────────────────────────────│
@@ -52,6 +53,7 @@ thread's pane), `esc`/`backspace` up, `c` focus the project's coordinator,
 │ Coord    w1Z:p1 · idle                                                         │
 │ PRs      1 #2320 Document select for summary · review required · ✓             │
 │ Repos    ~/src/webshop                                                         │
+│                                                                                │
 │                                                                                │
 │                                                                                │
 │                                                                                │
@@ -76,6 +78,7 @@ thread's pane), `esc`/`backspace` up, `c` focus the project's coordinator,
 │    Billing export         ◐ 1  ◇ 1  ↻ 1         1m         │
 │    Docs site              ○ 1            ✉ 1    2d         │
 │    Search spike    paused · no threads                     │
+│                                                            │
 │  + Archived (1)                                            │
 │                                                            │
 │─ Admin rebuild ────────────────────────────────────────────│
@@ -85,6 +88,7 @@ thread's pane), `esc`/`backspace` up, `c` focus the project's coordinator,
 │ Coord   w1Z:p1 · idle                                      │
 │ PRs     1 #2320 review required ✓                          │
 │ Repos   ~/src/webshop                                      │
+│                                                            │
 │                                                            │
 │                                                            │
 │                                                            │
@@ -118,6 +122,7 @@ thread's pane), `esc`/`backspace` up, `c` focus the project's coordinator,
 │    Billing export             ◐ 1      ◇ 1  ↻ 1                #418 ✕  #415 ⋯    ●●       w4K:p1 working    1m         │
 │    Docs site                                      ○ 1   ✉ 1                               w7Q:p1 idle       2d         │
 │    Search spike        paused · no threads                                                none                         │
+│                                                                                                                        │
 │  + Archived (1)                                                                                                        │
 │                                                                                                                        │
 │─ Admin rebuild · acme/webshop ─────────────────────────────────────────────────────────────────────────────────────────│
@@ -128,6 +133,7 @@ thread's pane), `esc`/`backspace` up, `c` focus the project's coordinator,
 │ PRs      1 #2320 Document select for summary · review required · 2 comments · ✓                                        │
 │ Dev      2 :5181 frontend ●  3 :8011 api ●  4 :5441 pg ●  (t-0003)    5 :5174 frontend ●  :8002 api ○  (t-0004)        │
 │ Repos    ~/src/webshop                                                                                                 │
+│                                                                                                                        │
 │                                                                                                                        │
 │                                                                                                                        │
 │                                                                                                                        │
@@ -159,11 +165,13 @@ thread's pane), `esc`/`backspace` up, `c` focus the project's coordinator,
 │ ▸● Billing export      CSV export job · t-0003                       2m        │
 │  ✉ Billing export      inbox: t-0003 is now Waiting on you           2m        │
 │  ✉ Docs site           inbox: t-0001 is now Idle: report written     2d        │
+│                                                                                │
 │    PROJECT            NEEDS  THREADS          PRS              INBOX  LAST     │
 │    Admin rebuild             ◐ 2  ◇ 1  ○ 1    #2320 ✓                 4m       │
 │    Billing export     ● 1    ◇ 1  ↻ 1         #418 ✕  #415 ⋯   ✉ 1    2m       │
 │    Docs site                 ○ 1                               ✉ 1    2d       │
 │    Search spike       paused · no threads                                      │
+│                                                                                │
 │  + Archived (1)                                                                │
 │─ CSV export job · Billing export ──────────────────────────────────────────────│
 │ Thread   t-0003 CSV export /exports · pane w4K:p3                              │
@@ -192,11 +200,13 @@ thread's pane), `esc`/`backspace` up, `c` focus the project's coordinator,
 │ ▸● Billing        CSV export job · t-0003        2m        │
 │  ✉ Billing        t-0003 is now Waiting on you   2m        │
 │  ✉ Docs           t-0001 is now Idle: report…    2d        │
+│                                                            │
 │    PROJECT         NEEDS  THREADS        INBOX  LAST       │
 │    Admin rebuild          ◐ 2  ◇ 1  ○ 1         4m         │
 │    Billing export  ● 1    ◇ 1  ↻ 1       ✉ 1    2m         │
 │    Docs site              ○ 1            ✉ 1    2d         │
 │    Search spike    paused · no threads                     │
+│                                                            │
 │  + Archived (1)                                            │
 │─ CSV export job · Billing export ──────────────────────────│
 │ Status  needs you · ~70% · since 14:31                     │
@@ -226,9 +236,11 @@ which is today's deck with a breadcrumb. 80 columns:
 │  Needs you                                                                     │
 │ ▸● CSV export job                t-0003  needs you · 2m              L      ●● │
 │  ✉ inbox: t-0003 is now Waiting on you                                   2m    │
+│                                                                                │
 │  In progress                                                                   │
 │  ◇ Invoice PDF fonts             t-0002  checks ✕ 1          #418    L         │
 │  ↻ Ledger totals fix             t-0004  landing             #415    L2        │
+│                                                                                │
 │  + Backlog (3)                                                                 │
 │─ CSV export job ───────────────────────────────────────────────────────────────│
 │ Thread   t-0003 CSV export /exports · pane w4K:p3                              │
@@ -259,11 +271,13 @@ which is today's deck with a breadcrumb. 80 columns:
 │ ▸● Billing export      CSV export job · t-0003 · needs you · ~70%                              since 14:31 · 2m        │
 │  ✉ Billing export      inbox: t-0003 is now Waiting on you                                     14:31 · 2m              │
 │  ✉ Docs site           inbox: t-0001 is now Idle: report written                               2d                      │
+│                                                                                                                        │
 │    PROJECT             NEEDS  WORKING  REVIEW     IDLE  INBOX  PRS               DEV      COORDINATOR       LAST       │
 │    Admin rebuild              ◐ 2      ◇ 1        ○ 1          #2320 ✓           ●●● ●○   w1Z:p1 idle       4m         │
 │    Billing export      ● 1             ◇ 1  ↻ 1         ✉ 1    #418 ✕  #415 ⋯    ●●       w4K:p1 idle       2m         │
 │    Docs site                                      ○ 1   ✉ 1                               w7Q:p1 idle       2d         │
 │    Search spike        paused · no threads                                                none                         │
+│                                                                                                                        │
 │  + Archived (1)                                                                                                        │
 │─ CSV export job · t-0003 · Billing export ─────────────────────────────────────────────────────────────────────────────│
 │ Thread   CSV export /exports · pane w4K:p3 · branch hp/billing-export/t-0003-csv-export-job                            │
@@ -304,6 +318,7 @@ which is today's deck with a breadcrumb. 80 columns:
 │    Billing export            ◐ 1  ◇ 1  ↻ 1    #418 ✕  #415 ⋯          1m       │
 │    Docs site                 ○ 1                               ✉ 1    2d       │
 │ ▸  Search spike       paused · no threads                                      │
+│                                                                                │
 │  Archived                                                                      │
 │    Mobile onboarding  archived · resolved 6                           3w       │
 │                                                                                │
@@ -314,6 +329,7 @@ which is today's deck with a breadcrumb. 80 columns:
 │ Lists    TASKS.md has no tasks yet                                             │
 │ Coord    no coordinator running                                                │
 │ Repos    ~/src/docs                                                            │
+│                                                                                │
 │                                                                                │
 │                                                                                │
 │                                                                                │
@@ -337,6 +353,7 @@ which is today's deck with a breadcrumb. 80 columns:
 │    Billing export         ◐ 1  ◇ 1  ↻ 1         1m         │
 │    Docs site              ○ 1            ✉ 1    2d         │
 │ ▸  Search spike    paused · no threads                     │
+│                                                            │
 │  Archived                                                  │
 │    Mobile onboar…  archived · resolved 6        3w         │
 │                                                            │
@@ -346,6 +363,7 @@ which is today's deck with a breadcrumb. 80 columns:
 │         and write down which one to keep.                  │
 │ Lists   no tasks yet                                       │
 │ Coord   none running                                       │
+│                                                            │
 │                                                            │
 │                                                            │
 │                                                            │
@@ -379,6 +397,7 @@ The herdr socket is gone, *Billing export* has no `.state/ticker.json`, and
 │    Billing export            ◐ 1  ◇ 1  ↻ 1    #418 ?  #415 ?          1m       │
 │    ! Docs site        threads unreadable                       ✉ 1             │
 │    Search spike       paused · no threads                                      │
+│                                                                                │
 │  + Archived (1)                                                                │
 │                                                                                │
 │─ Sources ──────────────────────────────────────────────────────────────────────│
@@ -387,6 +406,7 @@ The herdr socket is gone, *Billing export* has no `.state/ticker.json`, and
 │ ! Billing export   no .state/ticker.json: no PR review or checks               │
 │ ! Docs site        thread list failed: PROJECT.md line 4 does not parse        │
 │ ✓ herdr-projects list, inboxes, TASKS.md                            read 14:41 │
+│                                                                                │
 │                                                                                │
 │                                                                                │
 │                                                                                │
@@ -412,6 +432,7 @@ The herdr socket is gone, *Billing export* has no `.state/ticker.json`, and
 │    Billing export         ◐ 1  ◇ 1  ↻ 1         1m         │
 │    ! Docs site     threads unreadable    ✉ 1               │
 │    Search spike    paused · no threads                     │
+│                                                            │
 │  + Archived (1)                                            │
 │                                                            │
 │─ Sources ──────────────────────────────────────────────────│
@@ -419,6 +440,7 @@ The herdr socket is gone, *Billing export* has no `.state/ticker.json`, and
 │ ! Billing export  no ticker.json: no PR checks             │
 │ ! Docs site       PROJECT.md line 4 does not parse         │
 │ ✓ project list, inboxes, TASKS.md               read 14:41 │
+│                                                            │
 │                                                            │
 │                                                            │
 │                                                            │

@@ -41,10 +41,13 @@ Nothing waits on you; two PRs are ready, one is landing. 80 columns:
 │  Ready for review                                                              │
 │ ▸◇ Billing export   Invoice PDF fonts                #418 ✕ 1        20m       │
 │  ◇ Admin rebuild    Document select for summary      #2320 ✓         1h        │
+│                                                                                │
 │  Landing                                                                       │
 │  ↻ Billing export   Ledger totals fix                #415 ⋯          5m        │
+│                                                                                │
 │  Inbox                                                                         │
 │  ✉ Docs site        t-0001 is now Idle: report written               2d        │
+│                                                                                │
 │  Quiet                                                                         │
 │   Admin ◐ 2  ○ 1 · Billing ◐ 1 · Docs ○ 1 · Search paused                      │
 │─ Invoice PDF fonts · Billing export · t-0002 ──────────────────────────────────│
@@ -53,7 +56,6 @@ Nothing waits on you; two PRs are ready, one is landing. 80 columns:
 │ Next     → Fix the font embedding the pdf-render check flags                   │
 │ Linear   1 BIL-198                                                             │
 │ GitHub   2 PR #418                                                             │
-│                                                                                │
 │                                                                                │
 │                                                                                │
 │                                                                                │
@@ -74,10 +76,13 @@ Nothing waits on you; two PRs are ready, one is landing. 80 columns:
 │  Ready for review                                          │
 │ ▸◇ Billing    Invoice PDF fonts          #418 ✕ · 20m      │
 │  ◇ Admin      Document select for summ…  #2320 ✓ · 1h      │
+│                                                            │
 │  Landing                                                   │
 │  ↻ Billing    Ledger totals fix          #415 ⋯ · 5m       │
+│                                                            │
 │  Inbox                                                     │
 │  ✉ Docs       t-0001 is now Idle: repo…  2d                │
+│                                                            │
 │  Quiet                                                     │
 │   Admin ◐ 2 ○ 1 · Billing ◐ 1 · Docs ○ 1 · Search paused   │
 │─ Invoice PDF fonts · t-0002 ───────────────────────────────│
@@ -87,7 +92,6 @@ Nothing waits on you; two PRs are ready, one is landing. 80 columns:
 │           check flags                                      │
 │ Linear  1 BIL-198                                          │
 │ GitHub  2 PR #418                                          │
-│                                                            │
 │                                                            │
 │                                                            │
 │                                                            │
@@ -117,8 +121,10 @@ appear.
 │  Ready for review                                                      │ Project  Billing export · pane w4K:p2         │
 │ ▸◇ Billing export  Invoice PDF fonts         t-0002  #418 ✕      20m   │ Status   ready for review · PR #418           │
 │  ◇ Admin rebuild   Document select for su…   t-0004  #2320 ✓     1h    │          review required · 1 comment          │
+│                                                                        │                                               │
 │  Landing                                                               │ Checks   ✕ pdf-render (failing)               │
 │  ↻ Billing export  Ledger totals fix         t-0004  #415 ⋯      5m    │ Next     → Fix the font embedding the         │
+│                                                                        │                                               │
 │  Inbox                                                                 │            pdf-render check flags             │
 │  ✉ Docs site       t-0001 is now Idle: report written            2d    │ Linear   1 BIL-198                            │
 │                                                                        │ GitHub   2 PR #418                            │
@@ -152,14 +158,18 @@ There is no "other project" here: a new need goes to the top of the feed.
 │    PROJECT          WHAT                             STATE           AGE       │
 │  Needs you                                                                     │
 │ ▸● Billing export   CSV export job                   needs you ~70%  2m        │
+│                                                                                │
 │  Inbox                                                                         │
 │  ✉ Billing export   t-0003 is now Waiting on you                     2m        │
 │  ✉ Docs site        t-0001 is now Idle: report written               2d        │
+│                                                                                │
 │  Ready for review                                                              │
 │  ◇ Billing export   Invoice PDF fonts                #418 ✕ 1        20m       │
 │  ◇ Admin rebuild    Document select for summary      #2320 ✓         1h        │
+│                                                                                │
 │  Landing                                                                       │
 │  ↻ Billing export   Ledger totals fix                #415 ⋯          5m        │
+│                                                                                │
 │  Quiet                                                                         │
 │   Admin ◐ 2  ○ 1 · Docs ○ 1 · Search paused                                    │
 │─ CSV export job · Billing export · t-0003 ─────────────────────────────────────│
@@ -167,8 +177,6 @@ There is no "other project" here: a new need goes to the top of the feed.
 │ Next     → Choose: one CSV per account, or one zip for all (BIL-210)           │
 │          → Confirm a 50 000-row cap per file                                   │
 │ Linear   1 BIL-210                                                             │
-│                                                                                │
-│                                                                                │
 │                                                                                │
 │                                                                                │
 │────────────────────────────────────────────────────────────────────────────────│
@@ -185,14 +193,18 @@ There is no "other project" here: a new need goes to the top of the feed.
 │    PROJECT    WHAT                       AGE               │
 │  Needs you                                                 │
 │ ▸● Billing    CSV export job             ~70% · 2m         │
+│                                                            │
 │  Inbox                                                     │
 │  ✉ Billing    t-0003 is now Waiting on…  2m                │
 │  ✉ Docs       t-0001 is now Idle: repo…  2d                │
+│                                                            │
 │  Ready for review                                          │
 │  ◇ Billing    Invoice PDF fonts          #418 ✕ · 20m      │
 │  ◇ Admin      Document select for summ…  #2320 ✓ · 1h      │
+│                                                            │
 │  Landing                                                   │
 │  ↻ Billing    Ledger totals fix          #415 ⋯ · 5m       │
+│                                                            │
 │  Quiet                                                     │
 │   Admin ◐ 2 ○ 1 · Docs ○ 1 · Search paused                 │
 │─ CSV export job · t-0003 ──────────────────────────────────│
@@ -201,8 +213,6 @@ There is no "other project" here: a new need goes to the top of the feed.
 │           for all (BIL-210)                                │
 │         → Confirm a 50 000-row cap per file                │
 │ Linear  1 BIL-210                                          │
-│                                                            │
-│                                                            │
 │                                                            │
 │────────────────────────────────────────────────────────────│
 │ ↵ go to pane  1-9 link  r report  esc close                │
@@ -235,12 +245,14 @@ Nothing needs you anywhere, and `q` has unfolded *Quiet*. 80 columns:
 │    Billing export   ◐ 1 · coordinator working                        1m        │
 │    Docs site        ○ 1 · coordinator idle                           2d        │
 │    Search spike     paused · no tasks or threads · no coordinator              │
+│                                                                                │
 │  + Archived (1)                                                                │
 │─ Admin rebuild ────────────────────────────────────────────────────────────────│
 │ Goal     Rebuild the admin pages on the new design system, one page per        │
 │          thread.                                                               │
 │ Coord    w1Z:p1 · idle                                                         │
 │ Repos    ~/src/webshop                                                         │
+│                                                                                │
 │                                                                                │
 │                                                                                │
 │                                                                                │
@@ -268,12 +280,14 @@ Nothing needs you anywhere, and `q` has unfolded *Quiet*. 80 columns:
 │    Billing export  ◐ 1 · working                 1m        │
 │    Docs site       ○ 1 · idle                    2d        │
 │    Search spike    paused · no threads                     │
+│                                                            │
 │  + Archived (1)                                            │
 │─ Admin rebuild ────────────────────────────────────────────│
 │ Goal    Rebuild the admin pages on the new design          │
 │         system, one page per thread.                       │
 │ Coord   w1Z:p1 · idle                                      │
 │ Repos   ~/src/webshop                                      │
+│                                                            │
 │                                                            │
 │                                                            │
 │                                                            │
@@ -310,8 +324,10 @@ the needs-you signal. 80 columns:
 │  Ready for review                                                              │
 │ ▸◇ Admin rebuild    Document select for summary      #2320 ✓         1h        │
 │  ◇ Billing export   Invoice PDF fonts                #418 ?          20m       │
+│                                                                                │
 │  Inbox                                                                         │
 │  ✉ Docs site        t-0001 is now Idle: report written               2d        │
+│                                                                                │
 │  Quiet                                                                         │
 │   Admin ◐ 2  ○ 1 · Billing ◐ 1 ↻ 1 · Search paused                             │
 │─ Sources ──────────────────────────────────────────────────────────────────────│
@@ -343,8 +359,10 @@ the needs-you signal. 80 columns:
 │  Ready for review                                          │
 │ ▸◇ Admin      Document select for summ…  #2320 ✓ · 1h      │
 │  ◇ Billing    Invoice PDF fonts          #418 ? · 20m      │
+│                                                            │
 │  Inbox                                                     │
 │  ✉ Docs       t-0001 is now Idle: repo…  2d                │
+│                                                            │
 │  Quiet                                                     │
 │   Admin ◐ 2 ○ 1 · Billing ◐ 1 ↻ 1 · Search paused          │
 │─ Sources ──────────────────────────────────────────────────│
