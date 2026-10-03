@@ -71,6 +71,22 @@ func TestDiffArgv(t *testing.T) {
 	}
 }
 
+func TestCommitArgv(t *testing.T) {
+	cases := []struct {
+		argv, want []string
+	}{
+		{[]string{"hunk", "diff", "{base}", "--", "{file}"}, []string{"hunk", "diff", "abc^", "abc"}},
+		{[]string{"git", "-C", "{path}", "diff", "--merge-base", "{base}", "--", "{file}"}, []string{"git", "-C", "/w", "diff", "--merge-base", "abc^", "abc"}},
+		{[]string{"tool", "{file}", "--rev={base}"}, []string{"tool", "--rev=abc^"}},
+		{[]string{"tool", "--", "{file}", "{base}"}, []string{"tool", "abc^", "abc"}},
+	}
+	for _, c := range cases {
+		if got := CommitArgv(Command{Argv: c.argv}, "/w", "abc"); !reflect.DeepEqual(got, c.want) {
+			t.Errorf("CommitArgv(%q) = %q, want %q", c.argv, got, c.want)
+		}
+	}
+}
+
 func TestRunner(t *testing.T) {
 	var started, paned []string
 	var dir string

@@ -9,9 +9,11 @@ Sleep 1s
 Show
 Sleep 2s
 # Users page needs you: the card, then Overview's Next and links. ] shows
-# its Files, then its Log.
+# its Files, its Commits, then its Log.
 Type "]"
 Sleep 1.8s
+Type "]"
+Sleep 2s
 Type "]"
 Sleep 2s
 # The tab stays as the cursor moves: Templates page's Log.

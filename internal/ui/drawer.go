@@ -33,6 +33,7 @@ type tabKind int
 const (
 	tabOverview tabKind = iota
 	tabFiles
+	tabCommits
 	tabLog
 	numTabs
 )
@@ -41,6 +42,8 @@ func (t tabKind) String() string {
 	switch t {
 	case tabFiles:
 		return "Files"
+	case tabCommits:
+		return "Commits"
 	case tabLog:
 		return "Log"
 	}
@@ -51,12 +54,13 @@ func (t tabKind) String() string {
 type actKind int
 
 const (
-	actNone  actKind = iota
-	actLink          // open link n (an index into the row's links)
-	actFile          // open the diff of file n (1-based, in display order)
-	actDiff          // open the whole diff
-	actEvent         // act on Log event n
-	actTab           // switch to tab n
+	actNone   actKind = iota
+	actLink           // open link n (an index into the row's links)
+	actFile           // open the diff of file n (1-based, in display order)
+	actDiff           // open the whole diff
+	actEvent          // act on Log event n
+	actTab            // switch to tab n
+	actCommit         // preview commit n (1-based); 0 is the uncommitted row
 )
 
 type action struct {
@@ -434,9 +438,9 @@ func (m Model) helpDrawer(width int) *drawer {
 var helpLines = [][2]string{
 	{"j k", "move; the drawer follows"},
 	{"space", "fold or unfold the list under the cursor"},
-	{"[ ]", "previous / next tab: Overview, Files, Log"},
+	{"[ ]", "previous / next tab: Overview, Files, Commits, Log"},
 	{"tab", "focus the drawer: j k move in it, ↵ opens, tab switches tabs, esc returns"},
-	{"1-9", "open the numbered link; on Files, that file's diff"},
+	{"1-9", "open the numbered link; on Files, that file's diff; on Commits, preview that commit"},
 	{"l f n g", "open the first Linear, Figma, Notion or PR link; with several, pick one: a digit, a all, d Figma desktop app, the letter again the first, esc cancels"},
 	{"o", "open the first localhost link whose dev server is running"},
 	{"↵", "focus the thread's herdr pane"},
@@ -444,6 +448,7 @@ var helpLines = [][2]string{
 	{"u", "start the thread's dev servers: the dev manifest's up command, detached"},
 	{"d", "focus the Files tab: a digit opens that file's diff in the diff tool, d again or a the whole diff, t list or tree"},
 	{"v", "on Files: preview the file under the cursor in the list's place, coloured by its language; j k pick another file, v or esc returns to the list"},
+	{"Commits", "the branch's commits since its base, newest first: ↵ or a digit previews one as git show does, v toggles the preview; in the focused drawer d opens the commit in the diff tool and g in the PR on GitHub"},
 	{"J K", "scroll the preview a line; pgup pgdn a page, the wheel over it three lines"},
 	{"r", "the thread's report, full height"},
 	{"z", "drawer: normal, full height, hidden"},

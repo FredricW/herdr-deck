@@ -124,26 +124,10 @@ func ParsePatch(out []byte, limit int) deck.Patch {
 			}
 			continue
 		}
-		var pl deck.PatchLine
-		switch {
-		case strings.HasPrefix(line, "@@"):
+		if strings.HasPrefix(line, "@@") {
 			inHunk = true
-			pl = deck.PatchLine{Kind: deck.LineHunk, Text: line}
-		case line == "":
-			pl = deck.PatchLine{Kind: deck.LineContext}
-		default:
-			text := line[1:]
-			switch line[0] {
-			case '+':
-				pl = deck.PatchLine{Kind: deck.LineAdded, Text: text}
-			case '-':
-				pl = deck.PatchLine{Kind: deck.LineDeleted, Text: text}
-			case '\\':
-				pl = deck.PatchLine{Kind: deck.LineNote, Text: strings.TrimSpace(text)}
-			default:
-				pl = deck.PatchLine{Kind: deck.LineContext, Text: text}
-			}
 		}
+		pl := patchLine(line)
 		if len(p.Lines) >= limit {
 			p.More++
 			continue
