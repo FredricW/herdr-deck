@@ -119,7 +119,8 @@ func run(args []string) error {
 			return runner.Run(ed, launch.EditorArgv(ed, path), path)
 		},
 		OpenDiff: func(path, base string, files []string) error {
-			return runner.Run(cfg.Diff, launch.DiffArgv(cfg.Diff, path, base, files...), path)
+			df := cur.Load().Diff
+			return runner.Run(df, launch.DiffArgv(df, path, base, files...), path)
 		},
 		Tick:    cfg.RefreshInterval,
 		Version: shortVersionString(),

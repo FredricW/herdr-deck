@@ -325,8 +325,9 @@ never a secret.
   override wins. After a save the deck resolves again and applies it at
   once: the UI takes the refresh interval, Figma desktop and the update
   hint, and `main` swaps an `atomic.Pointer[config.Settings]` that opening
-  links and the editor, the Linear workspace and reader (rebuilt when the
-  key command changes), the update check and auto-restart read each time.
+  links, the editor and the diff tool, the Linear workspace and reader
+  (rebuilt when the key command changes), the update check and
+  auto-restart read each time.
   Only `projects_root` needs a restart, and the status line says so.
   `linear_api_key_command` is shown and edited as a command; the key it
   prints is never run, shown or written.
