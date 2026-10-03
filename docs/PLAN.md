@@ -168,12 +168,14 @@ lists what the user chose.
     of a task; at the right a ten-cell bar `▰▱` in the status colour, or,
     with no percent, the PR (`#2320` magenta, `✕ 2 failing` red or `✓`
     green). A task with several threads shows the most pressing one.
-  - **Tab bar**, one line: ` Overview `, ` Files N `, ` Log N ` as plain
+  - **Tab bar**, one line: ` Overview `, ` Files N `, ` Commits N `,
+    ` Log N ` as plain
     labels with one space of padding on each side, on background colours,
     one space apart, no rule or brackets. The active tab is bold dark
     text (256-colour 234, 16 on a light terminal) on blue; inactive tabs plain text on dark grey (256-colour 237,
     254 on a light terminal). `Files N` counts changed files (`Files …`
-    until git has answered once), `Log N` events. A tab with nothing
+    until git has answered once), `Commits N` the branch's commits,
+    `Log N` events. A tab with nothing
     behind it (no thread, a resolved thread's files) is dim, has no count
     and is skipped by keys and clicks. At the right end, dim, what is below
     the drawer's end: Overview's section names at 80 columns, else
@@ -265,6 +267,28 @@ lists what the user chose.
   drawer height on the thread it started on: `v`, `esc`, another tab, row
   or full view, or `z` ends it, and the list shows again with its cursor
   and scroll untouched.
+- **Commits tab** (t-0044). The thread branch's own commits:
+  `diff.Reader.ReadCommits` runs `git log --numstat <merge-base>..HEAD`
+  (100 at most, `rev-list --count` for the rest) in the worktree, against
+  the Files tab's merge-base, newest first. A row is the digit (dim `·`
+  after 9), the short sha dim, the subject, the age dim and `+N −M` green
+  and red, the counts right-aligned in one column; a merge commit is dim
+  with `⋔` and no counts; `+K more` ends a longer branch. With uncommitted
+  changes (`git status --porcelain -z --untracked-files=all`) a first row
+  `● uncommitted · N files  → Files` leads to the Files tab. The label
+  counts the commits. A resolved thread or one without a worktree shows a
+  dim note. The list is cached by HEAD and upstream sha (and for 2 s), so
+  a reload re-runs only `rev-parse` and `status` until the branch moves;
+  `merge-base HEAD @{upstream}` marks the commits the remote has. `↵` or a
+  digit previews a commit in the diff preview: a header with the short
+  sha, subject and counts, then author, date and body, then `git show
+  --diff-merges=first-parent` file by file under `── path ──` rules, each
+  coloured by its language (`ReadCommitPatch`, cached by sha). In the
+  focused drawer `d` opens the commit in the diff tool (`launch.CommitArgv`:
+  `{base}` = `sha^`, the sha inserted after a lone `{base}`, so `hunk diff
+  sha^ sha`) and `g` the commit inside the PR on GitHub
+  (`…/pull/N/commits/<sha>`, with tab reuse; an unpushed commit says so).
+  From the list, `d` and `g` keep their meaning.
 - **Log tab.** The thread's timeline, newest first, one line per event:
   age (dim, right-aligned), a glyph in its colour, the text, and at 80
   columns the clock time (dim, with the weekday before today). Only what
@@ -326,11 +350,12 @@ Keys:
   and a drawer cursor (`▸` and the selection background) appears; inside
   the drawer `tab`/`shift+tab` switch tabs, `j`/`k` move the drawer cursor,
   `enter` acts on the item under it (Overview: opens the link; Files: opens
-  the file's diff, numbered or not; Log: a report event shows the report,
+  the file's diff, numbered or not; Commits: previews the commit; Log: a report event shows the report,
   a PR event opens the PR, other events focus the pane), and `esc` returns
   the focus to the list. A click in the drawer focuses it too.
-- `1`–`9` open the drawer's numbered links on Overview and Log, and the
-  numbered files' diffs on Files. `l` Linear, `f` Figma,
+- `1`–`9` open the drawer's numbered links on Overview and Log, the
+  numbered files' diffs on Files, and preview the numbered commit on
+  Commits. `l` Linear, `f` Figma,
   `n` Notion, `g` GitHub PR open the first link of that kind, on any tab. When there
   are several, the key highlights that kind's chips and waits: a digit opens
   one, `a` opens all of that kind, `d` opens a Figma link in the desktop

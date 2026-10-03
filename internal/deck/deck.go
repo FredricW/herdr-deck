@@ -420,4 +420,51 @@ const (
 	LineDeleted
 	LineHunk // a hunk header
 	LineNote // git's `\ No newline at end of file`
+	// LineFile starts one file's part of a commit's patch; its Text is
+	// the file's path, a rename's as "old → new".
+	LineFile
 )
+
+// Commits is a thread branch's own commits: `git log <merge-base>..HEAD`
+// in its worktree, newest first.
+type Commits struct {
+	// Base is the ref the branch is compared with, MergeBase the commit
+	// they share and Head the branch's tip.
+	Base      string
+	MergeBase string
+	Head      string
+	List      []Commit
+	// More is how many older commits were left out past the cap.
+	More int
+	// Uncommitted is how many files have changes not committed yet,
+	// untracked ones included.
+	Uncommitted int
+	// Upstream is set when the branch has an upstream, so each commit's
+	// Pushed says whether the remote has it.
+	Upstream bool
+	// Note says why there are no commits to show, e.g. "no worktree"; it
+	// is never an error.
+	Note string
+}
+
+// Commit is one commit of a thread's branch.
+type Commit struct {
+	SHA     string
+	Short   string
+	Author  string
+	Time    time.Time
+	Subject string
+	// Merge commits have no line counts.
+	Merge          bool
+	Added, Deleted int
+	// Pushed is set when the branch's upstream has the commit.
+	Pushed bool
+}
+
+// CommitPatch is one commit as the preview shows it: its message's body
+// and its diff against its first parent, each file's part starting with a
+// LineFile line.
+type CommitPatch struct {
+	Body  string
+	Patch Patch
+}

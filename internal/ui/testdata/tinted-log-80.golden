@@ -15,7 +15,7 @@
 ────────────────────────────────────────────────────────────────────────────────
  Document select for summary                                           ◇ review
  t-0004 · Summary select documents · pane w21:p1              #2320 ✕ 2 failing
- Overview   Files   Log 7
+ Overview   Files   Commits   Log 7
    2m  ✕ checks failing: lint, test (ubuntu-latest)                     14:39 ✉
   25m  ◇ [5 #2320] updated · open · 2 comments                          14:16
    3h  ◇ [5 #2320] opened                                               11:03
