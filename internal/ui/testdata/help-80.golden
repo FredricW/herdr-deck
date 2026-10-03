@@ -12,13 +12,13 @@
   + Backlog (3)
 
 
-
-
-
 ─ Keys ─────────────────────────────────────────────────────────────────────────
  j k        move; the drawer follows
  space      fold or unfold the list under the cursor
- 1-9        open the drawer's numbered link
+ [ ]        previous / next tab: Overview, Files, Log
+ tab        focus the drawer: j k move in it, ↵ opens, tab switches tabs, esc
+            returns
+ 1-9        open the numbered link; on Files, that file's diff
  l f n g    open the first Linear, Figma, Notion or PR link; with several, pick
             one: a digit, a all, d Figma desktop app, the letter again the
             first, esc cancels

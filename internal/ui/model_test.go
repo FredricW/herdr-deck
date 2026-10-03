@@ -155,6 +155,9 @@ func calm() deck.Snapshot {
 	s.Inbox = nil
 	s.Threads[1].Status = deck.StatusWorking
 	s.Threads[1].StateLine = "working · ~60%"
+	sixty := 60
+	s.Threads[1].Percent = &sixty
+	s.Threads[1].Group = "working"
 	s.Threads[1].Activity = "Building overview"
 	s.Threads[1].Next = nil
 	return s
@@ -168,6 +171,15 @@ func TestGolden(t *testing.T) {
 	}
 	missing.ThreadsAsOf = now.Add(-18 * time.Minute)
 
+	// An unhandled inbox item about t-0004 tints its row and shows in its
+	// Log; one about no thread is only counted in the header.
+	tinted := calm()
+	tinted.Inbox = []deck.InboxItem{{ID: "20261002T143900Z-pr-t-0004-10", Kind: "pr", Thread: "t-0004", Subject: "t-0004", Event: "PR checks failing", Created: now.Add(-2 * time.Minute)}}
+	tinted.Threads[3].Log = append([]deck.LogEvent{{At: now.Add(-2 * time.Minute), Kind: deck.EventChecksFailing, Text: "checks failing: lint, test (ubuntu-latest)", Unhandled: true, Source: "inbox/20261002T143900Z-pr-t-0004-10.md"}}, tinted.Threads[3].Log...)
+	tinted.Threads[3].PR.FailingChecks = []string{"lint", "test (ubuntu-latest)"}
+	inboxOnly := calm()
+	inboxOnly.Inbox = fakeSnap().Inbox[1:]
+
 	cases := []struct {
 		name string
 		snap deck.Snapshot
@@ -175,7 +187,16 @@ func TestGolden(t *testing.T) {
 	}{
 		{name: "normal", snap: calm()},
 		{name: "needs-you", snap: fakeSnap()},
-		{name: "inbox", snap: fakeSnap(), keys: keys("j")},
+		{name: "needs-you-full", snap: fakeSnap(), keys: keys("z")},
+		{name: "log", snap: fakeSnap(), keys: keys("]")},
+		{name: "log-full", snap: fakeSnap(), keys: keys("]z")},
+		{name: "review-full", snap: calm(), keys: keys("jjz")},
+		{name: "tinted", snap: tinted, keys: keys("jj")},
+		{name: "tinted-log", snap: tinted, keys: keys("jj]")},
+		{name: "inbox-only", snap: inboxOnly},
+		{name: "no-thread", snap: calm(), keys: keys("jjjjjj jjj")},
+		{name: "drawer-focus", snap: calm(), keys: append([]tea.Msg{tea.KeyPressMsg{Code: tea.KeyTab}}, keys("j")...)},
+		{name: "heading", snap: calm(), keys: keys("k")},
 		{name: "chooser-linear", snap: calm(), keys: keys("l")},
 		{name: "chooser-figma", snap: calm(), keys: keys("jjf")},
 		{name: "empty", snap: deck.Snapshot{Project: fakeSnap().Project}},
@@ -656,11 +677,13 @@ func TestEditorPaneAndReport(t *testing.T) {
 
 func TestDrawerSizes(t *testing.T) {
 	m, _ := newModel(t, calm(), 80, 28)
-	if l := m.layout(); l.drawerH == 0 || l.listH == 0 {
-		t.Fatalf("normal: %+v", l)
+	// Half of the pane: the list keeps 11 rows; the drawer its rule, the
+	// card, the tab bar and 8 lines of content.
+	if l := m.layout(); l.drawerH != 8 || l.listH != 11 || l.headN != 3 {
+		t.Fatalf("normal: list %d, head %d, drawer %d", l.listH, l.headN, l.drawerH)
 	}
 	m, _ = press(m, keys("z")...)
-	if l := m.layout(); l.listH != 0 || l.drawerH != 23 {
+	if l := m.layout(); l.listH != 0 || l.drawerH != 21 {
 		t.Fatalf("full: list %d, drawer %d", l.listH, l.drawerH)
 	}
 	m, _ = press(m, keys("z")...)
@@ -807,24 +830,12 @@ func TestFocusPane(t *testing.T) {
 	s.Project.PaneID = "w1X:p1"
 	s.Threads[1].Pane = &deck.Pane{ID: "w30:p2", AgentStatus: "blocked"}
 	m, o := newModel(t, s, 80, 28)
-	m, _ = press(m, keys("j")...) // the inbox item about t-0002
-	if r, _ := m.selected(); r.kind != rowInbox {
-		t.Fatalf("j did not reach the inbox row: %+v", r)
-	}
 	press(m, enter)
 	if len(o.panes) != 1 || o.panes[0] != "w30:p2" {
-		t.Fatalf("enter on the inbox row focused %q", o.panes)
+		t.Fatalf("enter on t-0002 focused %q", o.panes)
 	}
 
-	// The subject thread has no pane open: the coordinator's pane.
 	s.Threads[1].Pane = nil
-	m, o = newModel(t, s, 80, 28)
-	m, _ = press(m, keys("j")...)
-	m, _ = press(m, enter)
-	if len(o.panes) != 1 || o.panes[0] != "w1X:p1" || !strings.Contains(m.Status(), "coordinator") {
-		t.Fatalf("enter without the thread's pane: focused %q, status %q", o.panes, m.Status())
-	}
-
 	// On the thread's own row, a closed pane is said, not focused.
 	m, o = newModel(t, s, 80, 28)
 	m, _ = press(m, enter)
@@ -845,8 +856,9 @@ func TestDrawerLivePane(t *testing.T) {
 	s.Herdr = true
 	s.Threads[1].Pane = &deck.Pane{ID: "w1Z:p1", Agent: "claude", AgentStatus: "blocked"}
 	m, _ := newModel(t, s, 80, 28)
+	m, _ = press(m, keys("z")...)
 	out := screen(m)
-	for _, want := range []string{"pane w1Z:p1 · claude blocked", "needs you · ~95%"} {
+	for _, want := range []string{"pane     w1Z:p1 · claude blocked", "● needs you  ~95%"} {
 		if !strings.Contains(out, want) {
 			t.Errorf("drawer lacks %q:\n%s", want, out)
 		}
@@ -854,7 +866,8 @@ func TestDrawerLivePane(t *testing.T) {
 
 	s.Threads[1].Pane = nil
 	m, _ = newModel(t, s, 80, 28)
-	if out := screen(m); !strings.Contains(out, "pane w1Z:p1 closed") {
+	m, _ = press(m, keys("z")...)
+	if out := screen(m); !strings.Contains(out, "w1Z:p1 closed") {
 		t.Errorf("drawer does not say the pane is closed:\n%s", out)
 	}
 }
@@ -889,15 +902,17 @@ func TestSelectionHighlight(t *testing.T) {
 		t.Errorf("on a light terminal the highlight is not light grey: %q", l)
 	}
 
-	// The link chooser's line uses the same highlight.
+	// The link chooser highlights its kind's chips the same way.
 	m, _ = press(m, keys("l")...)
-	if !strings.Contains(m.View().Content, "▶\x1b[m\x1b[48;5;254m") {
-		t.Errorf("the chooser's line is not highlighted:\n%q", m.View().Content)
+	for _, l := range strings.Split(m.View().Content, "\n") {
+		if strings.Contains(ansi.Strip(l), "[1 ABC-1246 done]") && !strings.Contains(l, "\x1b[48;5;254m\x1b[2m[") {
+			t.Errorf("the chooser's chips are not highlighted:\n%q", l)
+		}
 	}
 }
 
 func TestFooterVersionYieldsToHelp(t *testing.T) {
-	const help = "1-9 link  l f n g o first  ↵ pane  z drawer  ? help"
+	const help = "1-9 link  o open  ↵ pane  [ ] tab  z drawer  ? help"
 	for _, tt := range []struct {
 		name, version string
 		shown         bool
@@ -1016,7 +1031,7 @@ func TestLinearIssueStatus(t *testing.T) {
 	if !strings.Contains(view, workStyle.Render("in progress")) {
 		t.Error("a started issue's state is not cyan")
 	}
-	if !strings.Contains(view, dim.Render("1 ABC-1246 "+dim.Render("done"))) {
+	if !strings.Contains(view, dim.Render("done")+dim.Render("]")) {
 		t.Error("a done issue is not dim")
 	}
 
@@ -1083,11 +1098,12 @@ func TestFilesGolden(t *testing.T) {
 		tree bool
 		keys []tea.Msg
 	}{
-		{name: "files", diff: changes(), keys: keys("z")},
-		{name: "files-chooser", diff: changes(), keys: keys("d")},
-		{name: "files-note", diff: gone},
-		{name: "files-tree", diff: changes(), tree: true, keys: keys("z")},
-		{name: "files-tree-chooser", diff: changes(), keys: keys("zdt")},
+		{name: "files", diff: changes(), keys: keys("d")},
+		{name: "files-full", diff: changes(), keys: keys("dz")},
+		{name: "files-note", diff: gone, keys: keys("d")},
+		{name: "files-tree", diff: changes(), tree: true, keys: keys("d")},
+		{name: "files-tree-full", diff: changes(), keys: keys("dtz")},
+		{name: "files-cursor", diff: changes(), keys: append(append(keys("dz"), tea.KeyPressMsg{Code: tea.KeyTab}), keys("jjj")...)},
 	}
 	for _, c := range cases {
 		for _, w := range []int{80, 60} {
@@ -1108,15 +1124,14 @@ func TestFilesGolden(t *testing.T) {
 func TestFilesOpenDiffs(t *testing.T) {
 	m, o := newModelWith(t, deck.Snapshot{}, 80, 40, withDiffs(map[string]deck.Diff{"/src/worktrees/t-0002": changes()}, nil))
 	m, _ = press(m, snapshotMsg(calm()))
-	m, _ = press(m, keys("z")...) // full height: every file shows
-	if !strings.Contains(screen(m), "11 files +447 -68 vs origin/main") || !strings.Contains(screen(m), "+2 more · d d opens the whole diff") {
-		t.Fatalf("no Files section:\n%s", screen(m))
+	m, _ = press(m, keys("zd")...) // full height: every file shows
+	if !strings.Contains(screen(m), "11 files  +447 -68  vs origin/main") || !strings.Contains(screen(m), "tsconfig.json") {
+		t.Fatalf("no Files tab:\n%s", screen(m))
 	}
-	m, _ = press(m, keys("d2")...)
-	m, _ = press(m, keys("dd")...)
+	m, _ = press(m, keys("2")...)
 	m, _ = press(m, keys("d")...)
 	m, _ = press(m, esc)
-	m, _ = press(m, keys("d9")...)
+	m, _ = press(m, keys("9")...)
 	want := []string{
 		"/src/worktrees/t-0002 4b825dc apps/admin/src/pages/users/columns.ts",
 		"/src/worktrees/t-0002 4b825dc",
@@ -1139,36 +1154,36 @@ func TestFilesOpenDiffs(t *testing.T) {
 	}
 	// A rename opens with both paths; an untracked file does not open.
 	o.diffs = nil
-	m, _ = press(m, keys("d4")...)
-	m, _ = press(m, keys("d7")...)
+	m, _ = press(m, keys("4")...)
+	m, _ = press(m, keys("7")...)
 	if want := []string{"/src/worktrees/t-0002 4b825dc apps/admin/src/pages/members/index.ts apps/admin/src/pages/users/index.ts"}; !slices.Equal(o.diffs, want) {
 		t.Errorf("rename opened %q, want %q", o.diffs, want)
 	}
 	if m.Status() != "docs/users-page.md is untracked: git diff shows it once it is added" {
 		t.Errorf("untracked status %q", m.Status())
 	}
-	// The digits are links again once the chooser is closed.
-	_, _ = press(m, keys("1")...)
+	// The digits are links again on Overview.
+	_, _ = press(m, keys("[[1")...)
 	if len(o.urls) != 1 {
-		t.Errorf("1 after the chooser opened %q", o.urls)
+		t.Errorf("1 on Overview opened %q", o.urls)
 	}
 }
 
 // In the tree view the digits and clicks follow the tree's numbering, and
-// d t switches views without closing the chooser.
+// t on the Files tab switches views.
 func TestFilesTreeOpensByDisplayOrder(t *testing.T) {
 	m, o := newModelWith(t, deck.Snapshot{}, 80, 40, withDiffs(map[string]deck.Diff{"/src/worktrees/t-0002": changes()}, nil))
 	m, _ = press(m, snapshotMsg(calm()))
 	m, _ = press(m, keys("z")...)
 	m, _ = press(m, keys("dt")...)
-	if !m.tree || !m.files {
-		t.Fatalf("d t: tree %v, chooser %v", m.tree, m.files)
+	if !m.tree || m.curTab() != tabFiles {
+		t.Fatalf("d t: tree %v, tab %v", m.tree, m.curTab())
 	}
 	if !strings.Contains(screen(m), "pages/users/") || !strings.Contains(screen(m), "t list") {
 		t.Fatalf("no tree:\n%s", screen(m))
 	}
 	m, _ = press(m, keys("2")...)
-	m, _ = press(m, keys("d5")...)
+	m, _ = press(m, keys("5")...)
 	x, y := find(t, m, "routes.tsx")
 	m, _ = press(m, click(x, y))
 	want := []string{
@@ -1186,8 +1201,8 @@ func TestFilesTreeOpensByDisplayOrder(t *testing.T) {
 	if len(o.diffs) != 0 {
 		t.Errorf("a folder click opened %q", o.diffs)
 	}
-	// d t again is the list, numbered as git lists the files.
-	m, _ = press(m, keys("dt")...)
+	// t again is the list, numbered as git lists the files.
+	m, _ = press(m, keys("t")...)
 	m, _ = press(m, keys("2")...)
 	if m.tree || len(o.diffs) != 1 || o.diffs[0] != "/src/worktrees/t-0002 4b825dc apps/admin/src/pages/users/columns.ts" {
 		t.Errorf("back in the list: tree %v, diffs %q", m.tree, o.diffs)
@@ -1207,13 +1222,9 @@ func TestFilesKeyEdges(t *testing.T) {
 	if !slices.Equal(o.diffs, []string{"/src/worktrees/t-0002 abc a.go"}) {
 		t.Errorf("one file: %q", o.diffs)
 	}
-	m, _ = press(m, keys("j")...)
+	m, _ = press(m, keys("jd")...)
 	if !strings.Contains(screen(m), "no changes against origin/main") {
 		t.Errorf("no changes:\n%s", screen(m))
-	}
-	m, _ = press(m, keys("d")...)
-	if m.Status() != "t-0003 has no changes against origin/main" {
-		t.Errorf("status %q", m.Status())
 	}
 	// Without herdr the opener fails, and the footer says why.
 	m, _ = press(m, keys("k")...)
@@ -1235,7 +1246,7 @@ func TestFilesHiddenForResolvedAndInbox(t *testing.T) {
 	}
 	snap.Threads[1].Status = deck.StatusDone
 	m, _ = press(m, snapshotMsg(snap))
-	if strings.Contains(screen(m), "11 files") {
+	if strings.Contains(screen(m), "Files 11") {
 		t.Errorf("a resolved thread shows its files:\n%s", screen(m))
 	}
 	if len(calls) != 1 {

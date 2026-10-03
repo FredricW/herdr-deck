@@ -121,11 +121,17 @@ type Thread struct {
 	Title     string
 	Status    ThreadStatus
 	StateLine string // e.g. "needs you · ~95%"
-	PaneID    string // the pane herdr-projects recorded for the thread
-	Pane      *Pane  // the thread's live herdr pane; nil when not known
-	Worktree  string
-	Repo      string // the repository the worktree belongs to (its main checkout)
-	Branch    string
+	// Group is herdr-projects' group token: waiting-on-you, working,
+	// ready-for-review, landing, idle or resolved; "" when unknown.
+	Group string
+	// Percent is the thread's own estimate of how far along it is; nil
+	// when it gave none.
+	Percent  *int
+	PaneID   string // the pane herdr-projects recorded for the thread
+	Pane     *Pane  // the thread's live herdr pane; nil when not known
+	Worktree string
+	Repo     string // the repository the worktree belongs to (its main checkout)
+	Branch   string
 	// Base is the branch the thread's worktree started from, e.g.
 	// "origin/main"; the diff section compares the worktree with it.
 	Base     string
@@ -145,6 +151,48 @@ type Thread struct {
 	// DevUp is the dev manifest's `up` command the deck started for the
 	// worktree; nil when it started none.
 	DevUp *DevUp
+
+	// What herdr-projects recorded of the thread's life; zero when not.
+	Created          time.Time
+	LaunchedAt       time.Time
+	BriefSeenAt      time.Time
+	LastReportChange time.Time
+	ResolvedReason   string
+	// Log is the thread's timeline, newest first: the thread file's
+	// timestamps and the inbox items about it, handled or not.
+	Log []LogEvent
+}
+
+// EventKind says what happened in a LogEvent.
+type EventKind int
+
+const (
+	EventOther EventKind = iota
+	EventCreated
+	EventLaunched
+	EventReport
+	EventWaiting // waiting on you
+	EventBlocked // blocked on a prompt
+	EventPROpened
+	EventPRUpdated
+	EventChecksFailing
+	EventMerged
+	EventResolved
+	EventRoutine // a routine prompted the thread
+)
+
+// LogEvent is one thing that happened to a thread, as herdr-projects wrote
+// it down.
+type LogEvent struct {
+	At     time.Time
+	Kind   EventKind
+	Text   string // e.g. "checks failing: lint"
+	Detail string // shown dim after the text, e.g. "pane w1Z:p1"
+	// Unhandled is set on an inbox item still in inbox/, not yet in done/.
+	Unhandled bool
+	// Source is the file the event comes from, relative to the project
+	// folder, e.g. "inbox/done/….md" or "threads/t-0002.toml".
+	Source string
 }
 
 // Diff is what a thread's worktree changed against its base: the files of
@@ -211,6 +259,9 @@ type PullRequest struct {
 	Review        string // APPROVED, CHANGES_REQUESTED, REVIEW_REQUIRED, or ""
 	FailingChecks []string
 	Comments      int
+	Commenters    []string // the logins that commented
+	// CheckedAt is when herdr-projects last asked GitHub about PRs.
+	CheckedAt time.Time
 }
 
 // DevServer is one named port of a thread's worktree.
@@ -236,6 +287,7 @@ type InboxItem struct {
 	Thread  string
 	Subject string
 	Summary string
+	Event   string // e.g. "new report", "PR checks failing"
 	Created time.Time
 }
 

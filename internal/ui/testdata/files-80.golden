@@ -1,28 +1,28 @@
  Admin rebuild                                               ◐ 2  ◇ 1  ○ 1  ✉ 0
 ────────────────────────────────────────────────────────────────────────────────
-─ Users page ───────────────────────────────────────────────────────────────────
- Thread   t-0002 Members /admin/users · pane w1Z:p1
- Status   working · ~60% · Building overview
- Note     Phase 1 = layout + overview (ABC-1256); report on 1257/1250 before
-          starting them.
- Linear   1 ABC-1246 done   2 ABC-1256 in progress   3 ABC-1257 todo
-          4 ABC-1250
- Report   threads/t-0002.md · r shows it
- Branch   hp/admin-rebuild/t-0002-members-admin-users
- Dev      not started: no .dev/t-0002/state.json
- Files    11 files +447 -68 vs origin/main
-          1 M apps/admin/src/pages/users/UsersOverviewPage.tsx         +214 -12
-          2 A apps/admin/src/pages/users/columns.ts                         +48
-          3 M apps/admin/src/api/users.ts                                +31 -9
-          4 R …es/members/index.ts → apps/admin/src/pages/users/index.ts  +1 -1
-          5 A apps/admin/public/empty-state.png                          binary
-          6 M apps/admin/src/routes.tsx                                   +6 -2
-          7 ? docs/users-page.md                                  +19 untracked
-          8 M package.json                                                +1 -1
-          9 M pnpm-lock.yaml                                           +102 -40
-          +2 more · d d opens the whole diff
+    WORK                         THREAD  STATUS              PR      LINKS  DEV
+  In progress
+ ▸◐ Users page                   t-0002  Building overview           L4
+  ◐ Templates page               t-0003  Writing tests               L F    ●●●
+  ◇ Document select for summary  t-0004  review required     #2320   L F3   ●○
 
+  On hold until Monday 2026-10-05
+  ○ Subscriptions list           t-0001  idle                        L N    ~○
+
+  + Backlog (3)
 
 
 ────────────────────────────────────────────────────────────────────────────────
- 1-9 link  l f n g o first  ↵ pane  e edit  d diff  z drawer  ? help      v9.9.9
+ Users page                                                     ◐ working  ~60%
+ t-0002 · Members /admin/users · Building overview · pane w1Z:p1     ▰▰▰▰▰▰▱▱▱▱
+ Overview   Files 11   Log 7                                           ↓ 4 more
+ 11 files  +447 -68  vs origin/main                               list · t tree
+ 1 M  apps/admin/src/pages/users/UsersOverviewPage.tsx       +214 -12  ▇▇▇▇▇▇▇▇
+ 2 A  apps/admin/src/pages/users/columns.ts                       +48  ▇▇▁▁▁▁▁▁
+ 3 M  apps/admin/src/api/users.ts                              +31 -9  ▇▇▁▁▁▁▁▁
+ 4 R  apps/admin/src/pages/{members → users}/index.ts           +1 -1  ▇▁▁▁▁▁▁▁
+ 5 A  apps/admin/public/empty-state.png                        binary
+ 6 M  apps/admin/src/routes.tsx                                 +6 -2  ▇▁▁▁▁▁▁▁
+ 7 ?  docs/users-page.md                                          +19  ▇▁▁▁▁▁▁▁
+────────────────────────────────────────────────────────────────────────────────
+ 1-9 file  d d whole diff  t tree  [ ] tab  z drawer  ? help              v9.9.9

@@ -139,7 +139,7 @@ func attentionLine(n, w int) string {
 
 func (m *Model) openPicker() {
 	m.pick = picker{open: true}
-	m.choosing, m.files = noKind, false
+	m.choosing, m.dfocus = noKind, false
 	m.pickVisible()
 }
 

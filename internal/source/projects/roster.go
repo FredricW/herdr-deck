@@ -139,7 +139,7 @@ func (r *Roster) readOne(project fs.FS, slug string) deck.ProjectInfo {
 	}
 	recs, _ := threadRecords(project, false, note)
 	for _, rec := range recs {
-		p.Threads = append(p.Threads, toThread(rec, nil))
+		p.Threads = append(p.Threads, toThread(rec, ticker{}))
 	}
 	p.Inbox = inboxItems(project, note)
 	if len(problems) > 0 {

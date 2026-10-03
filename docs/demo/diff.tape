@@ -11,21 +11,18 @@ Show
 Sleep 1.5s
 # z makes the drawer the whole pane, so every file shows.
 Type "z"
-Sleep 2.2s
-# d asks which file: a digit opens one, d again the whole diff.
-Type "d"
 Sleep 1.5s
+# d shows the Files tab: a diffstat of every changed file.
+Type "d"
+Sleep 2.2s
 Type "2"
 Sleep 1.5s
-# d t switches to the folder tree; the chooser stays open, numbered anew.
-Type "d"
-Sleep 1s
+# t switches to the folder tree; 5 opens the file now numbered 5.
 Type "t"
 Sleep 2.5s
 Type "5"
 Sleep 1.5s
-Type "d"
-Sleep 1s
+# d again opens the whole diff.
 Type "d"
 Sleep 2s
 Hide

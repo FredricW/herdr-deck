@@ -65,7 +65,7 @@ func (m *Model) openSettings() tea.Cmd {
 		m.setMode(modeRow)
 		return nil
 	}
-	m.choosing, m.files = noKind, false
+	m.choosing, m.dfocus = noKind, false
 	m.set.editing = false
 	m.setMode(modeSettings)
 	return func() tea.Msg {

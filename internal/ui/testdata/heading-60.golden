@@ -1,8 +1,8 @@
  Admin rebuild                           ◐ 2  ◇ 1  ○ 1  ✉ 0
 ────────────────────────────────────────────────────────────
     WORK                        STATUS           LINKS  DEV
-  In progress
- ▸◐ Users page                  Building overv…  L4
+ ▸In progress
+  ◐ Users page                  Building overv…  L4
   ◐ Templates page              Writing tests    L F    ●●●
   ◇ Document select for summa…  #2320 review     L F3   ●○
 
@@ -12,17 +12,17 @@
   + Backlog (3)
 
 
-
-
-
-─ Users page · t-0002 ──────────────────────────────────────
-▶Files   11 files +447 -68 vs origin/main
-         1 M …c/pages/users/UsersOverviewPage.tsx  +214 -12
-         2 A apps/admin/src/pages/users/columns.ts      +48
-         3 M apps/admin/src/api/users.ts             +31 -9
-         4 R … → apps/admin/src/pages/users/index.ts  +1 -1
-         5 A apps/admin/public/empty-state.png       binary
-         6 M apps/admin/src/routes.tsx                +6 -2
-         7 ? docs/users-page.md               +19 untracked
 ────────────────────────────────────────────────────────────
- Files: 1-9 open  d whole diff  t tree  esc cancel    v9.9.9
+ In progress
+ 3 rows · TASKS.md
+ Note    No PR until the user gives a go-ahead.
+ Goal    Complete the Linear project 'Admin rebuild' page by
+         page.
+ Repos   /src/webshop
+ Folder  /projects/admin-rebuild
+
+
+
+
+────────────────────────────────────────────────────────────
+ space fold  j k move  z drawer  ? help               v9.9.9

@@ -7,7 +7,7 @@ Source docs/demo/setup.tape
 Hide
 Type "herdr-deck --fake" Enter
 Sleep 1s
-Down 4
+Down 3
 Sleep 0.5s
 Show
 Sleep 2s

@@ -40,11 +40,14 @@ type Reader struct {
 	Bin string
 	// Run runs Bin; nil means exec. Tests replace it.
 	Run RunFunc
+	// History caches the inbox items read for the threads' logs, by
+	// file, across reads; nil reads them every time.
+	History *History
 }
 
 // New returns a Reader for the project slug under root.
 func New(root, slug string) Reader {
-	return Reader{Root: root, Slug: slug}
+	return Reader{Root: root, Slug: slug, History: &History{}}
 }
 
 // Dir is the project folder, <root>/<slug>.
@@ -67,9 +70,10 @@ func (r Reader) Read(ctx context.Context) deck.Snapshot {
 
 	snap.Project = r.readProject(note)
 	snap.Project.Dir = r.Dir()
-	prs := r.readTicker(note)
-	snap.Threads, snap.ThreadsAsOf = r.readThreads(ctx, prs, note)
+	tk := r.readTicker(note)
+	snap.Threads, snap.ThreadsAsOf = r.readThreads(ctx, tk, note)
 	snap.Inbox = r.readInbox(note)
+	r.addLogs(snap.Threads)
 	snap.Missing = missing
 	return snap
 }

@@ -47,8 +47,8 @@ func changeMark(f deck.DiffFile) string {
 }
 
 // fileCounts is a changed file's counts, as plain text and styled: "+12"
-// for an added file, "-3" for a deleted one, "+12 -3" otherwise; "binary",
-// and "untracked" after a file git does not track yet.
+// for an added or untracked file, "-3" for a deleted one, "+12 -3"
+// otherwise; "binary" for a binary file.
 func fileCounts(f deck.DiffFile) (text, styled string) {
 	var parts []item
 	switch {
@@ -60,9 +60,6 @@ func fileCounts(f deck.DiffFile) (text, styled string) {
 		parts = append(parts, span(fmt.Sprintf("-%d", f.Deleted), deletedStyle))
 	default:
 		parts = append(parts, span(fmt.Sprintf("+%d", f.Added), addedStyle), span(fmt.Sprintf("-%d", f.Deleted), deletedStyle))
-	}
-	if f.Untracked {
-		parts = append(parts, span("untracked", dim))
 	}
 	return joinItems(parts)
 }
@@ -189,37 +186,150 @@ func treeName(f deck.DiffFile) string {
 	return old + " → " + name
 }
 
-// fileLine is one numbered changed file: its number, change mark and name,
-// indented by depth in the tree view, with its counts at the right edge.
-// A long name loses its start, so the file's own name stays.
-func (d *drawer) fileLine(n int, f deck.DiffFile, depth int, name string) {
-	x0 := 1 + d.labelW
-	avail := d.width - x0 - 1
-	ctext, counts := fileCounts(f)
-	num := fmt.Sprintf("%d ", n)
-	lead := len(num) + 2 + 2*depth
-	room := max(avail-lead-2-ansi.StringWidth(ctext), 4)
-	name = truncateLeft(name, room)
-	gap := max(avail-lead-ansi.StringWidth(name)-ansi.StringWidth(ctext), 1)
-	text := strings.Repeat(" ", x0) + num + changeMark(f) + " " + strings.Repeat(" ", 2*depth) +
-		plain.Render(name) + strings.Repeat(" ", gap) + counts
+// filesTab is the Files tab: a total line, then every changed file as a
+// diffstat row, in a list or a folder tree. Files 1-9 take the digits;
+// every file is a stop of the drawer cursor.
+func (m Model) filesTab(d *drawer) {
+	_, df, ok := m.diff()
+	switch {
+	case !ok:
+		d.line(" " + dim.Render("reading the changes…"))
+		return
+	case df.Note != "":
+		d.line(" " + dim.Render(df.Note))
+		return
+	case len(df.Files) == 0:
+		d.line(" " + dim.Render("no changes against "+df.Base))
+		return
+	}
+	added, deleted := df.Totals()
+	noun := "files"
+	if len(df.Files) == 1 {
+		noun = "file"
+	}
+	view := "list · t tree"
+	if m.tree {
+		view = "tree · t list"
+	}
+	total := " " + fmt.Sprintf("%d %s", len(df.Files), noun) + "  " + addedStyle.Render(fmt.Sprintf("+%d", added)) +
+		" " + deletedStyle.Render(fmt.Sprintf("-%d", deleted)) + "  " + dim.Render("vs "+df.Base)
 	d.lines = append(d.lines, dline{
-		text:  ansi.Truncate(text, d.width, "…"),
-		zones: []zone{{x0: x0, x1: d.width, link: -1, file: n}},
+		text:  spread(total, dim.Render(view)+" ", d.width),
+		zones: []zone{{x0: 0, x1: d.width, act: action{kind: actDiff}}},
 	})
+	big := 0
+	for _, f := range df.Files {
+		if !f.Binary {
+			big = max(big, f.Added+f.Deleted)
+		}
+	}
+	if !m.tree {
+		for i, f := range df.Files {
+			d.fileLine(i+1, f, -1, listName(f), big)
+		}
+		return
+	}
+	n := 0
+	for _, l := range fileTree(df.Files) {
+		if l.dir != nil {
+			d.dirLine(l.dir, l.depth)
+			continue
+		}
+		n++
+		d.fileLine(n, df.Files[l.file], l.depth, treeName(df.Files[l.file]), big)
+	}
+}
+
+// listName is a file's path in the list view; a rename folds the parts
+// its old and new path share, as git diff --stat does:
+// src/pages/{members → users}/index.ts.
+func listName(f deck.DiffFile) string {
+	if f.OldPath == "" {
+		return f.Path
+	}
+	o, n := strings.Split(f.OldPath, "/"), strings.Split(f.Path, "/")
+	pre := 0
+	for pre < len(o)-1 && pre < len(n)-1 && o[pre] == n[pre] {
+		pre++
+	}
+	suf := 0
+	for suf < len(o)-pre && suf < len(n)-pre && o[len(o)-1-suf] == n[len(n)-1-suf] {
+		suf++
+	}
+	mid := "{" + strings.Join(o[pre:len(o)-suf], "/") + " → " + strings.Join(n[pre:len(n)-suf], "/") + "}"
+	parts := append(append(append([]string(nil), n[:pre]...), mid), n[len(n)-suf:]...)
+	return strings.Join(parts, "/")
+}
+
+// barWidth is the diffstat bar's cells: 8 at 80 columns, 5 at 60.
+func (d *drawer) barWidth() int {
+	if d.width < wideMin {
+		return 5
+	}
+	return 8
+}
+
+// diffBar is a file's share of the thread's largest change (big lines):
+// green cells for added lines, then red for deleted, at least one for any
+// change, the rest a dim ▁.
+func diffBar(f deck.DiffFile, big, cells int) string {
+	total := f.Added + f.Deleted
+	if f.Binary || total == 0 || big == 0 {
+		return strings.Repeat(" ", cells)
+	}
+	n := clamp((total*cells+big-1)/big, 1, cells)
+	a := (2*n*f.Added + total) / (2 * total) // rounded
+	switch {
+	case f.Deleted > 0 && a == n && n > 1:
+		a = n - 1
+	case f.Added > 0 && a == 0:
+		a = 1
+	}
+	return addedStyle.Render(strings.Repeat("▇", a)) + deletedStyle.Render(strings.Repeat("▇", n-a)) +
+		dim.Render(strings.Repeat("▁", cells-n))
+}
+
+// fileLine is one changed file: its digit (a dim · after 9), change letter
+// and name, indented by depth in the tree view (depth -1 is the list
+// view), with its counts and bar at the right edge. A long name loses its
+// start, so the file's own name stays.
+func (d *drawer) fileLine(n int, f deck.DiffFile, depth int, name string, big int) {
+	num := dim.Render("·")
+	if n <= 9 {
+		num = bold.Render(fmt.Sprint(n))
+	}
+	lead := " " + num + " " + changeMark(f) + "  "
+	leadW := 6
+	if depth >= 0 {
+		lead += " " + strings.Repeat(" ", 2*depth)
+		leadW += 1 + 2*depth
+	}
+	ctext, counts := fileCounts(f)
+	cells := d.barWidth()
+	right := counts + "  " + diffBar(f, big, cells) + " "
+	rightW := ansi.StringWidth(ctext) + 2 + cells + 1
+	room := max(d.width-leadW-rightW-2, 4)
+	name = truncateLeft(name, room)
+	shown := plain.Render(name)
+	if dir, base := path.Split(name); depth < 0 && dir != "" {
+		shown = dim.Render(dir) + plain.Render(base)
+	}
+	gap := max(d.width-leadW-ansi.StringWidth(name)-rightW, 1)
+	text := lead + shown + strings.Repeat(" ", gap) + right
+	act := action{kind: actFile, n: n}
+	d.stopLine(text, act, []zone{{x0: 0, x1: d.width, act: act}})
 }
 
 // dirLine is a folder in the tree view, lined up with the file names: its
 // name faint, so the changed files stand out, and its summed counts faint
-// at the right edge.
+// where the files' counts sit.
 func (d *drawer) dirLine(dir *fileDir, depth int) {
-	x0 := 1 + d.labelW
-	avail := d.width - x0 - 1
 	ctext, counts := sumCounts(dir.added, dir.deleted)
-	lead := 4 + 2*depth // under "1 M "
-	room := max(avail-lead-2-ansi.StringWidth(ctext), 4)
+	leadW := 7 + 2*depth
+	rightW := ansi.StringWidth(ctext) + 2 + d.barWidth() + 1
+	room := max(d.width-leadW-rightW-2, 4)
 	name := truncateLeft(dir.name+"/", room)
-	gap := max(avail-lead-ansi.StringWidth(name)-ansi.StringWidth(ctext), 1)
-	text := strings.Repeat(" ", x0+lead) + dim.Render(name) + strings.Repeat(" ", gap) + counts
-	d.lines = append(d.lines, dline{text: ansi.Truncate(text, d.width, "…")})
+	gap := max(d.width-leadW-ansi.StringWidth(name)-rightW, 1)
+	text := strings.Repeat(" ", leadW) + dim.Render(name) + strings.Repeat(" ", gap) + counts + strings.Repeat(" ", 2+d.barWidth()+1)
+	d.lines = append(d.lines, dline{text: fit(text, d.width)})
 }

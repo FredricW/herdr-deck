@@ -12,17 +12,17 @@
   + Backlog (3)
 
 
-
-
-
-─ Users page · t-0002 ──────────────────────────────────────
- Status  working · ~60% · Building overview
- Note    Phase 1 = layout + overview (ABC-1256); report on
-         1257/1250 before starting them.
- Linear  1 ABC-1246  2 ABC-1256  3 ABC-1257  4 ABC-1250
- Report  threads/t-0002.md · r shows it
- Dev     not started: no .dev/t-0002/state.json ·
-         up exited · see the log
- Log     /var/state/herdr-deck/logs/admin-rebuild-t-0002.log
 ────────────────────────────────────────────────────────────
- 1-9 link  l f n g o first  ↵ pane  z drawer  ? help  v9.9.9
+ Users page                                 ◐ working  ~60%
+ t-0002 · Building overview                      ▰▰▰▰▰▰▱▱▱▱
+ Overview   Files   Log 7                          ↓ 5 more
+ ── Note ──
+ Phase 1 = layout + overview (ABC-1256); report on 1257/1250
+ before starting them.
+ ── Links ──
+ [1 ABC-1246] [2 ABC-1256] [3 ABC-1257] [4 ABC-1250]
+ ── Dev ──
+ not started: no .dev/t-0002/state.json ·
+ up exited · see the log
+────────────────────────────────────────────────────────────
+ 1-9 link  o open  ↵ pane  [ ] tab  z drawer  ? help  v9.9.9

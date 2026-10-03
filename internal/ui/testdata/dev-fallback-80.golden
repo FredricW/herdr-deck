@@ -12,17 +12,17 @@
   + Backlog (3)
 
 
-
-
-
-─ Subscriptions list ───────────────────────────────────────────────────────────
- Thread   t-0001 Subscriptions /admin/plans · pane w1Y:p1
- Status   idle
- Linear   1 ABC-1472
- Notion   2 Findings
- Open     3 ~:14437 ○
- Branch   hp/admin-rebuild/t-0001-subscriptions
- Dev      ~:14437 port ○   herdr port token
-
 ────────────────────────────────────────────────────────────────────────────────
- 1-9 link  l f n g o first  ↵ pane  e edit  z drawer  ? help              v9.9.9
+ Subscriptions list                                                      ○ idle
+ t-0001 · Subscriptions /admin/plans · pane w1Y:p1
+ Overview   Files   Log 2                                              ↓ 1 more
+ ── Links ──
+ [1 ABC-1472] [2 Notion Findings]
+ ── Dev ──
+ ~:14437 port ○   herdr port token
+ [3 ~:14437 ○]
+ ── Thread ──
+ pane     w1Y:p1
+ branch   hp/admin-rebuild/t-0001-subscriptions
+────────────────────────────────────────────────────────────────────────────────
+ 1-9 link  l f n g o first  ↵ pane  [ ] tab  z drawer  ? help             v9.9.9

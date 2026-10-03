@@ -15,6 +15,9 @@ type keyMap struct {
 	Settings       key.Binding
 	News           key.Binding
 	Projects       key.Binding
+	NextTab        key.Binding
+	PrevTab        key.Binding
+	Focus, Unfocus key.Binding
 	PageDown       key.Binding
 	PageUp         key.Binding
 	Back, Quit     key.Binding
@@ -41,6 +44,10 @@ func defaultKeys() keyMap {
 		Settings:  key.NewBinding(key.WithKeys("s")),
 		News:      key.NewBinding(key.WithKeys("w")),
 		Projects:  key.NewBinding(key.WithKeys("p")),
+		NextTab:   key.NewBinding(key.WithKeys("]")),
+		PrevTab:   key.NewBinding(key.WithKeys("[")),
+		Focus:     key.NewBinding(key.WithKeys("tab")),
+		Unfocus:   key.NewBinding(key.WithKeys("shift+tab")),
 		PageDown:  key.NewBinding(key.WithKeys("pgdown", "ctrl+d")),
 		PageUp:    key.NewBinding(key.WithKeys("pgup", "ctrl+u")),
 		Back:      key.NewBinding(key.WithKeys("esc")),

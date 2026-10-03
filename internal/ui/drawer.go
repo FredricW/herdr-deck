@@ -26,11 +26,50 @@ const (
 	modeNews                       // What's new: the changelog
 )
 
+// tabKind is one of the drawer's tabs.
+type tabKind int
+
+const (
+	tabOverview tabKind = iota
+	tabFiles
+	tabLog
+	numTabs
+)
+
+func (t tabKind) String() string {
+	switch t {
+	case tabFiles:
+		return "Files"
+	case tabLog:
+		return "Log"
+	}
+	return "Overview"
+}
+
+// actKind says what a click, or enter on the drawer cursor, does.
+type actKind int
+
+const (
+	actNone  actKind = iota
+	actLink          // open link n (an index into the row's links)
+	actFile          // open the diff of file n (1-based, in display order)
+	actDiff          // open the whole diff
+	actEvent         // act on Log event n
+	actTab           // switch to tab n
+)
+
+type action struct {
+	kind actKind
+	n    int
+}
+
 // item is one piece of a drawer value: a word of text or a whole link.
 type item struct {
 	text  string
 	style lipgloss.Style
-	link  int // index into the row's links, or -1
+	act   action
+	sel   bool // drawn on the selection background
+	stop  bool // a stop of the drawer cursor
 }
 
 // group is a run of items that starts on a new line and wraps as a block.
@@ -40,13 +79,10 @@ type group struct {
 	hang  int // extra indent of the group's wrapped lines
 }
 
-// zone is a clickable link or changed file on a drawer line.
+// zone is a clickable part of a drawer line.
 type zone struct {
 	x0, x1 int // columns [x0, x1)
-	link   int
-	// file is the Files section's file number (1-based), -1 for its
-	// total line, which opens the whole diff, and 0 for a link.
-	file int
+	act    action
 }
 
 // dline is one rendered drawer line.
@@ -58,18 +94,42 @@ type dline struct {
 	setting int
 }
 
+// stop is where the drawer cursor can rest: a chip, a file or an event.
+type stop struct {
+	line int
+	act  action
+}
+
+// section is where one of Overview's titled sections starts.
+type section struct {
+	name string
+	at   int
+}
+
 // drawer builds the drawer's lines for one width.
 type drawer struct {
 	width  int
 	labelW int
-	title  string
-	lines  []dline
-	light  bool // the terminal's background is light
-	// filesAt is the line the Files section starts on, or -1.
-	filesAt int
+	// title is the rule a full view (help, sources, …) starts with; a
+	// row's drawer has a card instead and leaves it empty.
+	title string
+	// card is the header card's two lines; tabs and tabZones the tab bar
+	// under it (report says what stands there instead), all drawn above
+	// the lines that scroll.
+	card     []string
+	tabs     string
+	tabZones []zone
+	lines    []dline
+	light    bool // the terminal's background is light
 	// focus and focusEnd are the first and last lines of the settings
 	// page's selected row; -1 elsewhere.
 	focus, focusEnd int
+
+	sections []section
+	stops    []stop
+	// cur is the stop the drawer cursor is on, or -1; given is how many
+	// stops the builder handed out so far.
+	cur, given int
 }
 
 func newDrawer(width int, title string) *drawer {
@@ -77,19 +137,47 @@ func newDrawer(width int, title string) *drawer {
 	if width < wideMin {
 		lw = 8
 	}
-	return &drawer{width: width, labelW: lw, title: title, filesAt: -1, focus: -1, focusEnd: -1}
+	return &drawer{width: width, labelW: lw, title: title, focus: -1, focusEnd: -1, cur: -1}
+}
+
+// head is the lines drawn above the scrolling ones: the card and the tab
+// bar, or the report's line.
+func (d *drawer) head() []string {
+	if d.tabs == "" {
+		return d.card
+	}
+	return append(append([]string(nil), d.card...), d.tabs)
+}
+
+// nextStop hands out the builder's next cursor stop and says whether the
+// cursor is on it.
+func (d *drawer) nextStop() bool {
+	on := d.given == d.cur
+	d.given++
+	return on
+}
+
+// stopLine adds a whole line that is a cursor stop: on the cursor it gets
+// `▸` in its first column and the selection background.
+func (d *drawer) stopLine(text string, act action, zones []zone) {
+	text = fit(text, d.width)
+	if d.nextStop() {
+		text = highlight("▸"+ansi.Cut(text, 1, d.width), d.light)
+	}
+	d.stops = append(d.stops, stop{line: len(d.lines), act: act})
+	d.lines = append(d.lines, dline{text: text, zones: zones})
 }
 
 func words(text string, st lipgloss.Style) group {
 	var g group
 	g.sep = " "
 	for _, w := range strings.Fields(text) {
-		g.items = append(g.items, item{text: w, style: st, link: -1})
+		g.items = append(g.items, item{text: w, style: st})
 	}
 	return g
 }
 
-func span(text string, st lipgloss.Style) item { return item{text: text, style: st, link: -1} }
+func span(text string, st lipgloss.Style) item { return item{text: text, style: st} }
 
 // field adds a labelled value. Each group starts on a new line; items wrap
 // at the drawer's width. A highlighted field is the link chooser's line.
@@ -118,11 +206,19 @@ func (d *drawer) styledField(label string, labelStyle lipgloss.Style, chosen boo
 		}
 		var b strings.Builder
 		var zones []zone
+		var stops []action
+		add := func() {
+			for _, a := range stops {
+				d.stops = append(d.stops, stop{line: len(d.lines), act: a})
+			}
+			d.lines = append(d.lines, dline{text: b.String(), zones: zones})
+			stops = nil
+		}
 		pre, x := prefix()
 		b.WriteString(pre)
 		used := 0
 		flush := func() {
-			d.lines = append(d.lines, dline{text: b.String(), zones: zones})
+			add()
 			b.Reset()
 			zones = nil
 			pre, x = prefix()
@@ -149,13 +245,20 @@ func (d *drawer) styledField(label string, labelStyle lipgloss.Style, chosen boo
 				b.WriteString(g.sep)
 				used += sepW
 			}
-			if it.link >= 0 {
-				zones = append(zones, zone{x0: x + used, x1: x + used + w, link: it.link})
+			if it.act.kind != actNone {
+				zones = append(zones, zone{x0: x + used, x1: x + used + w, act: it.act})
 			}
-			b.WriteString(it.style.Render(text))
+			if it.stop {
+				stops = append(stops, it.act)
+			}
+			if it.sel {
+				b.WriteString(highlight(it.style.Render(text), d.light))
+			} else {
+				b.WriteString(it.style.Render(text))
+			}
 			used += w
 		}
-		d.lines = append(d.lines, dline{text: b.String(), zones: zones})
+		add()
 	}
 }
 
@@ -182,144 +285,6 @@ func (d *drawer) text(s string, st lipgloss.Style) {
 	}
 }
 
-// rowDrawer describes the selected row. choosing is the link kind the chooser
-// waits on, or -1.
-func (m Model) rowDrawer(r row, links []deck.Link, width int, choosing deck.LinkKind) *drawer {
-	narrow := width < wideMin
-	switch r.kind {
-	case rowInbox:
-		return m.inboxDrawer(*r.inbox, links, width, choosing)
-	case rowHeading:
-		return m.projectDrawer(r, width)
-	}
-
-	t, hasThread := r.thread()
-	title := r.title()
-	if narrow && hasThread && r.task != nil {
-		title += " · " + t.ID
-	}
-	d := newDrawer(width, title)
-
-	if r.task != nil && !narrow || r.task == nil {
-		for _, th := range r.threads {
-			g := group{sep: " ", items: []item{span(th.ID, bold)}}
-			if th.Title != "" && (r.task != nil || len(r.threads) > 1) {
-				g.items = append(g.items, words(th.Title, plain).items...)
-			}
-			g.items = append(g.items, m.paneItems(th)...)
-			d.field("Thread", false, g)
-		}
-	}
-	switch {
-	case hasThread:
-		d.field("Status", false, words(threadStatusLine(t), statusStyle(t.Status)))
-	case r.task != nil && r.task.Done:
-		d.field("Status", false, words("done", dim))
-	default:
-		d.field("Status", false, words("no thread yet", dim))
-	}
-	if r.task != nil && r.task.Owner != "" {
-		d.field("Owner", false, words(r.task.Owner, plain))
-	}
-	if hasThread && len(t.Next) > 0 {
-		var gs []group
-		for _, n := range t.Next {
-			g := words(n, plain)
-			g.items = append([]item{span("→", bold)}, g.items...)
-			g.hang = 2
-			gs = append(gs, g)
-		}
-		d.field("Next", false, gs...)
-	}
-	if r.task != nil && r.task.Notes != "" {
-		var gs []group
-		for _, n := range strings.Split(r.task.Notes, "\n") {
-			gs = append(gs, words(n, plain))
-		}
-		d.field("Note", false, gs...)
-	}
-	m.linkFields(d, links, choosing, t)
-	if hasThread && t.Report != "" {
-		d.field("Report", false, group{sep: " ", items: []item{span("threads/"+t.ID+".md", plain), span("· r shows it", dim)}})
-	}
-	if hasThread && t.Branch != "" && !narrow {
-		d.field("Branch", false, words(t.Branch, plain))
-	}
-	if hasThread && (len(t.DevServers) > 0 || t.DevNote != "" || t.DevUp != nil) {
-		d.field("Dev", false, devGroup(t))
-	}
-	if hasThread && t.DevUp != nil {
-		d.field("Log", false, words(tilde(t.DevUp.Log), dim))
-	}
-	if hasThread {
-		m.filesField(d)
-	}
-	return d
-}
-
-// maxFiles is how many changed files the Files section lists: one per
-// digit.
-const maxFiles = 9
-
-// filesField is the Files section: the selected thread's changed files
-// with their change marks and line counts, as a list or a folder tree,
-// under a total line. It shows nothing until the first diff is read, and
-// a dim note when there is none to show.
-func (m Model) filesField(d *drawer) {
-	_, df, ok := m.diff()
-	switch {
-	case !ok:
-		return
-	case df.Note != "":
-		d.field("Files", false, words(df.Note, dim))
-		return
-	case len(df.Files) == 0:
-		d.field("Files", false, words("no changes against "+df.Base, dim))
-		return
-	}
-	added, deleted := df.Totals()
-	noun := "files"
-	if len(df.Files) == 1 {
-		noun = "file"
-	}
-	groups := []group{{sep: " ", items: []item{
-		span(fmt.Sprintf("%d %s", len(df.Files), noun), plain),
-		span(fmt.Sprintf("+%d", added), addedStyle),
-		span(fmt.Sprintf("-%d", deleted), deletedStyle),
-		span("vs "+df.Base, dim),
-	}}}
-	d.light = m.light
-	first := len(d.lines)
-	d.field("Files", m.files, groups...)
-	d.lines[first].zones = []zone{{x0: 1 + d.labelW, x1: d.width, link: -1, file: -1}}
-	d.filesAt = first
-	if m.tree {
-		n := 0
-		for _, l := range fileTree(df.Files) {
-			if n == maxFiles {
-				break
-			}
-			if l.dir != nil {
-				d.dirLine(l.dir, l.depth)
-				continue
-			}
-			n++
-			d.fileLine(n, df.Files[l.file], l.depth, treeName(df.Files[l.file]))
-		}
-	} else {
-		for i, f := range df.Files[:min(len(df.Files), maxFiles)] {
-			name := f.Path
-			if f.OldPath != "" {
-				name = f.OldPath + " → " + f.Path
-			}
-			d.fileLine(i+1, f, 0, name)
-		}
-	}
-	if more := len(df.Files) - maxFiles; more > 0 {
-		d.line(strings.Repeat(" ", 1+d.labelW) + dim.Render(fmt.Sprintf("+%d more · d d opens the whole diff", more)))
-	}
-}
-
 // truncateLeft shortens plain text s to w columns by dropping its start.
 func truncateLeft(s string, w int) string {
 	if ansi.StringWidth(s) <= w {
@@ -332,120 +297,11 @@ func truncateLeft(s string, w int) string {
 	return "…" + string(r)
 }
 
-// paneItems describe a thread's herdr pane: its live agent when herdr shows
-// the pane, "closed" when herdr was read and does not.
-func (m Model) paneItems(t deck.Thread) []item {
-	switch {
-	case t.Pane != nil:
-		items := []item{span("·", dim), span("pane "+t.Pane.ID, dim)}
-		if st := t.Pane.AgentStatus; st != "" && st != "unknown" {
-			style := dim
-			switch st {
-			case "blocked":
-				style = needsStyle
-			case "working":
-				style = workStyle
-			}
-			items = append(items, span("·", dim), span(agentName(t.Pane.Agent)+" "+st, style))
-		}
-		return items
-	case t.PaneID == "":
-		return nil
-	case m.snap.Herdr && t.Status != deck.StatusDone:
-		return []item{span("·", dim), span("pane "+t.PaneID+" closed", dim)}
-	}
-	return []item{span("·", dim), span("pane "+t.PaneID, dim)}
-}
-
 func agentName(a string) string {
 	if a == "" {
 		return "agent"
 	}
 	return a
-}
-
-// linkFields adds one line per link kind, numbering every link 1-9 in order.
-// pr is the thread whose PR details go next to its GitHub link.
-func (m Model) linkFields(d *drawer, links []deck.Link, choosing deck.LinkKind, pr deck.Thread) {
-	d.light = m.light
-	for _, kind := range []deck.LinkKind{deck.LinkLinear, deck.LinkFigma, deck.LinkNotion, deck.LinkGitHub, deck.LinkLocalhost} {
-		var g group
-		g.sep = "   "
-		if d.width < wideMin {
-			g.sep = "  "
-		}
-		n, unlinked := 0, false
-		for i, l := range links {
-			if l.Kind != kind {
-				continue
-			}
-			n++
-			label := l.Label
-			if i < 9 {
-				label = fmt.Sprintf("%d %s", i+1, label)
-			}
-			if pr.PR != nil && l.URL == pr.PR.URL {
-				label += prDetails(*pr.PR, d.width < wideMin)
-			}
-			if kind == deck.LinkLocalhost {
-				label += " " + devDot(!l.Down)
-			}
-			style := plain
-			if l.Issue != nil {
-				label += " " + issueStyle(*l.Issue).Render(shortState(l.Issue.State))
-				if issueClosed(*l.Issue) {
-					style = dim
-				}
-			}
-			g.items = append(g.items, item{text: label, style: style, link: i})
-			unlinked = unlinked || l.URL == ""
-		}
-		if n == 0 {
-			continue
-		}
-		highlight := choosing == kind
-		groups := []group{g}
-		if highlight {
-			var extra []item
-			if kind == deck.LinkFigma {
-				extra = append(extra, span("d desktop app", dim))
-			}
-			extra = append(extra, span("a all", dim))
-			groups = append(groups, group{sep: "  ", items: extra})
-		}
-		if kind == deck.LinkLinear && unlinked {
-			groups = append(groups, group{sep: " ", items: []item{span(noWorkspace, dim)}})
-		}
-		label := kind.String()
-		if kind == deck.LinkLocalhost {
-			label = "Open"
-		}
-		d.field(label, highlight, groups...)
-	}
-}
-
-// noWorkspace says why a bare Linear ID has no link.
-const noWorkspace = "no Linear workspace: set linear_workspace in the config file, --linear-workspace or $" + deck.EnvLinearWorkspace
-
-func prDetails(pr deck.PullRequest, narrow bool) string {
-	var parts []string
-	if r := reviewText(pr); r != "" {
-		parts = append(parts, r)
-	}
-	if pr.Comments > 0 {
-		if narrow {
-			parts = append(parts, fmt.Sprintf("%dc", pr.Comments))
-		} else {
-			parts = append(parts, fmt.Sprintf("%d comments", pr.Comments))
-		}
-	}
-	if n := len(pr.FailingChecks); n > 0 {
-		parts = append(parts, fmt.Sprintf("✕ %d failing", n))
-	}
-	if len(parts) == 0 {
-		return ""
-	}
-	return " · " + strings.Join(parts, " · ")
 }
 
 // devGroup is the drawer's Dev line: each server's port, name and dot; a
@@ -504,19 +360,6 @@ func devDot(up bool) string {
 	return dim.Render("○")
 }
 
-// threadStatusLine is the drawer's Status: the state line, plus the activity
-// when the state line does not already say it.
-func threadStatusLine(t deck.Thread) string {
-	s := t.StateLine
-	if s == "" {
-		s = statusWord(t.Status)
-	}
-	if t.Activity != "" && !strings.Contains(s, t.Activity) {
-		s += " · " + t.Activity
-	}
-	return s
-}
-
 func statusWord(s deck.ThreadStatus) string {
 	switch s {
 	case deck.StatusNeedsYou:
@@ -529,65 +372,6 @@ func statusWord(s deck.ThreadStatus) string {
 		return "resolved"
 	}
 	return "idle"
-}
-
-func (m Model) inboxDrawer(it deck.InboxItem, links []deck.Link, width int, choosing deck.LinkKind) *drawer {
-	title := "Inbox item"
-	if !it.Created.IsZero() {
-		title += " · " + it.Created.In(m.loc()).Format("15:04")
-	}
-	d := newDrawer(width, title)
-	if it.Kind != "" {
-		d.field("Kind", false, words(it.Kind, plain))
-	}
-	t, ok := findThread(m.snap, it.Thread)
-	if ok {
-		d.field("Subject", false, group{sep: " ", items: append([]item{span(t.ID, bold)}, words(t.Title, plain).items...)})
-	} else if it.Subject != "" {
-		d.field("Subject", false, words(it.Subject, plain))
-	}
-	if it.Summary != "" {
-		d.field("Summary", false, words(it.Summary, plain))
-	}
-	m.linkFields(d, links, choosing, t)
-	d.field("File", false, words("inbox/"+it.ID+".md", dim))
-	return d
-}
-
-// projectDrawer shows the project, and the list's note when on a heading.
-func (m Model) projectDrawer(r row, width int) *drawer {
-	title := "Project"
-	if r.kind == rowHeading && r.list != "" {
-		title = r.list
-	}
-	d := newDrawer(width, title)
-	if r.kind == rowHeading {
-		for _, tl := range m.snap.TaskLists {
-			if tl.Name == r.list && tl.Note != "" {
-				var gs []group
-				for _, p := range strings.Split(tl.Note, "\n") {
-					gs = append(gs, words(p, plain))
-				}
-				d.field("Note", false, gs...)
-			}
-		}
-		if r.folded {
-			d.field("Folded", false, words(fmt.Sprintf("%d rows · space unfolds", r.count), dim))
-		}
-	}
-	p := m.snap.Project
-	if p.Goal != "" {
-		d.field("Goal", false, words(p.Goal, plain))
-	}
-	var repos []group
-	for _, repo := range p.Repos {
-		repos = append(repos, words(tilde(repo), plain))
-	}
-	d.field("Repos", false, repos...)
-	if p.Dir != "" {
-		d.field("Folder", false, words(tilde(p.Dir), plain))
-	}
-	return d
 }
 
 func (m Model) sourcesDrawer(width int) *drawer {
@@ -625,13 +409,6 @@ func (m Model) sourcesDrawer(width int) *drawer {
 	return d
 }
 
-func (m Model) reportDrawer(r row, width int) *drawer {
-	t, _ := r.thread()
-	d := newDrawer(width, "Report · "+t.ID)
-	d.text(strings.TrimSpace(t.Report), plain)
-	return d
-}
-
 func (m Model) helpDrawer(width int) *drawer {
 	d := newDrawer(width, "Keys")
 	d.labelW = 11
@@ -644,13 +421,15 @@ func (m Model) helpDrawer(width int) *drawer {
 var helpLines = [][2]string{
 	{"j k", "move; the drawer follows"},
 	{"space", "fold or unfold the list under the cursor"},
-	{"1-9", "open the drawer's numbered link"},
+	{"[ ]", "previous / next tab: Overview, Files, Log"},
+	{"tab", "focus the drawer: j k move in it, ↵ opens, tab switches tabs, esc returns"},
+	{"1-9", "open the numbered link; on Files, that file's diff"},
 	{"l f n g", "open the first Linear, Figma, Notion or PR link; with several, pick one: a digit, a all, d Figma desktop app, the letter again the first, esc cancels"},
 	{"o", "open the first localhost link whose dev server is running"},
 	{"↵", "focus the thread's herdr pane"},
 	{"e", "open the thread's worktree in the editor"},
 	{"u", "start the thread's dev servers: the dev manifest's up command, detached"},
-	{"d", "the thread's changed files: a digit opens that file in the diff tool, d again the whole diff, t switches between list and folder tree; a click on a file opens it"},
+	{"d", "the Files tab: a digit opens that file's diff, d again or a the whole diff, t list or tree"},
 	{"r", "the thread's report, full height"},
 	{"z", "drawer: normal, full height, hidden"},
 	{"pgup pgdn", "scroll the drawer"},
@@ -660,7 +439,7 @@ var helpLines = [][2]string{
 	{"w", "what's new: the changelog, newest first; with ↑ in the header, also what the newer version brings"},
 	{"?", "this help; esc returns"},
 	{"q", "quit"},
-	{"mouse", "click a row, link, list heading, ! N or the other-projects line; the wheel moves the list or scrolls the drawer"},
+	{"mouse", "click a row, tab, chip, file, Log event, list heading, ! N or the other-projects line; the wheel moves the list or scrolls the drawer"},
 }
 
 // tilde shortens a path under the home folder to ~/….

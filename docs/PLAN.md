@@ -129,13 +129,19 @@ lists what the user chose.
   and the mouse skip it. Columns at 80: work, thread, status, PR, links (`L4` = four Linear
   links), dev (one dot per dev.json port). At 60 the thread and PR columns
   fold into status.
-- **Needs you on top.** Threads waiting on you and unhandled inbox items move
-  into a red *Needs you* group at the top of the list. A thread is waiting on
+- **Needs you on top.** Threads waiting on you move into a red *Needs you*
+  group at the top of the list. A thread is waiting on
   you when herdr-projects says so, or when its agent has been `blocked` on a
   question or permission prompt for 30 s (milestone 5); an agent that is
   working, idle, done or waiting on its own sub-agents never counts. If the cursor has not
   been moved by hand, it jumps there so the drawer shows the thread's
   `next[]`.
+- **Inbox items are news, not needs** (user, 2026-10-03). They never get
+  rows. A thread with unhandled items (in `inbox/`, by `subject`) has its
+  title in yellow, a folded list holding one shows a yellow `✉`, Overview
+  starts with `✉ N updates · see Log`, and the items show in the thread's
+  Log, marked `✉`. Items about no thread (routines, spaces) only count in
+  the header's `✉ N`, which counts every unhandled item.
 - **Folding.** `space` on a list heading folds or unfolds the list. A folded
   heading starts with `+` and shows its count (`+ Backlog (6)`); open
   headings have no marker. `▸` only ever marks the selected row. *Backlog*
@@ -168,9 +174,7 @@ lists what the user chose.
 
   The tab stays as the cursor moves through the list, except that the
   needs-you jump shows Overview, and a row without a thread shows Overview
-  until the cursor is back on a thread. An inbox row's card shows the item
-  (summary as title, `✉ inbox` and its age yellow, then kind, time and file);
-  its Files and Log tabs are the subject thread's. A list heading, or no
+  until the cursor is back on a thread. A list heading, or no
   row (an empty project), shows a card with the list's or project's name,
   no tabs, and the list's note, the goal, repos and folder as today.
 - **Overview tab.** Titled sections, each a dim `── Name ──` rule with the
@@ -240,8 +244,8 @@ lists what the user chose.
   in a yellow `✉`. At full height a dim rule heads each day, a dim `│`
   marks a gap of over an hour, and a dim last line names the sources. No
   git commits, no earlier working/idle changes (only `last_state_change` is
-  kept), no percent history. On an inbox row the Log cursor starts on that
-  item.
+  kept), no percent history. A routine's item (`inbox/*-routine-*.md`)
+  counts for the thread its summary names.
 - **New reads for the drawer:** the thread's `percent` as a number (may be
   `null`), its `created`, `launched_at`, `brief_seen_at`,
   `last_state_change`, `last_report_change` and `resolved_reason`, and
@@ -268,7 +272,7 @@ lists what the user chose.
   waiting thread focuses its pane. When threads in other projects wait on
   the user, the list's last line says `● N other projects need you`; a
   click on it opens the picker. Other projects' threads never join the
-  Needs you group (which, for now, still pins this project's inbox items). Data: `projects.Roster` reads `threads/t-*.toml`, `inbox/`,
+  Needs you group. Data: `projects.Roster` reads `threads/t-*.toml`, `inbox/`,
   `.state/project.json` and `.state/coordinator.json` of every project
   (never `thread list`, never `ticker.json`) at most every 20 s, on the
   load goroutine; herdr's reader lays the snapshot it already read over them
@@ -301,8 +305,7 @@ Keys:
   the first localhost link whose dev server is running, without a chooser
   (milestone 6): links to servers that are down open only by their digit.
 - `enter`: on a thread row, focus its herdr pane (`herdr pane focus
-  <pane_id>`); on an inbox row, the subject thread's pane (else the
-  coordinator's).
+  <pane_id>`).
 - `e`: open the worktree in the configured editor, `code {path}` by
   default. Milestone 4 left `$VISUAL` out because a terminal editor would
   take over the deck's own pane; since the config file (below), an editor

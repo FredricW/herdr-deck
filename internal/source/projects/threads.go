@@ -42,6 +42,13 @@ type threadRecord struct {
 	PR             string `json:"pr" toml:"pr"`
 	PRState        string `json:"pr_state" toml:"pr_state"`
 	PRReview       string `json:"pr_review" toml:"pr_review"`
+	Percent        *int   `json:"percent" toml:"percent"`
+
+	// Timestamps (RFC 3339), "" when not recorded.
+	Created          string `json:"created" toml:"created"`
+	LaunchedAt       string `json:"launched_at" toml:"launched_at"`
+	BriefSeenAt      string `json:"brief_seen_at" toml:"brief_seen_at"`
+	LastReportChange string `json:"last_report_change" toml:"last_report_change"`
 
 	// Only in `thread list --json`.
 	GroupToken string   `json:"group_token" toml:"-"`
@@ -52,7 +59,7 @@ type threadRecord struct {
 // live group; when that fails it reads the thread files the ticker last wrote
 // and returns, as asOf, when the newest of them was written. Each thread's
 // report is read from threads/t-NNNN.md.
-func (r Reader) readThreads(ctx context.Context, prs map[string]prSummary, note func(string, ...any)) (threads []deck.Thread, asOf time.Time) {
+func (r Reader) readThreads(ctx context.Context, tk ticker, note func(string, ...any)) (threads []deck.Thread, asOf time.Time) {
 	recs, err := r.listThreads(ctx)
 	if err != nil {
 		note("thread list: %v; showing threads/*.toml as last recorded", err)
@@ -60,7 +67,7 @@ func (r Reader) readThreads(ctx context.Context, prs map[string]prSummary, note 
 	}
 	threads = make([]deck.Thread, 0, len(recs))
 	for _, rec := range recs {
-		t := toThread(rec, prs)
+		t := toThread(rec, tk)
 		if report, err := os.ReadFile(filepath.Join(r.Dir(), "threads", rec.ID+".md")); err == nil {
 			t.Report = string(report)
 		}
@@ -137,7 +144,7 @@ func threadRecords(project fs.FS, next bool, note func(string, ...any)) ([]threa
 	return recs, newest
 }
 
-func toThread(rec threadRecord, prs map[string]prSummary) deck.Thread {
+func toThread(rec threadRecord, tk ticker) deck.Thread {
 	group := rec.GroupToken
 	if group == "" {
 		group = rec.LastGroup
@@ -154,6 +161,14 @@ func toThread(rec threadRecord, prs map[string]prSummary) deck.Thread {
 		Base:      rec.Base,
 		Activity:  rec.Activity,
 		Next:      rec.Next,
+		Group:     group,
+		Percent:   rec.Percent,
+
+		Created:          stamp(rec.Created),
+		LaunchedAt:       stamp(rec.LaunchedAt),
+		BriefSeenAt:      stamp(rec.BriefSeenAt),
+		LastReportChange: stamp(rec.LastReportChange),
+		ResolvedReason:   rec.ResolvedReason,
 	}
 	if t.Worktree == "" {
 		t.Worktree = rec.Cwd
@@ -172,8 +187,8 @@ func toThread(rec threadRecord, prs map[string]prSummary) deck.Thread {
 		}
 	}
 	if rec.PR != "" {
-		pr := &deck.PullRequest{URL: rec.PR, Number: prNumber(rec.PR), State: rec.PRState, Review: rec.PRReview}
-		if s, ok := prs[rec.ID]; ok {
+		pr := &deck.PullRequest{URL: rec.PR, Number: prNumber(rec.PR), State: rec.PRState, Review: rec.PRReview, CheckedAt: tk.checked}
+		if s, ok := tk.prs[rec.ID]; ok {
 			if s.State != "" {
 				pr.State = s.State
 			}
@@ -182,6 +197,7 @@ func toThread(rec threadRecord, prs map[string]prSummary) deck.Thread {
 			}
 			pr.FailingChecks = s.FailingChecks
 			pr.Comments = s.CommentCount
+			pr.Commenters = s.Commenters
 		}
 		t.PR = pr
 		label := "PR"
@@ -210,6 +226,15 @@ func status(recStatus, group string) deck.ThreadStatus {
 		return deck.StatusDone
 	}
 	return deck.StatusUnknown
+}
+
+// stamp parses an RFC 3339 time, zero when s is empty or not one.
+func stamp(s string) time.Time {
+	t, err := time.Parse(time.RFC3339, s)
+	if err != nil {
+		return time.Time{}
+	}
+	return t
 }
 
 var prNumberRe = regexp.MustCompile(`/pull/(\d+)`)

@@ -1,6 +1,8 @@
- Admin rebuild                      ● 1  ◐ 1  ◇ 1  ○ 1  ✉ 1
+ Admin rebuild                      ● 1  ◐ 1  ◇ 1  ○ 1  ✉ 2
 ────────────────────────────────────────────────────────────
-─ Report · t-0002 ──────────────────────────────────────────
+ Users page                               ● needs you  ~95%
+ t-0002                                          ▰▰▰▰▰▰▰▰▰▱
+ Report · threads/t-0002.md · esc returns
  ## Report
 
  Phase 1 is done: layout and overview.
@@ -22,7 +24,5 @@
 
 
 
-
-
 ────────────────────────────────────────────────────────────
- esc back  pgup pgdn scroll  z drawer  ? help  q quit
+ esc back  pgup pgdn scroll  ? help  q quit           v9.9.9

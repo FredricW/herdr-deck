@@ -128,7 +128,7 @@ type (
 type drawerSize int
 
 const (
-	sizeNormal drawerSize = iota // about 40 % of the pane
+	sizeNormal drawerSize = iota // half of the pane
 	sizeFull
 	sizeHidden
 )
@@ -157,8 +157,10 @@ type Model struct {
 	mode      drawerMode
 	size      drawerSize
 	choosing  deck.LinkKind // the link chooser's kind, or noKind
-	files     bool          // d waits for a file's digit
-	tree      bool          // the Files section shows a folder tree
+	tab       tabKind       // the drawer tab chosen; curTab is the one shown
+	dfocus    bool          // the drawer has the focus (tab), not the list
+	dcur      int           // the drawer cursor: a stop of the tab's content
+	tree      bool          // the Files tab shows a folder tree
 	desktop   bool          // the Figma chooser opens the desktop app
 	status    string        // a one-off message in the footer
 	notice    string        // "Updated to …", until the first key or click
@@ -227,6 +229,10 @@ func (m *Model) SetSnapshot(snap deck.Snapshot) {
 	switch {
 	case !m.moved:
 		m.cursor = m.homeRow()
+		// The cursor jumped to what needs the user: Next says why.
+		if r, ok := m.selected(); ok && r.key != selKey && r.needsYou() {
+			m.tab = tabOverview
+		}
 	default:
 		found := false
 		for i, r := range m.rows {
@@ -242,7 +248,7 @@ func (m *Model) SetSnapshot(snap deck.Snapshot) {
 	// On another row, the drawer starts over: a report or a scroll
 	// position belongs to the row it was opened on.
 	if r, _ := m.selected(); r.key != selKey {
-		m.drawerOff = 0
+		m.drawerOff, m.dcur = 0, 0
 		if m.mode == modeReport {
 			m.mode = modeRow
 		}
@@ -267,7 +273,7 @@ func (m Model) homeRow() int {
 		}
 	}
 	for i, r := range m.rows {
-		if r.kind == rowWork || r.kind == rowInbox {
+		if r.kind == rowWork {
 			return i
 		}
 	}
@@ -495,12 +501,12 @@ func (m *Model) readDiff(force bool) tea.Cmd {
 	return func() tea.Msg { return diffMsg{key: k, diff: read(context.Background(), t)} }
 }
 
-// diffKeyPressed starts the file chooser: a digit opens that file's diff,
-// d again (or a, or enter) the whole diff. With one file, d opens the
-// whole diff right away.
+// diffKeyPressed switches the drawer to the Files tab, so a digit then
+// opens that file's diff; on Files, d again opens the whole diff. With
+// one file, d opens the whole diff right away.
 func (m *Model) diffKeyPressed() tea.Cmd {
 	if m.opt.Diff == nil {
-		m.status = "the diff section is off"
+		m.status = "the Files tab is off"
 		return nil
 	}
 	if _, ok := m.diffThread(); !ok {
@@ -513,58 +519,20 @@ func (m *Model) diffKeyPressed() tea.Cmd {
 		return nil
 	}
 	t, d, ok := m.diff()
+	onFiles := m.mode == modeRow && m.curTab() == tabFiles
 	switch {
-	case !ok:
-		m.status = "reading " + t.ID + "'s changes…"
-		return nil
-	case d.Note != "":
-		m.status = t.ID + ": " + d.Note
-		return nil
-	case len(d.Files) == 0:
-		m.status = t.ID + " has no changes against " + d.Base
-		return nil
-	case len(d.Files) == 1:
+	case ok && len(d.Files) == 1 && d.Note == "":
 		return m.openFile(t, d, 0)
+	case onFiles && ok && len(d.Files) > 1:
+		return m.openDiff(t, d, deck.DiffFile{})
 	}
-	m.setMode(modeRow)
-	m.choosing = noKind
-	m.files = true
-	// Scroll the files into view, as far as the drawer's content goes.
-	if l := m.layout(); l.drawer != nil && l.drawer.filesAt >= 0 {
-		m.scrollDrawer(l.drawer.filesAt)
-	}
+	m.switchTab(tabFiles)
 	return nil
 }
 
-// filesKey handles a key while d waits. done is false when the key closes
-// the chooser and should then be handled as usual. t switches between the
-// list and the tree and keeps waiting, since the numbers moved.
-func (m *Model) filesKey(msg tea.KeyPressMsg) (tea.Cmd, bool) {
-	m.files = false
-	t, d, ok := m.diff()
-	if !ok {
-		return nil, false
-	}
-	s := msg.String()
-	switch {
-	case s == "t":
-		m.tree, m.files = !m.tree, true
-		if l := m.layout(); l.drawer != nil && l.drawer.filesAt >= 0 {
-			m.scrollDrawer(l.drawer.filesAt)
-		}
-		return nil, true
-	case len(s) == 1 && s[0] >= '1' && s[0] <= '9':
-		return m.openFile(t, d, int(s[0]-'1')), true
-	case s == "d" || s == "a" || key.Matches(msg, m.keys.Pane):
-		return m.openDiff(t, d, deck.DiffFile{}), true
-	case key.Matches(msg, m.keys.Back):
-		return nil, true
-	}
-	return nil, false
-}
-
+// openFile opens the diff of the file at display index i.
 func (m *Model) openFile(t deck.Thread, d deck.Diff, i int) tea.Cmd {
-	if i < 0 || i >= min(len(d.Files), maxFiles) {
+	if i < 0 || i >= len(d.Files) {
 		m.status = fmt.Sprintf("no file %d on this row", i+1)
 		return nil
 	}
@@ -574,6 +542,101 @@ func (m *Model) openFile(t deck.Thread, d deck.Diff, i int) tea.Cmd {
 		return nil
 	}
 	return m.openDiff(t, d, f)
+}
+
+// filesOnlyKey handles the Files tab's own keys: t switches list and tree,
+// a opens the whole diff. done is false for any other key.
+func (m *Model) filesOnlyKey(msg tea.KeyPressMsg) (tea.Cmd, bool) {
+	if m.mode != modeRow || m.curTab() != tabFiles {
+		return nil, false
+	}
+	switch msg.String() {
+	case "t":
+		m.tree = !m.tree
+		m.dcur = 0
+		return nil, true
+	case "a":
+		if t, d, ok := m.diff(); ok && len(d.Files) > 0 {
+			return m.openDiff(t, d, deck.DiffFile{}), true
+		}
+		return nil, true
+	}
+	return nil, false
+}
+
+// switchTab shows tab in the drawer, from its top.
+func (m *Model) switchTab(tab tabKind) {
+	m.setMode(modeRow)
+	m.choosing = noKind
+	m.tab = tab
+	m.dcur = 0
+}
+
+// cycleTab moves to the next (dir 1) or previous (-1) tab that has
+// something behind it.
+func (m *Model) cycleTab(dir int) {
+	r, ok := m.selected()
+	if !ok || r.kind != rowWork {
+		return
+	}
+	tab := m.curTab()
+	for range numTabs {
+		tab = (tab + tabKind(dir) + numTabs) % numTabs
+		if m.tabEnabled(r, tab) {
+			break
+		}
+	}
+	m.switchTab(tab)
+}
+
+// moveDrawerCursor moves the drawer cursor by delta stops and scrolls the
+// drawer to keep it in view.
+func (m *Model) moveDrawerCursor(delta int) {
+	l := m.layout()
+	if l.drawer == nil || len(l.drawer.stops) == 0 {
+		m.scrollDrawer(delta)
+		return
+	}
+	m.dcur = clamp(m.dcur+delta, 0, len(l.drawer.stops)-1)
+	line := l.drawer.stops[m.dcur].line
+	if line < m.drawerOff {
+		m.drawerOff = line
+	}
+	if line >= m.drawerOff+l.drawerH {
+		m.drawerOff = line - l.drawerH + 1
+	}
+	m.scrollDrawer(0)
+}
+
+// act does what a click or enter on a drawer stop does.
+func (m *Model) act(a action) tea.Cmd {
+	switch a.kind {
+	case actLink:
+		return m.openNumbered(a.n)
+	case actFile, actDiff:
+		t, d, ok := m.diff()
+		switch {
+		case !ok:
+			return nil
+		case a.kind == actDiff:
+			return m.openDiff(t, d, deck.DiffFile{})
+		}
+		return m.openFile(t, d, a.n-1)
+	case actEvent:
+		switch kind, n := m.eventAction(a.n); kind {
+		case cmdReport:
+			m.setMode(modeReport)
+		case cmdLink:
+			return m.openNumbered(n)
+		case cmdPane:
+			return m.focusPane()
+		}
+	case actTab:
+		if r, ok := m.selected(); ok && m.tabEnabled(r, tabKind(a.n)) {
+			m.switchTab(tabKind(a.n))
+		}
+	}
+	return nil
 }
 
 // openDiff opens the diff tool on the thread's worktree against the merge
@@ -613,22 +676,52 @@ func (m Model) handleKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 			return m, cmd
 		}
 	}
-	if m.files {
-		if cmd, done := m.filesKey(msg); done {
-			return m, cmd
-		}
-	}
 	if m.choosing != noKind {
 		if cmd, done := m.chooserKey(msg); done {
 			return m, cmd
 		}
 	}
 	if s := msg.String(); len(s) == 1 && s[0] >= '1' && s[0] <= '9' {
+		if m.mode == modeRow && m.curTab() == tabFiles {
+			if t, d, ok := m.diff(); ok {
+				return m, m.openFile(t, d, int(s[0]-'1'))
+			}
+			return m, nil
+		}
 		return m, m.openNumbered(int(s[0] - '1'))
+	}
+	if cmd, done := m.filesOnlyKey(msg); done {
+		return m, cmd
 	}
 	switch {
 	case key.Matches(msg, m.keys.Quit):
 		return m, tea.Quit
+	case key.Matches(msg, m.keys.NextTab):
+		m.cycleTab(1)
+	case key.Matches(msg, m.keys.PrevTab):
+		m.cycleTab(-1)
+	case key.Matches(msg, m.keys.Focus):
+		if m.dfocus {
+			m.cycleTab(1)
+		} else if r, ok := m.selected(); ok && r.kind == rowWork {
+			m.setMode(modeRow)
+			m.dfocus, m.dcur = true, 0
+		}
+	case key.Matches(msg, m.keys.Unfocus):
+		if m.dfocus {
+			m.cycleTab(-1)
+		}
+	case m.dfocus && key.Matches(msg, m.keys.Down):
+		m.moveDrawerCursor(1)
+	case m.dfocus && key.Matches(msg, m.keys.Up):
+		m.moveDrawerCursor(-1)
+	case m.dfocus && key.Matches(msg, m.keys.Pane):
+		if l := m.layout(); l.drawer != nil && m.dcur < len(l.drawer.stops) {
+			return m, m.act(l.drawer.stops[m.dcur].act)
+		}
+		return m, m.focusPane()
+	case m.dfocus && key.Matches(msg, m.keys.Back):
+		m.dfocus = false
 	case key.Matches(msg, m.keys.Down):
 		m.move(1)
 	case key.Matches(msg, m.keys.Up):
@@ -689,7 +782,7 @@ func (m *Model) move(delta int) {
 	}
 	m.cursor = m.offGap(clamp(m.cursor+delta, 0, len(m.rows)-1), dir)
 	m.moved = true
-	m.files = false
+	m.dcur = 0
 	m.setMode(modeRow)
 	m.ensureVisible()
 }
@@ -741,7 +834,7 @@ func (m Model) links() []deck.Link {
 	if !ok {
 		return nil
 	}
-	return rowLinks(r, m.snap)
+	return rowLinks(r)
 }
 
 // linkKey opens the row's only link of kind, or opens the chooser when there
@@ -764,8 +857,9 @@ func (m *Model) linkKey(kind deck.LinkKind) tea.Cmd {
 		return m.openNumbered(of[0])
 	}
 	m.setMode(modeRow)
+	m.tab = tabOverview // the chooser highlights Overview's chips
 	m.choosing = kind
-	m.desktop, m.files = false, false
+	m.desktop = false
 	return nil
 }
 
@@ -930,39 +1024,27 @@ func (m *Model) startDev() tea.Cmd {
 	}
 }
 
-// focusPane focuses the herdr pane of the selected row's thread; on an inbox
-// row, the subject thread's pane, else the coordinator's.
+// focusPane focuses the herdr pane of the selected row's thread.
 func (m *Model) focusPane() tea.Cmd {
 	r, _ := m.selected()
-	var t deck.Thread
-	var ok bool
-	switch r.kind {
-	case rowWork:
-		t, ok = r.thread()
-		if !ok {
-			m.status = "no thread on this row"
-			return nil
-		}
-	case rowInbox:
-		t, ok = findThread(m.snap, r.inbox.Thread)
-	default:
+	t, ok := r.thread()
+	switch {
+	case r.kind != rowWork:
 		m.status = "no pane on this row"
 		return nil
-	}
-	id, what := "", ""
-	switch {
-	case ok && t.Pane != nil:
-		id, what = t.Pane.ID, t.ID
-	case ok && !m.snap.Herdr && t.PaneID != "":
-		// herdr's live state is unknown: try the recorded pane.
-		id, what = t.PaneID, t.ID
-	case r.kind == rowInbox && m.snap.Project.PaneID != "":
-		id, what = m.snap.Project.PaneID, "the coordinator"
-	case ok:
-		m.status = t.ID + " has no open pane"
+	case !ok:
+		m.status = "no thread on this row"
 		return nil
+	}
+	id := ""
+	switch {
+	case t.Pane != nil:
+		id = t.Pane.ID
+	case !m.snap.Herdr && t.PaneID != "":
+		// herdr's live state is unknown: try the recorded pane.
+		id = t.PaneID
 	default:
-		m.status = "no pane for this item"
+		m.status = t.ID + " has no open pane"
 		return nil
 	}
 	focus := m.opt.FocusPane
@@ -970,10 +1052,7 @@ func (m *Model) focusPane() tea.Cmd {
 		m.status = "focusing panes is off: " + id
 		return nil
 	}
-	label := what + "'s pane " + id
-	if what == "the coordinator" {
-		label = "the coordinator's pane " + id
-	}
+	label := t.ID + "'s pane " + id
 	return func() tea.Msg { return openedMsg{what: label, err: focus(id), verb: "focus"} }
 }
 
@@ -996,11 +1075,21 @@ func (m *Model) handleClick(mouse tea.Mouse) (tea.Model, tea.Cmd) {
 		if i >= len(m.rows) || m.rows[i].kind == rowGap {
 			break
 		}
+		if i != m.cursor {
+			m.dcur = 0
+		}
 		m.cursor, m.moved = i, true
-		m.choosing, m.files = noKind, false
+		m.choosing, m.dfocus = noKind, false
 		m.setMode(modeRow)
 		if m.rows[i].kind == rowHeading {
 			m.toggleFold()
+		}
+	case l.drawer != nil && l.tabY >= 0 && mouse.Y == l.tabY:
+		m.focusDrawer()
+		for _, z := range l.drawer.tabZones {
+			if mouse.X >= z.x0 && mouse.X < z.x1 {
+				return *m, m.act(z.act)
+			}
 		}
 	case mouse.Y >= l.drawerTop && mouse.Y < l.drawerTop+l.drawerH:
 		m.scrollDrawer(0) // match the offset the screen was drawn with
@@ -1014,25 +1103,28 @@ func (m *Model) handleClick(mouse tea.Mouse) (tea.Model, tea.Cmd) {
 			m.followSetting()
 			break
 		}
+		m.focusDrawer()
 		for _, z := range dl[i].zones {
 			if mouse.X < z.x0 || mouse.X >= z.x1 {
 				continue
 			}
-			m.choosing, m.files = noKind, false
-			if z.file != 0 {
-				t, d, ok := m.diff()
-				switch {
-				case !ok:
-					return *m, nil
-				case z.file < 0:
-					return *m, m.openDiff(t, d, deck.DiffFile{})
+			m.choosing = noKind
+			for k, st := range l.drawer.stops {
+				if st.line == i && st.act == z.act {
+					m.dcur = k
 				}
-				return *m, m.openFile(t, d, z.file-1)
 			}
-			return *m, m.openNumbered(z.link)
+			return *m, m.act(z.act)
 		}
 	}
 	return *m, nil
+}
+
+// focusDrawer gives a row's drawer the focus, as a click in it does.
+func (m *Model) focusDrawer() {
+	if r, ok := m.selected(); ok && r.kind == rowWork && m.mode == modeRow {
+		m.dfocus = true
+	}
 }
 
 func (m *Model) handleWheel(mouse tea.Mouse) {
@@ -1053,7 +1145,7 @@ func (m *Model) handleWheel(mouse tea.Mouse) {
 	switch {
 	case mouse.Y >= l.listTop && mouse.Y < l.listTop+l.listH:
 		m.move(delta)
-	case mouse.Y >= l.drawerTop-1 && mouse.Y < l.drawerTop+l.drawerH:
+	case l.drawerH > 0 && mouse.Y >= l.listTop+l.listH && mouse.Y < l.drawerTop+l.drawerH:
 		m.scrollDrawer(delta * 3)
 	}
 }

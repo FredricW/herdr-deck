@@ -12,17 +12,17 @@
   + Backlog (3)
 
 
-
-
-
-─ Users page ───────────────────────────────────────────────────────────────────
- Thread   t-0002 Members /admin/users · pane w1Z:p1
- Status   working · ~60% · Building overview
- Note     Phase 1 = layout + overview (ABC-1256); report on 1257/1250 before
-          starting them.
- Linear   1 ABC-1246 done   2 ABC-1256 in progress   3 ABC-1257 todo
-          4 ABC-1250
- Report   threads/t-0002.md · r shows it
- Branch   hp/admin-rebuild/t-0002-members-admin-users
+────────────────────────────────────────────────────────────────────────────────
+ Users page                                                     ◐ working  ~60%
+ t-0002 · Members /admin/users · Building overview · pane w1Z:p1     ▰▰▰▰▰▰▱▱▱▱
+ Overview   Files   Log 7                                              ↓ 4 more
+ ── Note ──
+ Phase 1 = layout + overview (ABC-1256); report on 1257/1250 before starting
+ them.
+ ── Links ──
+ [1 ABC-1246 done] [2 ABC-1256 in progress] [3 ABC-1257 todo] [4 ABC-1250]
+ ── Dev ──
+ not started: no .dev/t-0002/state.json · u starts it
+ ── Thread ──
 ────────────────────────────────────────────────────────────────────────────────
  Updated to v0.2.0 · w what's new                                         v0.2.0

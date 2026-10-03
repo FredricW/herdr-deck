@@ -129,9 +129,9 @@ func TestFileCountsByChange(t *testing.T) {
 		{deck.DiffFile{Change: deck.ChangeAdded, Added: 3}, "+3"},
 		{deck.DiffFile{Change: deck.ChangeDeleted, Deleted: 7}, "-7"},
 		{deck.DiffFile{Change: deck.ChangeRenamed, OldPath: "a", Added: 1, Deleted: 2}, "+1 -2"},
-		{deck.DiffFile{Change: deck.ChangeAdded, Added: 4, Untracked: true}, "+4 untracked"},
+		{deck.DiffFile{Change: deck.ChangeAdded, Added: 4, Untracked: true}, "+4"},
 		{deck.DiffFile{Change: deck.ChangeAdded, Binary: true}, "binary"},
-		{deck.DiffFile{Change: deck.ChangeAdded, Binary: true, Untracked: true}, "binary untracked"},
+		{deck.DiffFile{Change: deck.ChangeAdded, Binary: true, Untracked: true}, "binary"},
 	}
 	for _, tt := range tests {
 		if got, _ := fileCounts(tt.f); got != tt.want {
@@ -173,7 +173,7 @@ func TestFileColours(t *testing.T) {
 	// Folder names are faint in the tree; file names stay plain.
 	d := newDrawer(60, "")
 	d.dirLine(&fileDir{name: "src/admin", added: 3}, 0)
-	d.fileLine(1, deck.DiffFile{Path: "src/admin/a.go", Added: 3}, 1, "a.go")
+	d.fileLine(1, deck.DiffFile{Path: "src/admin/a.go", Added: 3}, 1, "a.go", 3)
 	if !strings.Contains(d.lines[0].text, "\x1b[2msrc/admin/\x1b[m") {
 		t.Errorf("folder line %q: the name is not faint", d.lines[0].text)
 	}
