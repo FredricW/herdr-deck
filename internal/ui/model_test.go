@@ -84,7 +84,7 @@ func run(m Model, cmd tea.Cmd) Model {
 		for _, c := range msg {
 			m = run(m, c)
 		}
-	case openedMsg, devUpMsg, diffMsg:
+	case openedMsg, devUpMsg, diffMsg, patchMsg:
 		next, _ := m.Update(msg)
 		m = next.(Model)
 	case settingsMsg, settingsSavedMsg:
@@ -1103,7 +1103,7 @@ func TestFilesGolden(t *testing.T) {
 		{name: "files-note", diff: gone, keys: keys("d")},
 		{name: "files-tree", diff: changes(), tree: true, keys: keys("d")},
 		{name: "files-tree-full", diff: changes(), keys: keys("dtz")},
-		{name: "files-cursor", diff: changes(), keys: append(append(keys("dz"), tea.KeyPressMsg{Code: tea.KeyTab}), keys("jjj")...)},
+		{name: "files-cursor", diff: changes(), keys: keys("dzjjj")},
 	}
 	for _, c := range cases {
 		for _, w := range []int{80, 60} {
@@ -1217,19 +1217,25 @@ func TestFilesKeyEdges(t *testing.T) {
 	snap.Threads[2].Worktree = "/src/worktrees/t-0003"
 	m, o := newModelWith(t, deck.Snapshot{}, 80, 28, withDiffs(diffs, nil))
 	m, _ = press(m, snapshotMsg(snap))
-	// One file: d opens the whole diff at once.
+	// d focuses Files, even with one file; a digit opens it.
 	m, _ = press(m, keys("d")...)
+	if len(o.diffs) != 0 || !m.dfocus || m.curTab() != tabFiles {
+		t.Errorf("d: diffs %q, focus %v, tab %v", o.diffs, m.dfocus, m.curTab())
+	}
+	m, _ = press(m, keys("1")...)
 	if !slices.Equal(o.diffs, []string{"/src/worktrees/t-0002 abc a.go"}) {
 		t.Errorf("one file: %q", o.diffs)
 	}
+	m, _ = press(m, esc)
 	m, _ = press(m, keys("jd")...)
 	if !strings.Contains(screen(m), "no changes against origin/main") {
 		t.Errorf("no changes:\n%s", screen(m))
 	}
 	// Without herdr the opener fails, and the footer says why.
+	m, _ = press(m, esc)
 	m, _ = press(m, keys("k")...)
 	m.opt.OpenDiff = func(string, string, []string) error { return errors.New("a terminal program needs herdr") }
-	m, _ = press(m, keys("d")...)
+	m, _ = press(m, keys("d1")...)
 	if m.Status() != "could not open the diff of a.go: a terminal program needs herdr" {
 		t.Errorf("status %q", m.Status())
 	}

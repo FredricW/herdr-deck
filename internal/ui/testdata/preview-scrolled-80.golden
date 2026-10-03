@@ -1,17 +1,17 @@
  Admin rebuild                                               ◐ 2  ◇ 1  ○ 1  ✉ 0
 ────────────────────────────────────────────────────────────────────────────────
-    WORK                         THREAD  STATUS              PR      LINKS  DEV
-  In progress
- ▸◐ Users page                   t-0002  Building overview           L4
-  ◐ Templates page               t-0003  Writing tests               L F    ●●●
-  ◇ Document select for summary  t-0004  review required     #2320   L F3   ●○
+ apps/admin/src/pages/users/UsersOverviewPage.tsx  +214 −12             4–14/19
+ + import { UsersTable } from "./UsersTable";
+ + import { overview } from "./overview";
 
-  On hold until Monday 2026-10-05
-  ○ Subscriptions list           t-0001  idle                        L N    ~○
-
-  + Backlog (3)
-
-
+ − // Members: everyone in the workspace.
+ − export function MembersPage() {
+ + // Users page: the table, its filters and the overview cards, which take a v…
+ + export function UsersOverviewPage() {
+     const [query, setQuery] = useState("");
+ +   const stats = overview(users);
+     return (
+       <Page title="Users">
 ────────────────────────────────────────────────────────────────────────────────
  Users page                                                     ◐ working  ~60%
  t-0002 · Members /admin/users · Building overview · pane w1Z:p1     ▰▰▰▰▰▰▱▱▱▱
@@ -25,4 +25,4 @@
  6 M  apps/admin/src/routes.tsx                                 +6 -2  ▇▁▁▁▁▁▁▁
  7 ?  docs/users-page.md                                          +19  ▇▁▁▁▁▁▁▁
 ────────────────────────────────────────────────────────────────────────────────
- j k file  v preview  ↵ open  d whole diff  t tree  esc list  ? help      v9.9.9
+ j k file  J K scroll  v preview off  ↵ open  d whole diff  esc list      v9.9.9

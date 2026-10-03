@@ -1,15 +1,15 @@
  Admin rebuild                           ◐ 2  ◇ 1  ○ 1  ✉ 0
 ────────────────────────────────────────────────────────────
-    WORK                        STATUS           LINKS  DEV
-  In progress
- ▸◐ Users page                  Building overv…  L4
-  ◐ Templates page              Writing tests    L F    ●●●
-  ◇ Document select for summa…  #2320 review     L F3   ●○
+ apps/admin/public/empty-state.png  binary
+  binary file: no lines to show
 
-  On hold until Monday 2026-10-05
-  ○ Subscriptions list          idle             L N    ~○
 
-  + Backlog (3)
+
+
+
+
+
+
 
 
 ────────────────────────────────────────────────────────────
@@ -17,12 +17,12 @@
  t-0002 · Building overview                      ▰▰▰▰▰▰▱▱▱▱
  Overview   Files 11   Log 7                       ↓ 4 more
  11 files  +447 -68  vs origin/main           list · t tree
-▸1 M  …c/pages/users/UsersOverviewPage.tsx  +214 -12  ▇▇▇▇▇
+ 1 M  …c/pages/users/UsersOverviewPage.tsx  +214 -12  ▇▇▇▇▇
  2 A  apps/admin/src/pages/users/columns.ts      +48  ▇▇▁▁▁
  3 M  apps/admin/src/api/users.ts             +31 -9  ▇▁▁▁▁
  4 R  …n/src/pages/{members → users}/index.ts  +1 -1  ▇▁▁▁▁
- 5 A  apps/admin/public/empty-state.png       binary
+▸5 A  apps/admin/public/empty-state.png       binary
  6 M  apps/admin/src/routes.tsx                +6 -2  ▇▁▁▁▁
  7 ?  docs/users-page.md                         +19  ▇▁▁▁▁
 ────────────────────────────────────────────────────────────
- j k file  v preview  ↵ open  d all  t tree  esc list
+ j k file  J K scroll  v off  ↵ open  esc list        v9.9.9

@@ -153,6 +153,7 @@ func run(args []string) error {
 		// first load does.
 		opt.Load = func(context.Context) deck.Snapshot { return snap }
 		opt.Diff = fake.Diff
+		opt.Patch = fake.Patch
 		// The sample's worktrees do not exist: e and d only say they opened.
 		opt.OpenEditor = func(string) error { return nil }
 		opt.OpenDiff = func(string, string, []string) error { return nil }
@@ -209,7 +210,9 @@ func run(args []string) error {
 	opt.OpenProject = func(slug string) error {
 		return projects.New(root, slug).Open(context.Background())
 	}
-	opt.Diff = (&diff.Reader{}).Read
+	diffs := &diff.Reader{}
+	opt.Diff = diffs.Read
+	opt.Patch = diffs.ReadPatch
 	opt.StartDev = func(t deck.Thread) (string, error) { return devs.Up(context.Background(), slug, t) }
 	// Both switches can change while the deck runs, so the checks are
 	// always set up and ask cur each time.

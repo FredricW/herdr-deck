@@ -40,6 +40,8 @@ them.
   the document margin, wrapped to the drawer's width and cached by source,
   width and style. If glamour fails, the plain text shows, wrapped. Task
   notes, Next items and inbox summaries stay plain one-line fields.
+- chroma (`github.com/alecthomas/chroma/v2`, already in the binary through
+  glamour) for the diff preview's syntax colours, in `internal/syntax`.
 - No CGO. `go build` produces one binary.
 
 ## Data sources
@@ -236,6 +238,33 @@ lists what the user chose.
   `GIT_OPTIONAL_LOCKS=0`) when the selection moves to another thread and
   on every reload; answers are reused for 2 s. A missing worktree or base
   is a dim note.
+- **Diff preview.** `v` on the Files tab (focusing it) shows the diff of
+  the file under the drawer cursor in the list's place: the column-titles
+  line becomes a header (the path, losing its start when long, `+N −M`,
+  `untracked`, and at the right the lines shown, `1–11/19`), the list's
+  lines the diff. The drawer keeps Files, so `j`/`k` or a click pick
+  another file (a click previews it rather than opening it); a new file
+  starts at its top. `diff.Reader.ReadPatch` runs `git diff --no-color
+  --no-ext-diff --no-textconv -M <merge-base> -- [old] <file>` with the
+  Files tab's 5 s timeout and optional locks off, keeps 2000 lines (and
+  4 MB) and counts the rest (`… K more lines`); an untracked file is read
+  as all added (`@@ -0,0 +1,N @@`), a binary file is a one-line note, a
+  pure rename "renamed, content unchanged". Answers are cached by file,
+  merge-base and a hash of the file's content (64 entries). The read runs
+  off the UI goroutine when the preview moves to another file and on every
+  reload; `internal/syntax` colours the code lines in the same goroutine
+  with chroma's lexer for the file name (named ANSI colours: keywords
+  magenta, strings yellow, numbers and types cyan, functions and tags blue,
+  comments dim), plain when no lexer matches. Added lines get a green bold
+  `+`, removed a red bold `−`, both a true-colour tint (dark: 22,54,33 /
+  64,26,31; light: 222,250,228 / 255,228,226) across the line; hunk headers
+  and `\ No newline` notes are dim. Tabs are four columns, control
+  characters `�`, long lines cut with `…`. `J`/`K` scroll a line,
+  `pgup`/`pgdn` and `ctrl+u`/`ctrl+d` a page, `home`/`end`, the wheel over
+  it three lines. The preview needs the Files tab focused at the normal
+  drawer height on the thread it started on: `v`, `esc`, another tab, row
+  or full view, or `z` ends it, and the list shows again with its cursor
+  and scroll untouched.
 - **Log tab.** The thread's timeline, newest first, one line per event:
   age (dim, right-aligned), a glyph in its colour, the text, and at 80
   columns the clock time (dim, with the weekday before today). Only what
@@ -321,10 +350,10 @@ Keys:
   with `Report · esc returns` where the tab bar was. `!` sources, `?` help,
   `s` settings and `w` What's new replace the whole drawer (today's title
   rule, no card or tabs); `esc` returns to the tab you were on.
-- `d`: switches the drawer to the Files tab, so `d 3` opens file 3 as
-  before; on Files, `d` again, `a` or `enter` opens the whole diff. With one
-  file `d` opens the whole diff at once. `t` on Files switches list and
-  tree. A click on a file opens it, on the total line the whole diff. The
+- `d`: focuses the drawer's Files tab (unhiding the drawer), so `d 3`
+  opens file 3 as before; on a focused Files tab, `d` again or `a` opens
+  the whole diff, and `v` turns the diff preview on and off (see Files
+  tab). `t` on Files switches list and tree. A click on a file opens it, on the total line the whole diff. The
   diff tool gets the merge-base commit as `{base}`. A rename passes both
   paths (a lone `{file}` argument becomes one per file) so git pairs them;
   an untracked file does not open, since git diff leaves it out.
