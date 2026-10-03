@@ -30,6 +30,13 @@ and versions follow [Semantic Versioning](https://semver.org/).
   active tab is dark text on blue. `[` and `]` switch tabs; `tab` moves
   the focus into the drawer, where `j`/`k` and `↵` pick a chip, file or
   event. The drawer takes half of the pane.
+- A diff preview: on the Files tab, `v` shows the file under the cursor's
+  diff where the task list is, while `j`/`k` in the drawer move between
+  files. The diff is against the merge-base, uncommitted changes and
+  untracked files included, with its code coloured by the file's language,
+  a green `+` and red `−` gutter on tinted lines and dim hunk headers.
+  `J`/`K` scroll it a line, `pgup`/`pgdn` a page, the wheel three lines;
+  `v` or `esc` brings the list back as you left it.
 
 ### Changed
 
@@ -37,8 +44,9 @@ and versions follow [Semantic Versioning](https://semver.org/).
   threads waiting on you. A thread with unhandled items has a yellow title
   and shows them, marked `✉`, in its Log; items about no thread only count
   in the header.
-- `d` shows the Files tab instead of a chooser; `d 3` still opens file 3
-  and `d d` the whole diff, and `t` on the tab switches list and tree.
+- `d` focuses the Files tab instead of opening a chooser; `d 3` still
+  opens file 3 and `d d` the whole diff, and `t` on the tab switches list
+  and tree. With one changed file, `d` no longer opens it at once.
 - A thread's report (`r`), What's new (`w`) and a task's notes in the
   Overview render their Markdown the way glow does: headings, bold, code,
   lists, quotes and highlighted code blocks, wrapped to the pane and styled

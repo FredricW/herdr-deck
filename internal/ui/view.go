@@ -141,7 +141,10 @@ func (m Model) render() string {
 		lines = append(lines, rule, m.footer(w))
 		return strings.Join(lines, "\n")
 	}
-	if f.listH > 0 || m.effectiveSize() != sizeFull {
+	switch {
+	case m.preview:
+		lines = append(lines, m.previewLines(w, f.listH)...)
+	case f.listH > 0 || m.effectiveSize() != sizeFull:
 		lines = append(lines, dim.Render(fit(m.columnTitles(w), w)))
 		lines = append(lines, m.listLines(w, f.listH)...)
 	}
@@ -654,7 +657,15 @@ func (m Model) rowHint(r row, narrow bool) string {
 			if m.tree {
 				view = "t list"
 			}
-			return "j k file  ↵ open  d d whole diff  " + view + "  esc list  ? help"
+			switch {
+			case m.preview && narrow:
+				return "j k file  J K scroll  v off  ↵ open  esc list"
+			case m.preview:
+				return "j k file  J K scroll  v preview off  ↵ open  d whole diff  esc list"
+			case narrow:
+				return "j k file  v preview  ↵ open  d all  " + view + "  esc list"
+			}
+			return "j k file  v preview  ↵ open  d whole diff  " + view + "  esc list  ? help"
 		case tabLog:
 			return "j k event  ↵ act  tab next tab  esc list  ? help"
 		}
@@ -667,9 +678,9 @@ func (m Model) rowHint(r row, narrow bool) string {
 			view = "t list"
 		}
 		if narrow {
-			return "1-9 file  d d diff  " + view + "  [ ] tab  ? help"
+			return "1-9 file  v preview  d d diff  " + view + "  [ ] tab"
 		}
-		return "1-9 file  d d whole diff  " + view + "  [ ] tab  z drawer  ? help"
+		return "1-9 file  v preview  d d whole diff  " + view + "  [ ] tab  ? help"
 	case tab == tabLog && hasThread && t.PR != nil:
 		return "1-9 link  g PR  r report  [ ] tab  z drawer  ? help"
 	case tab == tabLog:

@@ -44,8 +44,9 @@ type Reader struct {
 	// Now is the clock for the cache; nil means time.Now.
 	Now func() time.Time
 
-	mu    sync.Mutex
-	cache map[string]cached
+	mu      sync.Mutex
+	cache   map[string]cached
+	patches map[string]deck.Patch // ReadPatch's answers, by file and content
 }
 
 type cached struct {

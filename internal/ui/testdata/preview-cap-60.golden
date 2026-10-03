@@ -1,10 +1,21 @@
  Admin rebuild                           ◐ 2  ◇ 1  ○ 1  ✉ 0
 ────────────────────────────────────────────────────────────
+ pnpm-lock.yaml  +102 −40                          11–21/31
+ +   "pkg-09": "^1.9.0",
+ +   "pkg-10": "^1.10.0",
+ +   "pkg-11": "^1.11.0",
+ +   "pkg-12": "^1.12.0",
+ +   "pkg-13": "^1.13.0",
+ +   "pkg-14": "^1.14.0",
+ +   "pkg-15": "^1.15.0",
+ +   "pkg-16": "^1.16.0",
+ +   "pkg-17": "^1.17.0",
+ +   "pkg-18": "^1.18.0",
+ +   "pkg-19": "^1.19.0",
+────────────────────────────────────────────────────────────
  Users page                                 ◐ working  ~60%
  t-0002 · Building overview                      ▰▰▰▰▰▰▱▱▱▱
- Overview   Files 11   Log 7
- 11 files  +447 -68  vs origin/main           list · t tree
-▸1 M  …c/pages/users/UsersOverviewPage.tsx  +214 -12  ▇▇▇▇▇
+ Overview   Files 11   Log 7                       ↓ 2 more
  2 A  apps/admin/src/pages/users/columns.ts      +48  ▇▇▁▁▁
  3 M  apps/admin/src/api/users.ts             +31 -9  ▇▁▁▁▁
  4 R  …n/src/pages/{members → users}/index.ts  +1 -1  ▇▁▁▁▁
@@ -12,17 +23,6 @@
  6 M  apps/admin/src/routes.tsx                +6 -2  ▇▁▁▁▁
  7 ?  docs/users-page.md                         +19  ▇▁▁▁▁
  8 M  package.json                             +1 -1  ▇▁▁▁▁
- 9 M  pnpm-lock.yaml                        +102 -40  ▇▇▇▇▁
- · ?  scripts/seed-users.ts                      +25  ▇▁▁▁▁
- · D  tsconfig.json                               -3  ▇▁▁▁▁
-
-
-
-
-
-
-
-
-
+▸9 M  pnpm-lock.yaml                        +102 -40  ▇▇▇▇▁
 ────────────────────────────────────────────────────────────
- j k file  v preview  ↵ open  d all  t tree  esc list
+ j k file  J K scroll  v off  ↵ open  esc list        v9.9.9

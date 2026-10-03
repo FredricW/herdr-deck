@@ -48,6 +48,10 @@ type Options struct {
 	// (a commit), for one file (a rename's old and new path) or, with no
 	// files, the whole diff. Tests replace it so no diff tool is ever run.
 	OpenDiff func(path, base string, files []string) error
+	// Patch reads one file's diff against the merge-base for the preview
+	// (v on the Files tab). It runs off the UI goroutine when the preview
+	// moves to another file and on every reload. Nil turns the preview off.
+	Patch func(ctx context.Context, t deck.Thread, mergeBase string, f deck.DiffFile) deck.Patch
 	// DiffTree starts the Files section in the tree view (diff_view =
 	// "tree"); d t switches views for the session.
 	DiffTree bool
@@ -182,6 +186,17 @@ type Model struct {
 	diffing   bool                 // a Diff call is running
 	diffAgain bool                 // the selection moved while it ran
 
+	// The diff preview (preview.go): on, the thread (diffKey) and file
+	// (patchKey) it shows, and its scroll.
+	preview    bool
+	prevThread string
+	prevKey    string
+	prevOff    int
+	patches    map[string]preview // the last patch read, by patchKey (one)
+	patchSel   string             // the patchKey last asked for
+	patching   bool               // a Patch call is running
+	patchAgain bool               // the preview moved while it ran
+
 	set  settingsPage
 	pick picker
 }
@@ -202,6 +217,7 @@ func New(snap deck.Snapshot, opt Options) Model {
 		keys:     defaultKeys(),
 		folds:    map[string]bool{},
 		diffs:    map[string]deck.Diff{},
+		patches:  map[string]preview{},
 		choosing: noKind,
 		tree:     opt.DiffTree,
 		width:    defaultWidth,
@@ -366,6 +382,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.width, m.height = msg.Width, msg.Height
 		m.scrollDrawer(0)
 		m.ensureVisible()
+		m.scrollPreview(0)
 		if m.pick.open {
 			m.pickVisible()
 		}
@@ -403,7 +420,8 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.loading = false
 		m.loaded = true
 		m.SetSnapshot(deck.Snapshot(msg))
-		diff := m.readDiff(true)
+		m.syncPreview()
+		diff := tea.Batch(m.readDiff(true), m.readPatch(true))
 		if m.pending {
 			m.pending = false
 			return m, tea.Batch(m.refresh(), diff)
@@ -412,9 +430,21 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case diffMsg:
 		m.diffing = false
 		m.diffs[msg.key] = msg.diff
+		m.syncPreview()
 		if m.diffAgain {
 			m.diffAgain = false
-			return m, m.readDiff(true)
+			return m, tea.Batch(m.readDiff(true), m.readPatch(false))
+		}
+		return m, m.readPatch(false)
+	case patchMsg:
+		m.patching = false
+		// Only the shown file's patch is drawn: keep that one alone.
+		clear(m.patches)
+		m.patches[msg.key] = msg.data
+		m.scrollPreview(0)
+		if m.patchAgain {
+			m.patchAgain = false
+			return m, m.readPatch(false)
 		}
 	case openedMsg:
 		verb, past := "open", "opened"
@@ -448,13 +478,10 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 // followDiff adds a diff read to cmd when the selection moved to another
-// thread.
+// thread, and a patch read when the preview moved to another file.
 func (m Model) followDiff(cmd tea.Cmd) (tea.Model, tea.Cmd) {
-	diff := m.readDiff(false)
-	if diff == nil {
-		return m, cmd
-	}
-	return m, tea.Batch(cmd, diff)
+	m.syncPreview()
+	return m, tea.Batch(cmd, m.readDiff(false), m.readPatch(false))
 }
 
 // diffThread is the selected row's thread whose worktree the Files section
@@ -501,9 +528,9 @@ func (m *Model) readDiff(force bool) tea.Cmd {
 	return func() tea.Msg { return diffMsg{key: k, diff: read(context.Background(), t)} }
 }
 
-// diffKeyPressed switches the drawer to the Files tab, so a digit then
-// opens that file's diff; on Files, d again opens the whole diff. With
-// one file, d opens the whole diff right away.
+// diffKeyPressed focuses the drawer's Files tab, so a digit then opens
+// that file's diff and v previews the file under the cursor; on a focused
+// Files tab, d again opens the whole diff.
 func (m *Model) diffKeyPressed() tea.Cmd {
 	if m.opt.Diff == nil {
 		m.status = "the Files tab is off"
@@ -519,14 +546,20 @@ func (m *Model) diffKeyPressed() tea.Cmd {
 		return nil
 	}
 	t, d, ok := m.diff()
-	onFiles := m.mode == modeRow && m.curTab() == tabFiles
-	switch {
-	case ok && len(d.Files) == 1 && d.Note == "":
-		return m.openFile(t, d, 0)
-	case onFiles && ok && len(d.Files) > 1:
-		return m.openDiff(t, d, deck.DiffFile{})
+	if m.mode == modeRow && m.curTab() == tabFiles && m.dfocus {
+		if ok && len(d.Files) > 0 {
+			return m.openDiff(t, d, deck.DiffFile{})
+		}
+		return nil
 	}
-	m.switchTab(tabFiles)
+	if m.mode != modeRow || m.curTab() != tabFiles {
+		m.switchTab(tabFiles)
+	}
+	if m.size == sizeHidden {
+		m.size = sizeNormal
+		m.ensureVisible()
+	}
+	m.dfocus = true
 	return nil
 }
 
@@ -545,7 +578,8 @@ func (m *Model) openFile(t deck.Thread, d deck.Diff, i int) tea.Cmd {
 }
 
 // filesOnlyKey handles the Files tab's own keys: t switches list and tree,
-// a opens the whole diff. done is false for any other key.
+// a opens the whole diff, v turns the preview on and off. done is false
+// for any other key.
 func (m *Model) filesOnlyKey(msg tea.KeyPressMsg) (tea.Cmd, bool) {
 	if m.mode != modeRow || m.curTab() != tabFiles {
 		return nil, false
@@ -559,6 +593,9 @@ func (m *Model) filesOnlyKey(msg tea.KeyPressMsg) (tea.Cmd, bool) {
 		if t, d, ok := m.diff(); ok && len(d.Files) > 0 {
 			return m.openDiff(t, d, deck.DiffFile{}), true
 		}
+		return nil, true
+	case "v":
+		m.togglePreview()
 		return nil, true
 	}
 	return nil, false
@@ -692,6 +729,9 @@ func (m Model) handleKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	}
 	if cmd, done := m.filesOnlyKey(msg); done {
 		return m, cmd
+	}
+	if m.previewKey(msg) {
+		return m, nil
 	}
 	switch {
 	case key.Matches(msg, m.keys.Quit):
@@ -1076,6 +1116,8 @@ func (m *Model) handleClick(mouse tea.Mouse) (tea.Model, tea.Cmd) {
 		m.openPicker()
 	case mouse.Y == 0 && mouse.X >= l.bang.x0 && mouse.X < l.bang.x1:
 		m.toggleMode(modeSources)
+	case m.preview && mouse.Y >= l.listTop-1 && mouse.Y < l.listTop+l.listH:
+		// The preview has the list's place: a click there does nothing.
 	case mouse.Y >= l.listTop && mouse.Y < l.listTop+l.listH:
 		i := m.listOff + mouse.Y - l.listTop
 		if i >= len(m.rows) || m.rows[i].kind == rowGap {
@@ -1120,6 +1162,9 @@ func (m *Model) handleClick(mouse tea.Mouse) (tea.Model, tea.Cmd) {
 					m.dcur = k
 				}
 			}
+			if m.preview && z.act.kind == actFile {
+				return *m, nil // the click picks the file to preview
+			}
 			return *m, m.act(z.act)
 		}
 	}
@@ -1149,6 +1194,8 @@ func (m *Model) handleWheel(mouse tea.Mouse) {
 	}
 	l := m.layout()
 	switch {
+	case m.preview && mouse.Y >= l.listTop-1 && mouse.Y < l.listTop+l.listH:
+		m.scrollPreview(delta * 3)
 	case mouse.Y >= l.listTop && mouse.Y < l.listTop+l.listH:
 		m.move(delta)
 	case l.drawerH > 0 && mouse.Y >= l.listTop+l.listH && mouse.Y < l.drawerTop+l.drawerH:

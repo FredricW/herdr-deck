@@ -385,3 +385,39 @@ func AppendLink(links []Link, l Link) []Link {
 	}
 	return append(links, l)
 }
+
+// Patch is one changed file's diff as the preview shows it: the unified
+// diff of the file against the merge-base, or an untracked file's lines
+// all added.
+type Patch struct {
+	Lines []PatchLine
+	// More is how many lines of the diff were left out past the preview's
+	// cap; with Cut set the diff was larger than was read, so More is a
+	// lower bound.
+	More int
+	Cut  bool
+	// Binary files have no lines.
+	Binary bool
+	// Note says why there are no lines, e.g. "renamed, content unchanged"
+	// or a git error; it is never shown as a failure.
+	Note string
+}
+
+// PatchLine is one line of a Patch.
+type PatchLine struct {
+	Kind LineKind
+	// Text is the line without its diff marker; a hunk's line is the whole
+	// `@@ -a,b +c,d @@ …` header.
+	Text string
+}
+
+// LineKind is what a PatchLine is.
+type LineKind int
+
+const (
+	LineContext LineKind = iota // unchanged, around the changes
+	LineAdded
+	LineDeleted
+	LineHunk // a hunk header
+	LineNote // git's `\ No newline at end of file`
+)

@@ -158,7 +158,8 @@ the focus too.
 | `[` `]` | previous / next tab, from the list or the drawer | same | same |
 | `1`–`9` | open the numbered link | open the numbered file's diff | open the numbered link (PR events carry the PR's chip) |
 | `l` `f` `n` `g` `o` | first link of that kind, as today, on every tab (the chooser for several highlights the chips) | same | same |
-| `d` | switch to Files (`d 3` still opens file 3; `d d` the whole diff) | `d` again or `a`: the whole diff | as on Overview |
+| `d` | focus Files (`d 3` still opens file 3; `d d` the whole diff) | `d` again or `a`: the whole diff | as on Overview |
+| `v` | — | the diff preview on or off (built after this design; see PLAN.md) | — |
 | `t` | — | list ↔ tree | — |
 | `↵` (list focus) | the thread's pane | same | same |
 | `↵` (drawer focus) | open the link under the cursor | open the file under the cursor, numbered or not | the event: a report shows it, a PR event opens the PR, the rest focus the pane |

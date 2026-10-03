@@ -522,10 +522,12 @@ only threads waiting on you. The deck never marks an item handled.
 | `enter` | focus the thread's herdr pane |
 | `e` | open the thread's worktree in the editor (VS Code unless configured) |
 | `u` | start the thread's dev servers: the dev manifest's `up` command, detached (see Dev servers) |
-| `d` | the Files tab: a digit opens that file in the diff tool, `d` again (or `a`) the whole diff, `t` switches between list and folder tree; with one file, `d` opens the diff right away (see Changed files) |
+| `d` | focus the Files tab: a digit opens that file in the diff tool, `d` again (or `a`) the whole diff, `t` switches between list and folder tree (see Changed files) |
+| `v` | on the Files tab: preview the diff of the file under the cursor in the list's place; `v` or `esc` brings the list back (see Diff preview) |
+| `J` / `K` | scroll the preview a line (`pgup` / `pgdn` a page) |
 | `r` | the thread's report, full height, rendered as Markdown |
 | `z` | drawer: normal, full height, hidden |
-| `pgup` / `pgdn` | scroll the drawer |
+| `pgup` / `pgdn` | scroll the drawer, or the diff preview while it shows |
 | `!` | sources the deck could not read |
 | `s` | settings: every setting, its value and source; `↵` edits, toggles or cycles, `x` removes it from the file (see Configuration) |
 | `p` | projects: every project under the projects root with what needs you in each (see Other projects) |
@@ -542,6 +544,8 @@ line for the whole diff), a Log event to act on it (a report shows it, a PR
 event opens the PR, the rest focus the pane), `! N` for the sources, the
 other-projects line for the project picker. A click in the drawer gives it
 the focus. The wheel moves the list or scrolls the tab under the pointer.
+While the diff preview shows, a click on a file previews it instead of
+opening it, and the wheel over the preview scrolls it.
 
 ## Other projects
 
@@ -642,7 +646,41 @@ A renamed file opens with its old and new path, so git pairs them. An
 untracked file does not open: `git diff` leaves it out until it is added,
 and the status line says so; the whole diff leaves it out too.
 
-![The Files tab of a thread that changed eight files, each with a coloured status letter, green and red counts and a bar: z makes the drawer full height, d shows the Files tab and 2 opens one file's diff, t switches to the folder tree where 5 opens the file now numbered 5, and d again opens the whole diff.](docs/demo/diff.gif)
+### Diff preview
+
+`v` on the Files tab shows the diff of the file under the drawer's cursor
+where the task list is; the drawer below keeps the Files tab, so `j`/`k`
+(or a click) pick another file and the preview follows. It is the same
+comparison as the tab: `git diff <merge-base> -- <file>`, uncommitted
+changes included, a rename with both paths; an untracked file shows all
+added, from its contents, and a binary file a one-line note.
+
+```
+ …/src/pages/users/UsersOverviewPage.tsx  +214 −12           1–11/19
+ @@ -1,9 +1,14 @@ import { Page } from "@acme/ui";
+   import { useState } from "react";
+ − import { MembersList } from "../members/MembersList";
+ + import { UsersTable } from "./UsersTable";
+ + import { overview } from "./overview";
+```
+
+The header names the file with its `+N −M` and which lines show. Code is
+coloured by the file's language (chroma's lexers, in the terminal's own
+named colours, so it reads on dark and light themes); a language it does
+not know shows as plain text. Added lines have a green `+` and a green tint,
+removed lines a red `−` and a red tint, hunk headers are dim. Long lines
+are cut with `…`, never wrapped. `J`/`K` scroll a line, `pgup`/`pgdn` (or
+`ctrl+u`/`ctrl+d`) a page, `home`/`end` to either end, and the wheel over
+the preview three lines. A file's diff shows up to 2000 lines and says how
+many more there are; git runs off the UI with the same 5 s timeout, and an
+answer is reused while the file's content is unchanged.
+
+`v` again, `esc`, another tab, another row or a full view (`z`, `r`, `?`)
+ends the preview and brings back the list with its cursor and scroll as
+they were. `↵` still opens the file in the diff tool, and `d` the whole
+diff.
+
+![The Files tab and the diff preview on sample data: d focuses the Files tab of a thread that changed eight files, each with a coloured status letter, counts and a bar; v shows the first file, an untracked Markdown file, all added where the task list was; j moves to a TypeScript file whose diff shows syntax colours, red and green tinted lines and dim hunk headers, and J scrolls it; v brings the list back, and t switches the Files tab to the folder tree.](docs/demo/diff.gif)
 
 ## Layout
 
@@ -652,7 +690,7 @@ and the status line says so; the whole diff leaves it out too.
   `projects` reads herdr-projects' files and thread list, `tasks` parses
   TASKS.md and scrapes links, `herdr` reads herdr's live panes and events,
   `dev` reads dev-server manifests and probes ports, `diff` reads a
-  worktree's changed files with git, `projects.Roster` reads every
+  worktree's changed files and one file's diff with git, `projects.Roster` reads every
   project for the project picker, `live` combines them and
   watches the project folder, `fake` is sample data for tests and `--fake`.
 - `internal/config`: finds and reads `config.toml` and resolves each setting
@@ -664,6 +702,8 @@ and the status line says so; the whole diff leaves it out too.
 - `internal/plugin`: the herdr plugin's toggle and open-link actions and
   auto-open hook (`herdr-deck plugin toggle|open-link|agent-detected`, run
   by herdr).
+- `internal/syntax`: colours source lines by language for the diff
+  preview (chroma's lexers, named ANSI colours).
 - `internal/ui`: the Bubble Tea model; renders a `deck.Snapshot` and nothing else.
   Its rendering is pinned by `internal/ui/testdata/*.golden` (every state at
   60 and 80 columns); `go test ./internal/ui -update` rewrites them.
