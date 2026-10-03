@@ -127,6 +127,10 @@ func run(args []string) error {
 			df := cur.Load().Diff
 			return runner.Run(df, launch.DiffArgv(df, path, base, files...), path)
 		},
+		OpenCommit: func(path, sha string) error {
+			df := cur.Load().Diff
+			return runner.Run(df, launch.CommitArgv(df, path, sha), path)
+		},
 		DiffTree:  cfg.DiffView == config.DiffViewTree,
 		Tick:      cfg.RefreshInterval,
 		Version:   shortVersionString(),
@@ -154,9 +158,12 @@ func run(args []string) error {
 		opt.Load = func(context.Context) deck.Snapshot { return snap }
 		opt.Diff = fake.Diff
 		opt.Patch = fake.Patch
+		opt.Commits = fake.Commits
+		opt.CommitPatch = fake.CommitPatch
 		// The sample's worktrees do not exist: e and d only say they opened.
 		opt.OpenEditor = func(string) error { return nil }
 		opt.OpenDiff = func(string, string, []string) error { return nil }
+		opt.OpenCommit = func(string, string) error { return nil }
 		_, err := tea.NewProgram(ui.New(snap, opt)).Run()
 		return err
 	}
@@ -213,6 +220,8 @@ func run(args []string) error {
 	diffs := &diff.Reader{}
 	opt.Diff = diffs.Read
 	opt.Patch = diffs.ReadPatch
+	opt.Commits = diffs.ReadCommits
+	opt.CommitPatch = diffs.ReadCommitPatch
 	opt.StartDev = func(t deck.Thread) (string, error) { return devs.Up(context.Background(), slug, t) }
 	// Both switches can change while the deck runs, so the checks are
 	// always set up and ask cur each time.

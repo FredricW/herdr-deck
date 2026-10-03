@@ -8,6 +8,16 @@ and versions follow [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+
+- A Commits tab in the drawer, between Files and Log: the thread branch's
+  commits since its base, newest first, each with its short sha, subject,
+  age and `+N −M` (a merge dim, with `⋔`), under a `● uncommitted · N
+  files` row that leads to Files when the worktree has uncommitted changes.
+  `↵` or a digit previews a commit as `git show` does (author, date, body
+  and a syntax-coloured diff, file by file); in the focused drawer `d`
+  opens it in the diff tool against its parent and `g` in the PR on GitHub.
+
 ## [0.1.3] - 2026-10-03
 
 ### Added

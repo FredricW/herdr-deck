@@ -31,6 +31,8 @@ func (m Model) rowDrawer(r row, links []deck.Link, width, h int) *drawer {
 	switch tab {
 	case tabFiles:
 		m.filesTab(d)
+	case tabCommits:
+		m.commitsTab(d, r)
 	case tabLog:
 		m.logTab(d, t, links)
 	default:
@@ -106,6 +108,12 @@ func (m Model) tabBar(r row, hasThread bool, active tabKind, hint string, width 
 				} else if d.Note == "" {
 					label += " " + strconv.Itoa(len(d.Files))
 				}
+			case tabCommits:
+				if _, cs, ok := m.commits(); ok && cs.Note == "" {
+					label += " " + strconv.Itoa(len(cs.List)+cs.More)
+				} else if _, ok := m.commitThread(); ok {
+					label += " …"
+				}
 			case tabLog:
 				if t, ok := r.thread(); ok && hasThread {
 					label += " " + strconv.Itoa(len(t.Log))
@@ -132,12 +140,16 @@ func (m Model) tabBar(r row, hasThread bool, active tabKind, hint string, width 
 }
 
 // tabEnabled says whether the row has something behind tab: Files needs a
-// worktree that is not resolved, Log a thread.
+// worktree that is not resolved, Commits and Log a thread (Commits says
+// why a resolved one or one without a worktree shows none).
 func (m Model) tabEnabled(r row, tab tabKind) bool {
 	switch tab {
 	case tabFiles:
 		_, ok := m.diffThread()
 		return ok && m.opt.Diff != nil
+	case tabCommits:
+		_, ok := r.thread()
+		return r.kind == rowWork && ok && m.opt.Commits != nil
 	case tabLog:
 		_, ok := r.thread()
 		return r.kind == rowWork && ok

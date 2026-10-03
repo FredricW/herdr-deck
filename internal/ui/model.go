@@ -52,6 +52,16 @@ type Options struct {
 	// (v on the Files tab). It runs off the UI goroutine when the preview
 	// moves to another file and on every reload. Nil turns the preview off.
 	Patch func(ctx context.Context, t deck.Thread, mergeBase string, f deck.DiffFile) deck.Patch
+	// Commits reads the commits of a thread's branch since its base, for
+	// the Commits tab. It runs off the UI goroutine when the selection
+	// moves to another thread and on every reload. Nil turns the tab off.
+	Commits func(context.Context, deck.Thread) deck.Commits
+	// CommitPatch reads one commit for the preview (v or ↵ on the Commits
+	// tab). It runs off the UI goroutine. Nil turns that preview off.
+	CommitPatch func(ctx context.Context, t deck.Thread, sha string) deck.CommitPatch
+	// OpenCommit opens the diff tool for commit sha of the worktree at
+	// path. Tests replace it so no diff tool is ever run.
+	OpenCommit func(path, sha string) error
 	// DiffTree starts the Files section in the tree view (diff_view =
 	// "tree"); d t switches views for the session.
 	DiffTree bool
@@ -186,9 +196,15 @@ type Model struct {
 	diffing   bool                 // a Diff call is running
 	diffAgain bool                 // the selection moved while it ran
 
+	commitLists  map[string]deck.Commits // the last commits read, by diffKey
+	commitsSel   string                  // the diffKey last asked for
+	committing   bool                    // a Commits call is running
+	commitsAgain bool                    // the selection moved while it ran
+
 	// The diff preview (preview.go): on, the thread (diffKey) and file
-	// (patchKey) it shows, and its scroll.
+	// (patchKey) or commit (commitKey) it shows, and its scroll.
 	preview    bool
+	prevTab    tabKind
 	prevThread string
 	prevKey    string
 	prevOff    int
@@ -213,17 +229,18 @@ func New(snap deck.Snapshot, opt Options) Model {
 		opt.UpdateEvery = DefaultUpdateEvery
 	}
 	m := Model{
-		opt:      opt,
-		keys:     defaultKeys(),
-		folds:    map[string]bool{},
-		diffs:    map[string]deck.Diff{},
-		patches:  map[string]preview{},
-		choosing: noKind,
-		tree:     opt.DiffTree,
-		width:    defaultWidth,
-		height:   defaultHeight,
-		loaded:   opt.Load == nil,
-		loading:  opt.Load != nil, // Init starts the first load
+		opt:         opt,
+		keys:        defaultKeys(),
+		folds:       map[string]bool{},
+		diffs:       map[string]deck.Diff{},
+		commitLists: map[string]deck.Commits{},
+		patches:     map[string]preview{},
+		choosing:    noKind,
+		tree:        opt.DiffTree,
+		width:       defaultWidth,
+		height:      defaultHeight,
+		loaded:      opt.Load == nil,
+		loading:     opt.Load != nil, // Init starts the first load
 	}
 	if opt.Updated != "" {
 		m.notice = "Updated to v" + opt.Updated + " · " + m.keys.News.Keys()[0] + " what's new"
@@ -421,7 +438,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.loaded = true
 		m.SetSnapshot(deck.Snapshot(msg))
 		m.syncPreview()
-		diff := tea.Batch(m.readDiff(true), m.readPatch(true))
+		diff := tea.Batch(m.readDiff(true), m.readCommits(true), m.readPatch(true))
 		if m.pending {
 			m.pending = false
 			return m, tea.Batch(m.refresh(), diff)
@@ -434,6 +451,15 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if m.diffAgain {
 			m.diffAgain = false
 			return m, tea.Batch(m.readDiff(true), m.readPatch(false))
+		}
+		return m, m.readPatch(false)
+	case commitsMsg:
+		m.committing = false
+		m.setCommits(msg.key, msg.commits)
+		m.syncPreview()
+		if m.commitsAgain {
+			m.commitsAgain = false
+			return m, tea.Batch(m.readCommits(true), m.readPatch(false))
 		}
 		return m, m.readPatch(false)
 	case patchMsg:
@@ -481,7 +507,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 // thread, and a patch read when the preview moved to another file.
 func (m Model) followDiff(cmd tea.Cmd) (tea.Model, tea.Cmd) {
 	m.syncPreview()
-	return m, tea.Batch(cmd, m.readDiff(false), m.readPatch(false))
+	return m, tea.Batch(cmd, m.readDiff(false), m.readCommits(false), m.readPatch(false))
 }
 
 // diffThread is the selected row's thread whose worktree the Files section
@@ -634,7 +660,11 @@ func (m *Model) moveDrawerCursor(delta int) {
 		m.scrollDrawer(delta)
 		return
 	}
-	m.dcur = clamp(m.dcur+delta, 0, len(l.drawer.stops)-1)
+	lo := 0
+	if _, cs, ok := m.commits(); ok && m.preview && m.curTab() == tabCommits && len(cs.List) > 0 {
+		lo = commitStop(cs, 0) // the preview stays on the commits
+	}
+	m.dcur = clamp(m.dcur+delta, lo, len(l.drawer.stops)-1)
 	line := l.drawer.stops[m.dcur].line
 	if line < m.drawerOff {
 		m.drawerOff = line
@@ -672,6 +702,16 @@ func (m *Model) act(a action) tea.Cmd {
 		if r, ok := m.selected(); ok && m.tabEnabled(r, tabKind(a.n)) {
 			m.switchTab(tabKind(a.n))
 		}
+	case actCommit:
+		if a.n == 0 {
+			// The uncommitted row: those changes are the Files tab's.
+			if r, ok := m.selected(); ok && m.tabEnabled(r, tabFiles) {
+				m.switchTab(tabFiles)
+				m.dfocus = true
+			}
+			return nil
+		}
+		m.previewCommit(a.n - 1)
 	}
 	return nil
 }
@@ -719,6 +759,10 @@ func (m Model) handleKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		}
 	}
 	if s := msg.String(); len(s) == 1 && s[0] >= '1' && s[0] <= '9' {
+		if m.mode == modeRow && m.curTab() == tabCommits {
+			m.previewCommit(int(s[0] - '1'))
+			return m, nil
+		}
 		if m.mode == modeRow && m.curTab() == tabFiles {
 			if t, d, ok := m.diff(); ok {
 				return m, m.openFile(t, d, int(s[0]-'1'))
@@ -728,6 +772,9 @@ func (m Model) handleKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		return m, m.openNumbered(int(s[0] - '1'))
 	}
 	if cmd, done := m.filesOnlyKey(msg); done {
+		return m, cmd
+	}
+	if cmd, done := m.commitsOnlyKey(msg); done {
 		return m, cmd
 	}
 	if m.previewKey(msg) {
@@ -1162,8 +1209,8 @@ func (m *Model) handleClick(mouse tea.Mouse) (tea.Model, tea.Cmd) {
 					m.dcur = k
 				}
 			}
-			if m.preview && z.act.kind == actFile {
-				return *m, nil // the click picks the file to preview
+			if m.preview && (z.act.kind == actFile || z.act.kind == actCommit && z.act.n > 0) {
+				return *m, nil // the click picks the file or commit to preview
 			}
 			return *m, m.act(z.act)
 		}

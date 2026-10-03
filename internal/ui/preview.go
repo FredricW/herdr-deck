@@ -15,15 +15,19 @@ import (
 
 // The diff preview: while the Files tab has the focus, v shows the
 // highlighted file's diff where the list is, and the drawer below keeps
-// moving between files. The list's cursor and scroll stay as they were,
-// so turning the preview off shows the list unchanged.
+// moving between files; on the Commits tab it shows the highlighted
+// commit, as `git show` does. The list's cursor and scroll stay as they
+// were, so turning the preview off shows the list unchanged.
 
-// preview is one file's diff ready to draw: the patch and each line's
-// code, coloured by the file's language (empty for hunk headers and
-// notes).
+// preview is one file's diff or one commit ready to draw: the patch and
+// each line's code, coloured by its file's language (empty for hunk
+// headers, notes and file lines). A commit's preview starts with its
+// author, date and body.
 type preview struct {
-	patch deck.Patch
-	code  []string
+	patch  deck.Patch
+	code   []string
+	commit *deck.Commit
+	body   []string
 }
 
 type patchMsg struct {
@@ -45,6 +49,41 @@ func patchKey(t deck.Thread, f deck.DiffFile) string {
 	return diffKey(t) + "\x00" + f.OldPath + "\x00" + f.Path
 }
 
+// commitKey names a commit of a thread's branch.
+func commitKey(t deck.Thread, sha string) string {
+	return "c\x00" + diffKey(t) + "\x00" + sha
+}
+
+// previewCommitAt is the commit the preview shows on the Commits tab: the
+// one under the drawer cursor.
+func (m Model) previewCommitAt() (deck.Thread, deck.Commit, bool) {
+	t, cs, ok := m.commits()
+	if !ok || cs.Note != "" {
+		return t, deck.Commit{}, false
+	}
+	i := m.cursorCommit(cs)
+	if i < 0 {
+		return t, deck.Commit{}, false
+	}
+	return t, cs.List[i], true
+}
+
+// previewing is what the preview shows on the current tab: the thread
+// and the patchKey or commitKey of the file or commit under the cursor.
+func (m Model) previewing() (deck.Thread, string, bool) {
+	switch m.curTab() {
+	case tabFiles:
+		if t, _, f, ok := m.previewFile(); ok {
+			return t, patchKey(t, f), true
+		}
+	case tabCommits:
+		if t, c, ok := m.previewCommitAt(); ok {
+			return t, commitKey(t, c.SHA), true
+		}
+	}
+	return deck.Thread{}, "", false
+}
+
 // previewFile is the file the preview shows: the one under the Files
 // tab's cursor.
 func (m Model) previewFile() (deck.Thread, deck.Diff, deck.DiffFile, bool) {
@@ -57,19 +96,31 @@ func (m Model) previewFile() (deck.Thread, deck.Diff, deck.DiffFile, bool) {
 }
 
 // togglePreview turns the preview on or off. Turning it on focuses the
-// Files tab and gives the drawer its normal height, so the preview has
-// the list's place.
+// Files or Commits tab and gives the drawer its normal height, so the
+// preview has the list's place.
 func (m *Model) togglePreview() {
 	if m.preview {
 		m.preview = false
 		return
 	}
-	if m.opt.Patch == nil {
+	commits := m.curTab() == tabCommits
+	if !commits && m.opt.Patch == nil || commits && m.opt.CommitPatch == nil {
 		m.status = "the diff preview is off"
 		return
 	}
-	if _, _, _, ok := m.previewFile(); !ok {
-		m.status = "no file to preview"
+	if commits {
+		// From the uncommitted row, the preview starts at the newest
+		// commit.
+		if _, cs, ok := m.commits(); ok && m.cursorCommit(cs) < 0 && len(cs.List) > 0 {
+			m.dcur = commitStop(cs, 0)
+		}
+	}
+	if _, _, ok := m.previewing(); !ok {
+		if commits {
+			m.status = "no commit to preview"
+		} else {
+			m.status = "no file to preview"
+		}
 		return
 	}
 	if m.size != sizeNormal {
@@ -78,26 +129,28 @@ func (m *Model) togglePreview() {
 	}
 	m.dfocus = true
 	m.preview = true
+	m.prevTab = m.curTab()
 	m.prevThread, m.prevKey, m.prevOff = "", "", 0
 	m.syncPreview()
 }
 
-// syncPreview turns the preview off once its place is gone: the Files tab
-// lost the focus, another view or row came up, or the drawer changed
-// size. A file other than the last one shown starts from its top.
+// syncPreview turns the preview off once its place is gone: the Files or
+// Commits tab lost the focus, another view or row came up, or the drawer
+// changed size. A file or commit other than the last one shown starts
+// from its top.
 func (m *Model) syncPreview() {
 	if !m.preview {
 		return
 	}
-	t, _, f, ok := m.previewFile()
+	t, k, ok := m.previewing()
 	switch {
-	case !ok, m.mode != modeRow, !m.dfocus, m.curTab() != tabFiles, m.effectiveSize() != sizeNormal,
+	case !ok, m.mode != modeRow, !m.dfocus, m.curTab() != m.prevTab, m.effectiveSize() != sizeNormal,
 		m.prevThread != "" && m.prevThread != diffKey(t):
 		m.preview = false
 		return
 	}
 	m.prevThread = diffKey(t)
-	if k := patchKey(t, f); k != m.prevKey {
+	if k != m.prevKey {
 		m.prevKey, m.prevOff = k, 0
 	}
 	m.scrollPreview(0)
@@ -107,23 +160,38 @@ func (m *Model) syncPreview() {
 // only when the preview moved to another file. One read runs at a time;
 // a move meanwhile reads again when it ends.
 func (m *Model) readPatch(force bool) tea.Cmd {
-	if !m.preview || m.opt.Patch == nil {
+	if !m.preview {
 		return nil
 	}
-	t, d, f, ok := m.previewFile()
-	if !ok {
-		return nil
-	}
-	k := patchKey(t, f)
-	if !force && k == m.patchSel {
+	t, k, ok := m.previewing()
+	if !ok || !force && k == m.patchSel {
 		return nil
 	}
 	if m.patching {
 		m.patchAgain = true
 		return nil
 	}
-	m.patching, m.patchSel = true, k
+	if m.curTab() == tabCommits {
+		_, c, _ := m.previewCommitAt()
+		read := m.opt.CommitPatch
+		if read == nil {
+			return nil
+		}
+		m.patching, m.patchSel = true, k
+		// A commit never changes: one read is enough.
+		if old, had := m.patches[k]; had {
+			return func() tea.Msg { return patchMsg{key: k, data: old} }
+		}
+		return func() tea.Msg {
+			return patchMsg{key: k, data: newCommitPreview(c, read(context.Background(), t, c.SHA))}
+		}
+	}
+	_, d, f, _ := m.previewFile()
 	read := m.opt.Patch
+	if read == nil {
+		return nil
+	}
+	m.patching, m.patchSel = true, k
 	old, had := m.patches[k]
 	return func() tea.Msg {
 		p := read(context.Background(), t, d.MergeBase, f)
@@ -141,20 +209,54 @@ func samePatch(a, b deck.Patch) bool {
 // newPreview colours a patch's code lines by the file's language. It
 // runs with the read, off the UI goroutine.
 func newPreview(path string, p deck.Patch) preview {
+	return preview{patch: p, code: colourCode(path, p.Lines)}
+}
+
+// newCommitPreview colours a commit's patch file by file, each by its own
+// language, and keeps the body's lines. It runs with the read, off the UI
+// goroutine.
+func newCommitPreview(c deck.Commit, cp deck.CommitPatch) preview {
+	code := make([]string, len(cp.Patch.Lines))
+	start, path := 0, ""
+	flush := func(end int) {
+		copy(code[start:end], colourCode(path, cp.Patch.Lines[start:end]))
+	}
+	for i, l := range cp.Patch.Lines {
+		if l.Kind == deck.LineFile {
+			flush(i)
+			start, path = i, l.Text
+			if _, to, ok := strings.Cut(path, " → "); ok {
+				path = to
+			}
+		}
+	}
+	flush(len(cp.Patch.Lines))
+	var body []string
+	if cp.Body != "" {
+		for _, l := range strings.Split(cp.Body, "\n") {
+			body = append(body, syntax.Clean(strings.TrimRight(l, " \r")))
+		}
+	}
+	return preview{patch: cp.Patch, code: code, commit: &c, body: body}
+}
+
+// colourCode is lines' code coloured by the language of the file at
+// path: one entry per line, empty for lines that are not code.
+func colourCode(path string, lines []deck.PatchLine) []string {
 	var idx []int
 	var text []string
-	for i, l := range p.Lines {
+	for i, l := range lines {
 		switch l.Kind {
 		case deck.LineContext, deck.LineAdded, deck.LineDeleted:
 			idx = append(idx, i)
 			text = append(text, l.Text)
 		}
 	}
-	code := make([]string, len(p.Lines))
+	code := make([]string, len(lines))
 	for j, s := range syntax.Lines(path, text) {
 		code[idx[j]] = s
 	}
-	return preview{patch: p, code: code}
+	return code
 }
 
 // previewKey handles the keys the preview takes over: J K scroll a line,
@@ -183,18 +285,47 @@ func (m *Model) previewKey(msg tea.KeyPressMsg) bool {
 	return true
 }
 
-// previewTotal is how many lines the preview scrolls through: the
-// patch's, the cap's line, or the one line saying why there are none.
+// previewTotal is how many lines the preview scrolls through: a commit's
+// introduction, then the patch's, the cap's line, or the one line saying
+// why there are none.
 func (m Model) previewTotal() int {
 	p, ok := m.patches[m.prevKey]
-	if !ok || len(p.patch.Lines) == 0 {
+	if !ok {
 		return 1
 	}
-	n := len(p.patch.Lines)
-	if p.patch.More > 0 || p.patch.Cut {
+	n := len(m.intro(p)) + len(p.patch.Lines)
+	switch {
+	case len(p.patch.Lines) == 0 || p.patch.Binary:
+		n = len(m.intro(p)) + 1
+	case p.patch.More > 0 || p.patch.Cut:
 		n++
 	}
 	return n
+}
+
+// intro is the lines a commit's preview starts with: who wrote it and
+// when, then its body, each followed by a blank line. A file's preview
+// has none.
+func (m Model) intro(p preview) []string {
+	if p.commit == nil {
+		return nil
+	}
+	c := p.commit
+	who := c.Author
+	if !c.Time.IsZero() {
+		who += " · " + c.Time.In(m.loc()).Format("2006-01-02 15:04") + " · " + ageText(m.opt.Now().Sub(c.Time)) + " ago"
+	}
+	if c.Merge {
+		who += " · merge, against its first parent"
+	}
+	lines := []string{" " + dim.Render(who), ""}
+	if len(p.body) > 0 {
+		for _, l := range p.body {
+			lines = append(lines, " "+l)
+		}
+		lines = append(lines, "")
+	}
+	return lines
 }
 
 // scrollPreview moves the preview by delta lines, within its lines.
@@ -206,27 +337,33 @@ func (m *Model) scrollPreview(delta int) {
 // previewLines draws the preview in the list's place: a header line where
 // the column titles were, then h lines of the diff.
 func (m Model) previewLines(w, h int) []string {
-	_, _, f, _ := m.previewFile()
 	p, ok := m.patches[m.prevKey]
-	lines := []string{m.previewHeader(f, ok, w, h)}
-	var body []string
-	switch {
-	case !ok:
-		body = []string{dim.Render("  reading the diff…")}
-	case p.patch.Binary:
-		body = []string{dim.Render("  binary file: no lines to show")}
-	case len(p.patch.Lines) == 0:
-		note := p.patch.Note
-		if note == "" {
-			note = "no changes"
-		}
-		body = []string{dim.Render("  " + note)}
-	default:
-		end := min(m.prevOff+h, len(p.patch.Lines))
-		for i := m.prevOff; i < end; i++ {
-			body = append(body, m.diffLine(p.patch.Lines[i], p.code[i], w))
-		}
-		if len(body) < h && (p.patch.More > 0 || p.patch.Cut) {
+	var head string
+	if m.curTab() == tabCommits {
+		_, c, _ := m.previewCommitAt()
+		head = m.commitHeader(c, ok, w, h)
+	} else {
+		_, _, f, _ := m.previewFile()
+		head = m.previewHeader(f, ok, w, h)
+	}
+	lines := []string{head}
+	if !ok {
+		lines = append(lines, dim.Render("  reading the diff…"))
+	} else {
+		// The lines scrolled through: a commit's introduction, then the
+		// patch's lines (only the shown ones are drawn) or a note.
+		intro := m.intro(p)
+		var tail []string
+		switch {
+		case p.patch.Binary:
+			tail = []string{dim.Render("  binary file: no lines to show")}
+		case len(p.patch.Lines) == 0:
+			note := p.patch.Note
+			if note == "" {
+				note = "no changes"
+			}
+			tail = []string{dim.Render("  " + note)}
+		case p.patch.More > 0 || p.patch.Cut:
 			more := fmt.Sprintf("  … %d more lines", p.patch.More)
 			switch {
 			case p.patch.Cut && p.patch.More == 0:
@@ -234,11 +371,23 @@ func (m Model) previewLines(w, h int) []string {
 			case p.patch.Cut:
 				more = fmt.Sprintf("  … %d+ more lines", p.patch.More)
 			}
-			body = append(body, dim.Render(more))
+			tail = []string{dim.Render(more)}
 		}
-	}
-	for _, l := range body {
-		lines = append(lines, fit(l, w))
+		patch := 0
+		if !p.patch.Binary {
+			patch = len(p.patch.Lines)
+		}
+		for i := m.prevOff; i < m.prevOff+h; i++ {
+			switch {
+			case i < len(intro):
+				lines = append(lines, fit(intro[i], w))
+			case i-len(intro) < patch:
+				k := i - len(intro)
+				lines = append(lines, fit(m.diffLine(p.patch.Lines[k], p.code[k], w), w))
+			case i-len(intro)-patch < len(tail):
+				lines = append(lines, fit(tail[i-len(intro)-patch], w))
+			}
+		}
 	}
 	for len(lines) < h+1 {
 		lines = append(lines, "")
@@ -265,12 +414,31 @@ func (m Model) previewHeader(f deck.DiffFile, ok bool, w, h int) string {
 	return spread(" "+bold.Render(name)+"  "+counts, right, w)
 }
 
+// commitHeader names the commit with its short sha, subject and +N −M,
+// and at the right which lines show.
+func (m Model) commitHeader(c deck.Commit, ok bool, w, h int) string {
+	counts := addedStyle.Render(fmt.Sprintf("+%d", c.Added)) + " " + deletedStyle.Render(fmt.Sprintf("−%d", c.Deleted))
+	if c.Merge {
+		counts = dim.Render("merge")
+	}
+	right := ""
+	if total := m.previewTotal(); ok && total > h {
+		right = dim.Render(fmt.Sprintf("%d–%d/%d", m.prevOff+1, min(m.prevOff+h, total), total)) + " "
+	}
+	room := w - 1 - ansi.StringWidth(c.Short) - 1 - 2 - ansi.StringWidth(counts) - ansi.StringWidth(right) - 2
+	subject := ansi.Truncate(syntax.Clean(c.Subject), max(room, 8), "…")
+	return spread(" "+dim.Render(c.Short)+" "+bold.Render(subject)+"  "+counts, right, w)
+}
+
 // diffLine is one line of the diff: a green + or red − in the gutter and
 // a tinted background under added and removed lines, the code coloured
 // by its language; hunk headers and git's notes dim. Long lines are cut
 // with …, never wrapped.
 func (m Model) diffLine(l deck.PatchLine, code string, w int) string {
 	switch l.Kind {
+	case deck.LineFile:
+		name := truncateLeft(syntax.Clean(l.Text), max(w-6, 8))
+		return dim.Render(" ── ") + bold.Render(name) + " " + dim.Render(strings.Repeat("─", max(w-5-ansi.StringWidth(name), 0)))
 	case deck.LineHunk:
 		return dim.Render(ansi.Truncate(" "+syntax.Clean(l.Text), w, "…"))
 	case deck.LineNote:

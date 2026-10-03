@@ -666,6 +666,20 @@ func (m Model) rowHint(r row, narrow bool) string {
 				return "j k file  v preview  ↵ open  d all  " + view + "  esc list"
 			}
 			return "j k file  v preview  ↵ open  d whole diff  " + view + "  esc list  ? help"
+		case tabCommits:
+			gh := ""
+			if hasThread && t.PR != nil {
+				gh = "  g GitHub"
+			}
+			switch {
+			case m.preview && narrow:
+				return "j k commit  J K scroll  v off  esc list"
+			case m.preview:
+				return "j k commit  J K scroll  v preview off  d diff tool" + gh + "  esc list"
+			case narrow:
+				return "j k commit  ↵ preview  d tool" + gh + "  esc list"
+			}
+			return "j k commit  ↵ preview  d diff tool" + gh + "  esc list  ? help"
 		case tabLog:
 			return "j k event  ↵ act  tab next tab  esc list  ? help"
 		}
@@ -681,6 +695,10 @@ func (m Model) rowHint(r row, narrow bool) string {
 			return "1-9 file  v preview  d d diff  " + view + "  [ ] tab"
 		}
 		return "1-9 file  v preview  d d whole diff  " + view + "  [ ] tab  ? help"
+	case tab == tabCommits && narrow:
+		return "1-9 commit  v preview  tab focus  [ ] tab"
+	case tab == tabCommits:
+		return "1-9 preview commit  v preview  tab focus  [ ] tab  ? help"
 	case tab == tabLog && hasThread && t.PR != nil:
 		return "1-9 link  g PR  r report  [ ] tab  z drawer  ? help"
 	case tab == tabLog:
