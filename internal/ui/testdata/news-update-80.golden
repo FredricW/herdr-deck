@@ -1,0 +1,28 @@
+ Admin rebuild                                     ◐ 2  ◇ 1  ○ 1  ✉ 0  ↑ v0.3.0
+────────────────────────────────────────────────────────────────────────────────
+─ What's new ───────────────────────────────────────────────────────────────────
+ ↑ v0.3.0 is available: run `herdr-deck update`
+
+ v0.3.0 · 2026-10-09 · new
+ Added    · Threads show their changed files.
+ Changed  · Reloads are faster.
+
+ v0.2.0 · 2026-09-30 · ● running
+ Added    · Tasks fold under their list heading, and space unfolds them again
+            when the list is long.
+          · ABC-123 style IDs open in Linear.
+ Fixed    · The drawer no longer flickers on reload.
+
+ v0.1.0 · 2026-09-01
+ The first release.
+ Added    · A list of tasks and threads.
+
+
+
+
+
+
+
+
+────────────────────────────────────────────────────────────────────────────────
+ esc back  pgup pgdn scroll  z drawer  ? help  q quit                     v0.2.0

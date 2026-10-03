@@ -10,6 +10,7 @@ import (
 	"charm.land/lipgloss/v2"
 	"github.com/charmbracelet/x/ansi"
 
+	"github.com/FredricW/herdr-deck/internal/changelog"
 	"github.com/FredricW/herdr-deck/internal/deck"
 )
 
@@ -22,6 +23,7 @@ const (
 	modeHelp                       // every key
 	modeReport                     // the selected thread's report
 	modeSettings                   // the settings page
+	modeNews                       // What's new: the changelog
 )
 
 // item is one piece of a drawer value: a word of text or a whole link.
@@ -668,6 +670,7 @@ var helpLines = [][2]string{
 	{"pgup pgdn", "scroll the drawer"},
 	{"!", "sources: what could not be read"},
 	{"s", "settings: every setting with its value and source; ↵ edits one in the config file"},
+	{"w", "what's new: the changelog, newest first; with ↑ in the header, also what the newer version brings"},
 	{"?", "this help; esc returns"},
 	{"q", "quit"},
 	{"mouse", "click a row, link, list heading or ! N; the wheel moves the list or scrolls the drawer"},
@@ -695,4 +698,70 @@ func ageText(d time.Duration) string {
 		return fmt.Sprintf("%dh", int(d.Hours()))
 	}
 	return fmt.Sprintf("%dd", int(d.Hours()/24))
+}
+
+// newsDrawer is What's new: what a newer version brings when the header
+// shows ↑, then this deck's changelog, newest first, with the release it
+// runs marked.
+func (m Model) newsDrawer(width int) *drawer {
+	d := newDrawer(width, "What's new")
+	d.labelW = 9
+	if v := m.update.Available; v != "" {
+		d.text(okStyle.Render("↑ "+v+" is available: run `herdr-deck update`"), plain)
+		for _, r := range m.update.News {
+			d.line("")
+			d.release(r, okStyle.Render("new"))
+		}
+		d.line("")
+	}
+	running := m.opt.Changelog.Running(m.opt.Version)
+	shown := false
+	for i, r := range m.opt.Changelog.Releases {
+		// A release build's Unreleased section is not in it.
+		if r.Empty() || r.Unreleased() && running >= 0 && i != running {
+			continue
+		}
+		if shown {
+			d.line("")
+		}
+		shown = true
+		tag := ""
+		if i == running {
+			tag = okStyle.Render("● running")
+			if r.Unreleased() {
+				tag = okStyle.Render("● this build")
+			}
+		}
+		d.release(r, tag)
+	}
+	if !shown {
+		d.text("This build has no changelog.", dim)
+	}
+	return d
+}
+
+// release adds one changelog release: its title, date and tag, its summary,
+// then each section's items under the section's name.
+func (d *drawer) release(r changelog.Release, tag string) {
+	head := " " + bold.Render(r.Title())
+	if r.Date != "" {
+		head += dim.Render(" · " + r.Date)
+	}
+	if tag != "" {
+		head += dim.Render(" · ") + tag
+	}
+	d.line(head)
+	if r.Summary != "" {
+		d.text(r.Summary, plain)
+	}
+	for _, s := range r.Sections {
+		var gs []group
+		for _, it := range s.Items {
+			g := words(it, plain)
+			g.items = append([]item{span("·", dim)}, g.items...)
+			g.hang = 2
+			gs = append(gs, g)
+		}
+		d.field(s.Name, false, gs...)
+	}
 }

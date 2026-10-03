@@ -12,11 +12,14 @@ import (
 	"path/filepath"
 	"runtime/debug"
 	"slices"
+	"sync"
 	"sync/atomic"
 	"time"
 
 	tea "charm.land/bubbletea/v2"
 
+	herdrdeck "github.com/FredricW/herdr-deck"
+	"github.com/FredricW/herdr-deck/internal/changelog"
 	"github.com/FredricW/herdr-deck/internal/config"
 	"github.com/FredricW/herdr-deck/internal/deck"
 	"github.com/FredricW/herdr-deck/internal/launch"
@@ -122,8 +125,9 @@ func run(args []string) error {
 			df := cur.Load().Diff
 			return runner.Run(df, launch.DiffArgv(df, path, base, files...), path)
 		},
-		Tick:    cfg.RefreshInterval,
-		Version: shortVersionString(),
+		Tick:      cfg.RefreshInterval,
+		Version:   shortVersionString(),
+		Changelog: ownChangelog,
 		Settings: &ui.SettingsHooks{
 			Resolve: func() (config.Settings, error) { return config.Resolve(fl, os.Getenv, exec.LookPath) },
 			Save:    config.Save,
@@ -197,6 +201,9 @@ func run(args []string) error {
 		}
 		return hint(ctx)
 	}
+	if dir := config.StateDir(os.Getenv); dir != "" {
+		opt.Updated = changelog.Seen(filepath.Join(dir, changelog.SeenFile), opt.Version)
+	}
 	// The binary's path is taken now, before an update can move it.
 	var exe string
 	if restart.Supported {
@@ -235,6 +242,7 @@ func run(args []string) error {
 		opt.RestartFailed = err.Error()
 		// Keep what the settings page saved since the start.
 		opt.Tick, opt.FigmaDesktop = cur.Load().RefreshInterval, cur.Load().FigmaDesktop
+		opt.Updated = ""
 		model = ui.New(m.Snapshot(), opt)
 	}
 }
@@ -256,13 +264,24 @@ func newUpdater(out io.Writer) update.Updater {
 	}
 }
 
+// ownChangelog is the embedded CHANGELOG.md. Its tests keep it free of
+// problems.
+var ownChangelog, _ = changelog.Parse(herdrdeck.Changelog)
+
 // updateHint is the deck's update check, sharing one cache file between
-// decks. A failure only shows in the Sources view.
+// decks. A failure only shows in the Sources view. When something newer
+// exists it also reads that version's changelog for What's new, once per
+// newer version; a failure there only leaves the list out.
 func updateHint(cacheDir string) func(context.Context) ui.Update {
 	c := update.Checker{Updater: newUpdater(io.Discard)}
 	if cacheDir != "" {
 		c.CachePath = filepath.Join(cacheDir, "update.json")
 	}
+	var (
+		mu       sync.Mutex
+		newsFor  string // the label News was read for
+		lastNews []changelog.Release
+	)
 	return func(ctx context.Context) ui.Update {
 		ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
 		defer cancel()
@@ -270,10 +289,19 @@ func updateHint(cacheDir string) func(context.Context) ui.Update {
 		switch {
 		case err != nil:
 			return ui.Update{Problem: err.Error()}
-		case st.Newer:
-			return ui.Update{Available: st.Label()}
+		case !st.Newer:
+			return ui.Update{}
 		}
-		return ui.Update{}
+		mu.Lock()
+		defer mu.Unlock()
+		if newsFor != st.Label() {
+			lastNews = nil // an older version's list, or none
+			if text, err := c.Updater.Changelog(ctx, st); err == nil {
+				remote, _ := changelog.Parse(string(text))
+				newsFor, lastNews = st.Label(), changelog.Newer(remote, ownChangelog, shortVersionString())
+			}
+		}
+		return ui.Update{Available: st.Label(), News: lastNews}
 	}
 }
 
