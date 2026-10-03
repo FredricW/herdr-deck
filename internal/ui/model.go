@@ -44,6 +44,9 @@ type Options struct {
 	// (a commit), for one file (a rename's old and new path) or, with no
 	// files, the whole diff. Tests replace it so no diff tool is ever run.
 	OpenDiff func(path, base string, files []string) error
+	// DiffTree starts the Files section in the tree view (diff_view =
+	// "tree"); d t switches views for the session.
+	DiffTree bool
 	// StartDev runs the dev manifest's `up` command for a thread's
 	// worktree and returns the line the footer shows. Tests replace it so
 	// no dev server is ever started.
@@ -151,6 +154,7 @@ type Model struct {
 	size      drawerSize
 	choosing  deck.LinkKind // the link chooser's kind, or noKind
 	files     bool          // d waits for a file's digit
+	tree      bool          // the Files section shows a folder tree
 	desktop   bool          // the Figma chooser opens the desktop app
 	status    string        // a one-off message in the footer
 	notice    string        // "Updated to …", until the first key or click
@@ -192,6 +196,7 @@ func New(snap deck.Snapshot, opt Options) Model {
 		folds:    map[string]bool{},
 		diffs:    map[string]deck.Diff{},
 		choosing: noKind,
+		tree:     opt.DiffTree,
 		width:    defaultWidth,
 		height:   defaultHeight,
 		loaded:   opt.Load == nil,
@@ -521,7 +526,8 @@ func (m *Model) diffKeyPressed() tea.Cmd {
 }
 
 // filesKey handles a key while d waits. done is false when the key closes
-// the chooser and should then be handled as usual.
+// the chooser and should then be handled as usual. t switches between the
+// list and the tree and keeps waiting, since the numbers moved.
 func (m *Model) filesKey(msg tea.KeyPressMsg) (tea.Cmd, bool) {
 	m.files = false
 	t, d, ok := m.diff()
@@ -530,6 +536,12 @@ func (m *Model) filesKey(msg tea.KeyPressMsg) (tea.Cmd, bool) {
 	}
 	s := msg.String()
 	switch {
+	case s == "t":
+		m.tree, m.files = !m.tree, true
+		if l := m.layout(); l.drawer != nil && l.drawer.filesAt >= 0 {
+			m.scrollDrawer(l.drawer.filesAt)
+		}
+		return nil, true
 	case len(s) == 1 && s[0] >= '1' && s[0] <= '9':
 		return m.openFile(t, d, int(s[0]-'1')), true
 	case s == "d" || s == "a" || key.Matches(msg, m.keys.Pane):
@@ -545,7 +557,7 @@ func (m *Model) openFile(t deck.Thread, d deck.Diff, i int) tea.Cmd {
 		m.status = fmt.Sprintf("no file %d on this row", i+1)
 		return nil
 	}
-	f := d.Files[i]
+	f := fileOrder(d.Files, m.tree)[i]
 	if f.Untracked {
 		m.status = f.Path + " is untracked: git diff shows it once it is added"
 		return nil

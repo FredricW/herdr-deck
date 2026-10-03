@@ -305,6 +305,13 @@ command = "hunk diff {base} -- {file}"
 terminal = true
 ```
 
+The Files section's starting view is a top-level key, so it goes above any
+table (`d t` switches views for the session without saving):
+
+```toml
+diff_view = "list"   # or "tree": the changed files under their folders
+```
+
 | Setting | Flag | Environment variable | Default |
 |---|---|---|---|
 | `linear_workspace` | `--linear-workspace` | `HERDR_DECK_LINEAR_WORKSPACE` | none |
@@ -320,6 +327,7 @@ terminal = true
 | `[editor] terminal` | `--editor-terminal` | `HERDR_DECK_EDITOR_TERMINAL` | `false` |
 | `[diff] command` | `--diff-tool` | `HERDR_DECK_DIFF_TOOL` | `hunk diff {base} -- {file}`, or `git -C {path} diff --merge-base {base} -- {file}` without hunk |
 | `[diff] terminal` | `--diff-terminal` | `HERDR_DECK_DIFF_TERMINAL` | `true` |
+| `diff_view` | `--diff-view` | `HERDR_DECK_DIFF_VIEW` | `list` |
 
 A command and its `terminal` option go together: the source that gives the
 command also decides `terminal` (or one above it does), so `--editor "zed
@@ -333,8 +341,9 @@ file, e.g. `command = "nvim {path}"` with `terminal = true`.
 
 Press `s` for the settings page: every setting with its effective value and
 where it comes from (flag, env, file or default), grouped as above. `↵`
-toggles a switch or edits a value in place (checked as you type; `esc`
-cancels, an empty value removes it), and `x` removes a setting from the file
+toggles a switch, cycles a choice such as `diff_view`, or edits a value in
+place (checked as you type; `esc` cancels, an empty value removes it), and
+`x` removes a setting from the file
 so the next source decides. Each change is saved to the config file at once,
 creating it and its folder when missing. Only the changed line is touched:
 comments, key order and keys the deck does not know stay. A setting a flag
@@ -461,12 +470,12 @@ carries on.
 | `enter` | focus the thread's herdr pane; on an inbox item, its thread's pane, else the coordinator's |
 | `e` | open the thread's worktree in the editor (VS Code unless configured) |
 | `u` | start the thread's dev servers: the dev manifest's `up` command, detached (see Dev servers) |
-| `d` | the thread's changed files: a digit opens that file in the diff tool, `d` again (or `a`, `enter`) the whole diff, `esc` cancels; with one file, `d` opens the diff right away (see Changed files) |
+| `d` | the thread's changed files: a digit opens that file in the diff tool, `d` again (or `a`, `enter`) the whole diff, `t` switches between list and folder tree, `esc` cancels; with one file, `d` opens the diff right away (see Changed files) |
 | `r` | the thread's report, full height |
 | `z` | drawer: normal, full height, hidden |
 | `pgup` / `pgdn` | scroll the drawer |
 | `!` | sources the deck could not read |
-| `s` | settings: every setting, its value and source; `↵` edits or toggles, `x` removes it from the file (see Configuration) |
+| `s` | settings: every setting, its value and source; `↵` edits, toggles or cycles, `x` removes it from the file (see Configuration) |
 | `w` | what's new: the changelog, newest first, with the running release marked; with `↑` in the header, also what the newer version brings |
 | `?` | all keys |
 | `esc` | back to the selected row |
@@ -482,22 +491,54 @@ drawer.
 ## Changed files
 
 The drawer's Files section lists every file the selected thread changed in
-its worktree, with dim `+added -deleted` counts and a total line:
+its worktree, with a status letter, line counts and a total line:
 
 ```
- Files    4 files +62 -9 vs origin/main
-          1 src/pages/users/UsersPage.tsx       +48 -6
-          2 src/api/users.ts                    +13 -3
-          3 public/empty-state.png              binary
-          4 notes.md                      +1 untracked
+ Files    5 files +62 -13 vs origin/main
+          1 M src/pages/users/UsersPage.tsx     +48 -6
+          2 M src/api/users.ts                  +13 -3
+          3 A public/empty-state.png            binary
+          4 D src/pages/users/OldList.tsx           -4
+          5 ? notes.md                    +1 untracked
 ```
+
+The letter says how the file changed, as `git status` writes it, in the
+terminal's own colours so it reads on dark and light themes: `A` added
+(green), `M` modified (yellow), `D` deleted (red), `R` renamed (cyan),
+`?` untracked (faint green). A binary file's letter is faint. Counts are
+`+added` in green and `-deleted` in red; an added or untracked file shows
+only `+N` and a deleted file only `-M`.
+
+`d` then `t` switches to a folder tree and back; the chooser stays open,
+since the numbers move. The tree puts each file under its folder, folders
+first, joins a chain of folders that hold only one folder into one line
+(`src/pages/users/`), and shows each folder's summed counts, faint. Files
+are numbered 1–9 in the order shown, so digits and clicks open the file on
+that line:
+
+```
+ Files    5 files +62 -13 vs origin/main
+              public/
+          1 A   empty-state.png                 binary
+              src/                              +61 -13
+                api/                             +13 -3
+          2 M     users.ts                       +13 -3
+                pages/users/                     +48 -10
+          3 D     OldList.tsx                        -4
+          4 M     UsersPage.tsx                  +48 -6
+          5 ?   notes.md                   +1 untracked
+```
+
+The deck starts in the list; `diff_view = "tree"` in the config file (or
+the settings page, `--diff-view`, `$HERDR_DECK_DIFF_VIEW`) starts it in the
+tree. `d t` does not write the file.
 
 The worktree is compared with where it forked from the thread's base
 branch (`base` in the thread record, e.g. `origin/main`, else
 `origin/HEAD`): `git diff --numstat <merge-base>`, so committed, staged and
 unstaged changes count, plus untracked files (`git ls-files --others
---exclude-standard`). Renames show as `old → new`, binary files as
-`binary`. The section lists nine files, one per digit, then `+K more`.
+--exclude-standard`). Renames show as `old → new` (from `git diff --raw`, which also gives each
+file's status), binary files as `binary`. The section lists nine files, one per digit, then `+K more`.
 
 Git runs off the UI, with a 5 s timeout and without taking git's optional
 locks, so it never gets in the way of the agent working in the worktree.
@@ -513,7 +554,7 @@ A renamed file opens with its old and new path, so git pairs them. An
 untracked file does not open: `git diff` leaves it out until it is added,
 and the status line says so; the whole diff leaves it out too.
 
-![The Files section of a thread that changed five files: z makes the drawer full height, d asks which file, 2 opens one file's diff, and d d opens the whole diff.](docs/demo/diff.gif)
+![The Files section of a thread that changed eight files, each with a coloured status letter and green and red counts: z makes the drawer full height, d asks which file and 2 opens one file's diff, d t switches to the folder tree where 5 opens the file now numbered 5, and d d opens the whole diff.](docs/demo/diff.gif)
 
 ## Layout
 

@@ -262,8 +262,9 @@ func (m Model) rowDrawer(r row, links []deck.Link, width int, choosing deck.Link
 const maxFiles = 9
 
 // filesField is the Files section: the selected thread's changed files
-// with their line counts, under a total line. It shows nothing until the
-// first diff is read, and a dim note when there is none to show.
+// with their change marks and line counts, as a list or a folder tree,
+// under a total line. It shows nothing until the first diff is read, and
+// a dim note when there is none to show.
 func (m Model) filesField(d *drawer) {
 	_, df, ok := m.diff()
 	switch {
@@ -283,7 +284,8 @@ func (m Model) filesField(d *drawer) {
 	}
 	groups := []group{{sep: " ", items: []item{
 		span(fmt.Sprintf("%d %s", len(df.Files), noun), plain),
-		span(fmt.Sprintf("+%d -%d", added, deleted), dim),
+		span(fmt.Sprintf("+%d", added), addedStyle),
+		span(fmt.Sprintf("-%d", deleted), deletedStyle),
 		span("vs "+df.Base, dim),
 	}}}
 	d.light = m.light
@@ -291,33 +293,31 @@ func (m Model) filesField(d *drawer) {
 	d.field("Files", m.files, groups...)
 	d.lines[first].zones = []zone{{x0: 1 + d.labelW, x1: d.width, link: -1, file: -1}}
 	d.filesAt = first
-	for i, f := range df.Files[:min(len(df.Files), maxFiles)] {
-		d.fileLine(i+1, f)
+	if m.tree {
+		n := 0
+		for _, l := range fileTree(df.Files) {
+			if n == maxFiles {
+				break
+			}
+			if l.dir != nil {
+				d.dirLine(l.dir, l.depth)
+				continue
+			}
+			n++
+			d.fileLine(n, df.Files[l.file], l.depth, treeName(df.Files[l.file]))
+		}
+	} else {
+		for i, f := range df.Files[:min(len(df.Files), maxFiles)] {
+			name := f.Path
+			if f.OldPath != "" {
+				name = f.OldPath + " → " + f.Path
+			}
+			d.fileLine(i+1, f, 0, name)
+		}
 	}
 	if more := len(df.Files) - maxFiles; more > 0 {
 		d.line(strings.Repeat(" ", 1+d.labelW) + dim.Render(fmt.Sprintf("+%d more · d d opens the whole diff", more)))
 	}
-}
-
-// fileLine is one numbered changed file with its counts at the right edge.
-// A long path loses its start, so the file's name stays.
-func (d *drawer) fileLine(n int, f deck.DiffFile) {
-	x0 := 1 + d.labelW
-	avail := d.width - x0 - 1
-	counts := fileCounts(f)
-	num := fmt.Sprintf("%d ", n)
-	path := f.Path
-	if f.OldPath != "" {
-		path = f.OldPath + " → " + f.Path
-	}
-	room := max(avail-len(num)-2-ansi.StringWidth(counts), 4)
-	path = truncateLeft(path, room)
-	gap := max(avail-len(num)-ansi.StringWidth(path)-ansi.StringWidth(counts), 1)
-	text := strings.Repeat(" ", x0) + plain.Render(num+path) + strings.Repeat(" ", gap) + dim.Render(counts)
-	d.lines = append(d.lines, dline{
-		text:  ansi.Truncate(text, d.width, "…"),
-		zones: []zone{{x0: x0, x1: d.width, link: -1, file: n}},
-	})
 }
 
 // truncateLeft shortens plain text s to w columns by dropping its start.
@@ -330,20 +330,6 @@ func truncateLeft(s string, w int) string {
 		r = r[1:]
 	}
 	return "…" + string(r)
-}
-
-// fileCounts is a changed file's dim counts: "+12 -3", "binary", or
-// "+12 untracked" for a file git does not track yet.
-func fileCounts(f deck.DiffFile) string {
-	switch {
-	case f.Binary && f.Untracked:
-		return "binary untracked"
-	case f.Binary:
-		return "binary"
-	case f.Untracked:
-		return fmt.Sprintf("+%d untracked", f.Added)
-	}
-	return fmt.Sprintf("+%d -%d", f.Added, f.Deleted)
 }
 
 // paneItems describe a thread's herdr pane: its live agent when herdr shows
@@ -664,12 +650,12 @@ var helpLines = [][2]string{
 	{"↵", "focus the thread's herdr pane"},
 	{"e", "open the thread's worktree in the editor"},
 	{"u", "start the thread's dev servers: the dev manifest's up command, detached"},
-	{"d", "the thread's changed files: a digit opens that file in the diff tool, d again the whole diff; a click on a file opens it"},
+	{"d", "the thread's changed files: a digit opens that file in the diff tool, d again the whole diff, t switches between list and folder tree; a click on a file opens it"},
 	{"r", "the thread's report, full height"},
 	{"z", "drawer: normal, full height, hidden"},
 	{"pgup pgdn", "scroll the drawer"},
 	{"!", "sources: what could not be read"},
-	{"s", "settings: every setting with its value and source; ↵ edits one in the config file"},
+	{"s", "settings: every setting with its value and source; ↵ edits, toggles or cycles one in the config file"},
 	{"w", "what's new: the changelog, newest first; with ↑ in the header, also what the newer version brings"},
 	{"?", "this help; esc returns"},
 	{"q", "quit"},

@@ -11,18 +11,18 @@
  Branch   hp/admin-rebuild/t-0002-members-admin-users
  Dev      not started: no .dev/t-0002/state.json
  Files    11 files +447 -68 vs origin/main
-          1 M apps/admin/src/pages/users/UsersOverviewPage.tsx         +214 -12
-          2 A apps/admin/src/pages/users/columns.ts                         +48
-          3 M apps/admin/src/api/users.ts                                +31 -9
-          4 R …es/members/index.ts → apps/admin/src/pages/users/index.ts  +1 -1
-          5 A apps/admin/public/empty-state.png                          binary
-          6 M apps/admin/src/routes.tsx                                   +6 -2
-          7 ? docs/users-page.md                                  +19 untracked
-          8 M package.json                                                +1 -1
-          9 M pnpm-lock.yaml                                           +102 -40
-          +2 more · d d opens the whole diff
-
-
-
+              apps/admin/                                              +300 -24
+                public/
+          1 A     empty-state.png                                        binary
+                src/                                                   +300 -24
+                  api/                                                   +31 -9
+          2 M       users.ts                                             +31 -9
+                  pages/users/                                         +263 -13
+          3 M       UsersOverviewPage.tsx                              +214 -12
+          4 A       columns.ts                                              +48
+          5 R       apps/admin/src/pages/members/index.ts → index.ts      +1 -1
+          6 M     routes.tsx                                              +6 -2
+              docs/                                                         +19
+          7 ?   users-page.md                                     +19 untracked
 ────────────────────────────────────────────────────────────────────────────────
  1-9 link  l f n g o first  ↵ pane  e edit  d diff  z drawer  ? help      v9.9.9

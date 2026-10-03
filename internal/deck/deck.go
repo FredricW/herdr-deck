@@ -132,6 +132,8 @@ func (d Diff) Totals() (added, deleted int) {
 type DiffFile struct {
 	Path    string
 	OldPath string // the path before a rename, or ""
+	// Change is how the file changed; an untracked file is ChangeAdded.
+	Change  Change
 	Added   int
 	Deleted int
 	// Binary files have no line counts.
@@ -139,6 +141,16 @@ type DiffFile struct {
 	// Untracked files are new and not yet added to git.
 	Untracked bool
 }
+
+// Change is how a file changed, as git's diff status letter says.
+type Change int
+
+const (
+	ChangeModified Change = iota // M, and a type change (T)
+	ChangeAdded                  // A, and an untracked file
+	ChangeDeleted                // D
+	ChangeRenamed                // R: OldPath holds the old name
+)
 
 // Pane is a thread's herdr pane as herdr shows it now.
 type Pane struct {

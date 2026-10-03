@@ -91,6 +91,7 @@ func (m *Model) settingsKey(msg tea.KeyPressMsg) (tea.Cmd, bool) {
 			}
 			if err := config.Check(sp.Key, v); err != nil {
 				m.set.invalid = err.Error()
+				m.followSetting() // the error shows under the value
 				return nil, true
 			}
 			m.set.editing = false
@@ -104,6 +105,7 @@ func (m *Model) settingsKey(msg tea.KeyPressMsg) (tea.Cmd, bool) {
 				m.set.invalid = err.Error()
 			}
 		}
+		m.followSetting()
 		return cmd, true
 	}
 	switch {
@@ -153,7 +155,8 @@ func (m *Model) followSetting() {
 	m.scrollDrawer(0)
 }
 
-// editSetting toggles a switch or starts editing a value in place.
+// editSetting toggles a switch, cycles a choice or starts editing a value
+// in place.
 func (m *Model) editSetting() tea.Cmd {
 	if !m.set.loaded || m.set.saving {
 		return nil
@@ -166,10 +169,19 @@ func (m *Model) editSetting() tea.Cmd {
 	if v.InFile {
 		cur = v.File
 	}
-	if sp.Kind == config.KindBool {
+	switch sp.Kind {
+	case config.KindBool:
 		next := "true"
 		if cur == "true" {
 			next = "false"
+		}
+		return m.saveSetting(sp.Key, &next)
+	case config.KindChoice:
+		next := sp.Choices[0]
+		for i, c := range sp.Choices {
+			if c == cur {
+				next = sp.Choices[(i+1)%len(sp.Choices)]
+			}
 		}
 		return m.saveSetting(sp.Key, &next)
 	}
@@ -212,6 +224,10 @@ func (m *Model) settingsSaved(msg settingsSavedMsg) tea.Cmd {
 		return nil
 	}
 	cmd := m.applySettings(msg.cfg)
+	if msg.key == config.KeyDiffView {
+		// A saved view applies now; d t alone never writes the file.
+		m.tree = msg.cfg.DiffView == config.DiffViewTree
+	}
 	sp, _ := config.SpecFor(msg.key)
 	v := msg.cfg.Values[msg.key]
 	what := "saved " + msg.key + " = " + valueText(v, sp)

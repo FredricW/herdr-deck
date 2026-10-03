@@ -314,3 +314,24 @@ func indexOf(key string) int {
 	}
 	return -1
 }
+
+// ↵ cycles diff_view through its values, and the saved view applies at
+// once; d t alone never writes the file.
+func TestSettingsCyclesDiffView(t *testing.T) {
+	e := newSettingsEnv(t, "", nil)
+	m := settingsModel(t, e, config.Flags{}, 80, 28)
+	for m.set.cursor != indexOf(config.KeyDiffView) {
+		m, _ = press(m, keys("j")...)
+	}
+	m, _ = press(m, tea.KeyPressMsg{Code: tea.KeyEnter})
+	if got := e.file(t); got != "diff_view = \"tree\"\n" || !m.tree {
+		t.Fatalf("first press: tree %v, file %q", m.tree, got)
+	}
+	if m.Status() != "saved diff_view = tree" {
+		t.Errorf("status = %q", m.Status())
+	}
+	m, _ = press(m, tea.KeyPressMsg{Code: tea.KeyEnter})
+	if got := e.file(t); got != "diff_view = \"list\"\n" || m.tree {
+		t.Errorf("second press: tree %v, file %q", m.tree, got)
+	}
+}

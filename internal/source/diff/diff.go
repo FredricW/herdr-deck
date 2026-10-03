@@ -1,6 +1,6 @@
 // Package diff reads what a thread's worktree changed against its base
-// branch: every file of `git diff <merge-base>` with its line counts,
-// uncommitted changes and untracked files included.
+// branch: every file of `git diff <merge-base>` with how it changed and its
+// line counts, uncommitted changes and untracked files included.
 package diff
 
 import (
@@ -108,19 +108,19 @@ func (r *Reader) read(ctx context.Context, dir, base string) deck.Diff {
 	d.MergeBase = strings.TrimSpace(string(out))
 	// Against a commit, git diff compares the working tree: committed,
 	// staged and unstaged changes in one.
-	out, err = git(ctx, dir, "diff", "--numstat", "-z", "-M", d.MergeBase, "--")
+	out, err = git(ctx, dir, "diff", "--raw", "--numstat", "-z", "-M", d.MergeBase, "--")
 	if err != nil {
 		d.Note = fmt.Sprintf("git diff: %v", err)
 		return d
 	}
-	d.Files = ParseNumstat(out)
+	d.Files = Parse(out)
 	out, err = git(ctx, dir, "ls-files", "--others", "--exclude-standard", "-z")
 	if err != nil {
 		d.Note = fmt.Sprintf("git ls-files: %v", err)
 		return d
 	}
 	for i, p := range splitZ(out) {
-		f := deck.DiffFile{Path: p, Untracked: true}
+		f := deck.DiffFile{Path: p, Change: deck.ChangeAdded, Untracked: true}
 		if i < maxUntracked {
 			f.Added, f.Binary = countLines(filepath.Join(dir, p))
 		}
@@ -130,13 +130,39 @@ func (r *Reader) read(ctx context.Context, dir, base string) deck.Diff {
 	return d
 }
 
-// ParseNumstat reads `git diff --numstat -z`: "added\tdeleted\tpath\0"
-// per file, "-\t-\t" for a binary file, and for a rename an empty path
-// followed by "old\0new\0".
-func ParseNumstat(out []byte) []deck.DiffFile {
+// Parse reads `git diff --raw --numstat -z`: first a raw record per file,
+// ":<modes> <shas> <status>\0path\0" (a rename's status R<score> is
+// followed by "old\0new\0"), then a numstat record per file,
+// "added\tdeleted\tpath\0" ("-\t-\t" for a binary file, and for a rename
+// an empty path followed by "old\0new\0"). The raw status sets each file's
+// Change; without one a file counts as modified.
+func Parse(out []byte) []deck.DiffFile {
 	parts := splitZ(out)
+	changes := map[string]deck.Change{}
 	var files []deck.DiffFile
 	for i := 0; i < len(parts); i++ {
+		if strings.HasPrefix(parts[i], ":") {
+			fields := strings.Fields(parts[i])
+			if len(fields) == 0 || i+1 >= len(parts) {
+				break
+			}
+			status := fields[len(fields)-1]
+			c := deck.ChangeModified
+			switch status[0] {
+			case 'A', 'C':
+				c = deck.ChangeAdded
+			case 'D':
+				c = deck.ChangeDeleted
+			case 'R':
+				c = deck.ChangeRenamed
+			}
+			i++
+			if (status[0] == 'R' || status[0] == 'C') && i+1 < len(parts) {
+				i++ // the old path; the new one names the file
+			}
+			changes[parts[i]] = c
+			continue
+		}
 		fields := strings.SplitN(parts[i], "\t", 3)
 		if len(fields) < 3 {
 			continue
@@ -147,6 +173,7 @@ func ParseNumstat(out []byte) []deck.DiffFile {
 				break
 			}
 			f.OldPath, f.Path = parts[i+1], parts[i+2]
+			f.Change = deck.ChangeRenamed
 			i += 2
 		}
 		if fields[0] == "-" && fields[1] == "-" {
@@ -156,6 +183,11 @@ func ParseNumstat(out []byte) []deck.DiffFile {
 			f.Deleted, _ = strconv.Atoi(fields[1])
 		}
 		files = append(files, f)
+	}
+	for i := range files {
+		if c, ok := changes[files[i].Path]; ok && files[i].OldPath == "" {
+			files[i].Change = c
+		}
 	}
 	return files
 }

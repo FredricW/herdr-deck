@@ -13,6 +13,7 @@
    editor.terminal         false                     default
    diff.command            hunk diff {base} -- {fi…  default
    diff.terminal           true                      default
+   diff_view               list                      default
 
  Updates
    update_check            true                      default
@@ -23,6 +24,5 @@
    figma_desktop           false                     default
 
  Projects and refresh
-   refresh_interval        5s                        default
 ────────────────────────────────────────────────────────────
  ↵ edit  x remove  j k move  esc back  q quit         v9.9.9

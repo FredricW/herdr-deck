@@ -470,6 +470,39 @@ func TestResolveFigmaDesktop(t *testing.T) {
 	}
 }
 
+func TestResolveDiffView(t *testing.T) {
+	tests := []struct {
+		name, file, env, flag string
+		want                  string
+		problems              int
+	}{
+		{"default list", "", "", "", DiffViewList, 0},
+		{"file", "diff_view = \"tree\"\n", "", "", DiffViewTree, 0},
+		{"env beats file", "diff_view = \"tree\"\n", "list", "", DiffViewList, 0},
+		{"flag beats env", "", "list", "tree", DiffViewTree, 0},
+		{"bad env falls back to the file", "diff_view = \"tree\"\n", "grid", "", DiffViewTree, 1},
+		{"bad file value", "diff_view = \"folders\"\n", "", "", DiffViewList, 1},
+		{"wrong type", "diff_view = true\n", "", "", DiffViewList, 1},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			getenv, home := env(t, map[string]string{EnvDiffView: tt.env})
+			write(t, filepath.Join(home, ".config", "herdr-deck", "config.toml"), tt.file)
+			s, err := Resolve(Flags{DiffView: tt.flag}, getenv, noHunk)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if s.DiffView != tt.want || len(s.Problems) != tt.problems {
+				t.Errorf("DiffView = %q, problems %q; want %q and %d problems", s.DiffView, s.Problems, tt.want, tt.problems)
+			}
+		})
+	}
+	getenv, _ := env(t, nil)
+	if _, err := Resolve(Flags{DiffView: "grid"}, getenv, noHunk); err == nil || err.Error() != `--diff-view: "grid" is not list or tree` {
+		t.Errorf("bad flag: %v", err)
+	}
+}
+
 func TestCacheDir(t *testing.T) {
 	getenv, home := env(t, nil)
 	if got, want := CacheDir(getenv), filepath.Join(home, ".cache", "herdr-deck"); got != want {

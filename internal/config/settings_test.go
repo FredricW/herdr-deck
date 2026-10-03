@@ -17,6 +17,7 @@ linear_workspace = "acme"
 refresh_interval = "30s"
 linear_api_key_command = "op read op://Vault/Linear/key"
 figma_desktop = true
+diff_view = "tree"
 
 [editor]
 command = "zed {path}"
@@ -38,6 +39,7 @@ terminal = false
 		// The flag gives the command, so the file's terminal is not used.
 		KeyDiffCommand:     {Text: "git diff {base}", Source: FromFlag},
 		KeyDiffTerminal:    {Text: "true", Source: FromDefault},
+		KeyDiffView:        {Text: "tree", Source: FromFile},
 		KeyUpdateCheck:     {Text: "false", Source: FromFlag},
 		KeyAutoRestart:     {Text: "true", Source: FromDefault},
 		KeyReuseTabs:       {Text: "true", Source: FromDefault},
@@ -100,6 +102,17 @@ func TestSpecs(t *testing.T) {
 		if sp.Group == "" || sp.Help == "" {
 			t.Errorf("%s has no group or help", sp.Key)
 		}
+	}
+	for _, sp := range Specs {
+		if (sp.Kind == KindChoice) != (len(sp.Choices) > 0) {
+			t.Errorf("%s: kind %v with choices %q", sp.Key, sp.Kind, sp.Choices)
+		}
+	}
+	if err := Check(KeyDiffView, "tree"); err != nil {
+		t.Errorf("Check(diff_view, tree) = %v", err)
+	}
+	if err := Check(KeyDiffView, "grid"); err == nil || err.Error() != `"grid" is not list or tree` {
+		t.Errorf("Check(diff_view, grid) = %v", err)
 	}
 	if sp, _ := SpecFor(KeyEditorCommand); sp.Override(FromFlag) != "--editor" || sp.Override(FromEnv) != "$"+EnvEditor || sp.Override(FromFile) != "" {
 		t.Errorf("Override = %q, %q", sp.Override(FromFlag), sp.Override(FromEnv))
