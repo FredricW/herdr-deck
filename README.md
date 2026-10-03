@@ -106,6 +106,11 @@ also lists what the newer version brings, read from its CHANGELOG.md (from
 GitHub at the newer tag, or `git show` of origin's commit for a linked
 checkout); without a network it just leaves that out.
 
+Reports (`r`) and What's new render their Markdown the way
+[glow](https://github.com/charmbracelet/glow) does, with
+[glamour](https://github.com/charmbracelet/glamour), in its dark or light
+style to match the terminal's background.
+
 ![After an update the footer says "Updated to v1.2.3 · w what's new" once; w opens What's new in the drawer, the changelog newest first, and z gives it the whole pane.](docs/demo/news.gif)
 
 To remove it, `herdr plugin uninstall herdr-deck`, or `herdr plugin unlink
@@ -518,7 +523,7 @@ only threads waiting on you. The deck never marks an item handled.
 | `e` | open the thread's worktree in the editor (VS Code unless configured) |
 | `u` | start the thread's dev servers: the dev manifest's `up` command, detached (see Dev servers) |
 | `d` | the Files tab: a digit opens that file in the diff tool, `d` again (or `a`) the whole diff, `t` switches between list and folder tree; with one file, `d` opens the diff right away (see Changed files) |
-| `r` | the thread's report, full height |
+| `r` | the thread's report, full height, rendered as Markdown |
 | `z` | drawer: normal, full height, hidden |
 | `pgup` / `pgdn` | scroll the drawer |
 | `!` | sources the deck could not read |

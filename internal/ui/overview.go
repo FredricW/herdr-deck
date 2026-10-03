@@ -54,8 +54,10 @@ func (m Model) overview(d *drawer, r row, links []deck.Link, h int) {
 	}
 	if r.task != nil && r.task.Notes != "" {
 		secs = append(secs, sec{"Note", bold, func() {
+			// Each line is a note of its own, so each renders on its own:
+			// as one document, Markdown would join them into a paragraph.
 			for _, n := range strings.Split(r.task.Notes, "\n") {
-				d.flow(words(n, plain))
+				d.markdown(n)
 			}
 		}})
 	}

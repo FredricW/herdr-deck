@@ -14,15 +14,15 @@
 
 ─ What's new ───────────────────────────────────────────────
  v0.2.0 · 2026-09-30 · ● running
- Added    · Tasks fold under their list heading, and space
-            unfolds them again when the list is long.
-          · ABC-123 style IDs open in Linear.
- Fixed    · The drawer no longer flickers on reload.
 
- v0.1.0 · 2026-09-01
- The first release.
- Added    · A list of tasks and threads.
+ ### Added
 
+ • Tasks fold under their list heading, and space unfolds
+ them again when the list is long.
+ • ABC-123 style IDs open in Linear.
 
+ ### Fixed
+
+ • The drawer no longer flickers on reload.
 ────────────────────────────────────────────────────────────
  esc back  pgup pgdn scroll  z drawer  ? help  q quit

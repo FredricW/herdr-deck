@@ -34,6 +34,12 @@ them.
 - bubblezone for clickable rows, only if Bubble Tea v2's own mouse handling
   isn't enough.
 - `BurntSushi/toml` (or `pelletier/go-toml/v2`) for herdr-projects' TOML.
+- glamour (`charm.land/glamour/v2`, the renderer glow uses) for Markdown:
+  `internal/markdown` renders a thread's report and What's new with its
+  dark or light style (the deck's background detection picks one), without
+  the document margin, wrapped to the drawer's width and cached by source,
+  width and style. If glamour fails, the plain text shows, wrapped. Task
+  notes, Next items and inbox summaries stay plain one-line fields.
 - No CGO. `go build` produces one binary.
 
 ## Data sources
@@ -513,7 +519,8 @@ prebuilt binaries, and herdr's build step uses them when it can.
   deck embeds it (`go:embed` in the root package `herdrdeck`) and
   `internal/changelog` parses it into releases: a section it cannot read is
   left out and named as a problem (a test keeps the repo's file clean).
-  `w` toggles What's new in the drawer: the releases newest first, the
+  `w` toggles What's new in the drawer: the releases newest first, each
+  release's summary and sections rendered as Markdown (see Stack), the
   running one marked (a release build is its release; a build past one,
   a git describe or a bare commit, is Unreleased, which a release build
   does not show). `$XDG_STATE_HOME/herdr-deck/last-version` (else

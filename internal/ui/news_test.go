@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	tea "charm.land/bubbletea/v2"
+	"github.com/charmbracelet/x/ansi"
 
 	"github.com/FredricW/herdr-deck/internal/changelog"
 	"github.com/FredricW/herdr-deck/internal/deck"
@@ -103,8 +104,12 @@ func TestNewsKey(t *testing.T) {
 	if m.mode != modeNews {
 		t.Fatalf("w: mode %d, want What's new", m.mode)
 	}
-	if sc := screen(m); !strings.Contains(sc, "v0.1.0 · 2026-09-01 · ● running") {
-		t.Errorf("the running release is not marked:\n%s", sc)
+	var text strings.Builder
+	for _, l := range m.layout().drawer.lines {
+		text.WriteString(ansi.Strip(l.text) + "\n")
+	}
+	if !strings.Contains(text.String(), "v0.1.0 · 2026-09-01 · ● running") {
+		t.Errorf("the running release is not marked:\n%s", text.String())
 	}
 	m, _ = press(m, keys("w")...)
 	if m.mode != modeRow {
@@ -139,5 +144,42 @@ func TestUpdatedNoteOnce(t *testing.T) {
 	m, _ = press(m, click(0, 27))
 	if strings.Contains(screen(m), "Updated to") {
 		t.Error("the note outlived a click")
+	}
+}
+
+// Summary paragraphs stay apart: the parser separates them with a single
+// newline, which Markdown alone would join into one paragraph.
+func TestNewsSummaryParagraphs(t *testing.T) {
+	log, _ := changelog.Parse("## [0.1.0] - 2026-09-01\n\nPara one.\n\nPara two.\n\n### Added\n\n- A thing.\n")
+	m, _ := newModelWith(t, calm(), 80, 28, func(o *Options) {
+		o.Changelog = log
+		o.Version = "v0.1.0"
+	})
+	m, _ = press(m, keys("w")...)
+	var lines []string
+	for _, l := range m.layout().drawer.lines {
+		lines = append(lines, strings.TrimSpace(ansi.Strip(l.text)))
+	}
+	text := strings.Join(lines, "\n")
+	if !strings.Contains(text, "Para one.\n\nPara two.") {
+		t.Errorf("summary paragraphs ran together:\n%s", text)
+	}
+}
+
+// A task's notes render as Markdown in the Overview, one line at a time.
+func TestOverviewNoteMarkdown(t *testing.T) {
+	s := fakeSnap()
+	s.TaskLists[0].Tasks[0].Notes = "Run `make test` first.\n**Then** ship it."
+	m, _ := newModel(t, s, 80, 40)
+	var lines []string
+	for _, l := range m.layout().drawer.lines {
+		lines = append(lines, strings.TrimSpace(ansi.Strip(l.text)))
+	}
+	text := strings.Join(lines, "\n")
+	if !strings.Contains(text, "make test") || !strings.Contains(text, "first.\nThen ship it.") {
+		t.Errorf("notes are not rendered one line at a time:\n%s", text)
+	}
+	if strings.Contains(text, "`") || strings.Contains(text, "**") {
+		t.Errorf("Markdown markers left in the notes:\n%s", text)
 	}
 }
