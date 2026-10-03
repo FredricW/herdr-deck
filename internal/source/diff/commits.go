@@ -19,10 +19,11 @@ const MaxCommits = 100
 // commit never changes, so its sha is enough of a key.
 const commitPatchCacheSize = 16
 
-// logCache is a branch's commit list as read for one HEAD and upstream.
+// logCache is a branch's commit list as read for one HEAD, upstream and
+// base commit.
 type logCache struct {
-	head, upstream string
-	c              deck.Commits
+	head, upstream, base string
+	c                    deck.Commits
 }
 
 // ReadCommits returns the commits of t's branch since its merge-base with
@@ -76,9 +77,14 @@ func (r *Reader) readCommits(ctx context.Context, dir, base, key string) deck.Co
 		return cs
 	}
 	head := strings.TrimSpace(string(out))
-	upstream := ""
+	upstream, baseSHA := "", ""
 	if out, err := git(ctx, dir, "rev-parse", "--verify", "--quiet", "@{upstream}"); err == nil {
 		upstream = strings.TrimSpace(string(out))
+	}
+	// The base moves too (a fetch, a merge of the branch): the list
+	// follows it.
+	if out, err := git(ctx, dir, "rev-parse", "--verify", "--quiet", base+"^{commit}"); err == nil {
+		baseSHA = strings.TrimSpace(string(out))
 	}
 	out, err = git(ctx, dir, "status", "--porcelain", "-z", "--untracked-files=all")
 	if err != nil {
@@ -90,34 +96,35 @@ func (r *Reader) readCommits(ctx context.Context, dir, base, key string) deck.Co
 	r.mu.Lock()
 	lc, ok := r.logs[key]
 	r.mu.Unlock()
-	if ok && lc.head == head && lc.upstream == upstream {
+	if ok && lc.head == head && lc.upstream == upstream && lc.base == baseSHA {
 		cs = lc.c
 		cs.Uncommitted = uncommitted
 		return cs
 	}
-	cs = r.readLog(ctx, git, dir, base, head, upstream)
-	if strings.HasPrefix(cs.Note, "git ") {
+	cs, complete := r.readLog(ctx, git, dir, base, head, upstream)
+	if !complete {
 		cs.Uncommitted = uncommitted
-		return cs // a timeout or a lock may pass: ask again next time
+		return cs // a timeout, a lock or a missing base may pass: ask again next time
 	}
 	r.mu.Lock()
 	if r.logs == nil {
 		r.logs = map[string]logCache{}
 	}
-	r.logs[key] = logCache{head: head, upstream: upstream, c: cs}
+	r.logs[key] = logCache{head: head, upstream: upstream, base: baseSHA, c: cs}
 	r.mu.Unlock()
 	cs.Uncommitted = uncommitted
 	return cs
 }
 
 // readLog lists the commits between the merge-base and head and marks the
-// ones upstream has.
-func (r *Reader) readLog(ctx context.Context, git gitFunc, dir, base, head, upstream string) deck.Commits {
-	cs := deck.Commits{Base: base, Head: head, Upstream: upstream != ""}
+// ones upstream has. complete is false when a git command failed, so the
+// answer is not worth caching.
+func (r *Reader) readLog(ctx context.Context, git gitFunc, dir, base, head, upstream string) (cs deck.Commits, complete bool) {
+	cs = deck.Commits{Base: base, Head: head, Upstream: upstream != ""}
 	out, err := git(ctx, dir, "merge-base", base, head)
 	if err != nil {
 		cs.Note = fmt.Sprintf("cannot compare with %s: %v", base, err)
-		return cs
+		return cs, false
 	}
 	cs.MergeBase = strings.TrimSpace(string(out))
 	span := cs.MergeBase + ".." + head
@@ -125,28 +132,33 @@ func (r *Reader) readLog(ctx context.Context, git gitFunc, dir, base, head, upst
 		"--format=%x1e%H%x1f%h%x1f%P%x1f%at%x1f%an%x1f%s", span, "--")
 	if err != nil {
 		cs.Note = fmt.Sprintf("git log: %v", err)
-		return cs
+		return cs, false
 	}
 	cs.List = ParseLog(out)
 	if len(cs.List) == MaxCommits {
-		if out, err := git(ctx, dir, "rev-list", "--count", span); err == nil {
-			n, _ := strconv.Atoi(strings.TrimSpace(string(out)))
-			cs.More = max(n-MaxCommits, 0)
+		out, err := git(ctx, dir, "rev-list", "--count", span)
+		if err != nil {
+			return cs, false
 		}
+		n, _ := strconv.Atoi(strings.TrimSpace(string(out)))
+		cs.More = max(n-MaxCommits, 0)
 	}
 	if upstream == "" || len(cs.List) == 0 {
-		return cs
+		return cs, true
 	}
 	// The pushed commits are the ones below where HEAD and its upstream
 	// meet.
 	out, err = git(ctx, dir, "merge-base", head, upstream)
 	if err != nil {
-		return cs
+		// Without the pushed marks, g would refuse every commit.
+		cs.Upstream = false
+		return cs, false
 	}
 	met := strings.TrimSpace(string(out))
 	out, err = git(ctx, dir, "rev-list", "--max-count="+strconv.Itoa(MaxCommits+1), cs.MergeBase+".."+met, "--")
 	if err != nil {
-		return cs
+		cs.Upstream = false
+		return cs, false
 	}
 	pushed := map[string]bool{}
 	for _, s := range strings.Fields(string(out)) {
@@ -155,7 +167,7 @@ func (r *Reader) readLog(ctx context.Context, git gitFunc, dir, base, head, upst
 	for i := range cs.List {
 		cs.List[i].Pushed = pushed[cs.List[i].SHA]
 	}
-	return cs
+	return cs, true
 }
 
 // ParseLog reads `git log --numstat` with the format

@@ -265,3 +265,22 @@ func TestCommitsPreviewEndsOnTabSwitch(t *testing.T) {
 		t.Error("[ kept the commit preview")
 	}
 }
+
+// When rows come or go above it, the cursor and the preview stay on the
+// same commit.
+func TestCommitsCursorFollowsCommit(t *testing.T) {
+	cs := sampleCommits()
+	cs.Uncommitted = 0
+	m, _ := newModelWith(t, deck.Snapshot{}, 80, 28, withCommits(cs, nil))
+	m, _ = press(m, snapshotMsg(calm()))
+	m, _ = press(m, keys("]]2")...)
+	if !m.preview || m.dcur != 1 {
+		t.Fatalf("2: preview %v cursor %d", m.preview, m.dcur)
+	}
+	more := sampleCommits() // with the uncommitted row, and a new commit
+	more.List = append([]deck.Commit{{SHA: "ffff0000", Short: "ffff000", Subject: "Newer"}}, more.List...)
+	m, _ = press(m, commitsMsg{key: diffKey(m.snap.Threads[1]), commits: more})
+	if _, c, ok := m.previewCommitAt(); !ok || c.SHA != "8be2d417" || !m.preview || m.dcur != 3 {
+		t.Errorf("the cursor moved off 8be2d41: %+v cursor %d preview %v", c, m.dcur, m.preview)
+	}
+}

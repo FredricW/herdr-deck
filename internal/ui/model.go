@@ -455,7 +455,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, m.readPatch(false)
 	case commitsMsg:
 		m.committing = false
-		m.commitLists[msg.key] = msg.commits
+		m.setCommits(msg.key, msg.commits)
 		m.syncPreview()
 		if m.commitsAgain {
 			m.commitsAgain = false
