@@ -28,7 +28,6 @@ type pickKind int
 const (
 	pickProject pickKind = iota
 	pickThread           // a thread waiting on the user
-	pickInbox            // an unhandled inbox item
 	pickNote             // a dim line that cannot be selected
 )
 
@@ -37,7 +36,6 @@ type pickRow struct {
 	key     string
 	project deck.ProjectInfo
 	thread  deck.Thread
-	inbox   deck.InboxItem
 	note    string
 }
 
@@ -45,8 +43,8 @@ func (r pickRow) selectable() bool { return r.kind != pickNote }
 
 // pickRows lists the projects in the picker's order: those that need the
 // user first, then the rest, each by name; archived ones last, and only
-// after tab. Under each project come the threads waiting on the user and
-// its unhandled inbox items.
+// after tab. Under each project come the threads waiting on the user; its
+// inbox items are updates, counted dim in its summary.
 func (m Model) pickRows() []pickRow {
 	if m.snap.Projects == nil {
 		return []pickRow{{kind: pickNote, note: "Projects are not read yet."}}
@@ -80,12 +78,8 @@ func (m Model) pickRows() []pickRow {
 		if p.Archived() {
 			continue
 		}
-		threads, inbox := p.Needs()
-		for _, t := range threads {
+		for _, t := range p.Needs() {
 			rows = append(rows, pickRow{kind: pickThread, key: "thread:" + p.Slug + "/" + t.ID, project: p, thread: t})
-		}
-		for _, it := range inbox {
-			rows = append(rows, pickRow{kind: pickInbox, key: "inbox:" + p.Slug + "/" + it.ID, project: p, inbox: it})
 		}
 	}
 	switch {
@@ -122,7 +116,7 @@ func pickCursor(rows []pickRow, sel string) int {
 }
 
 // otherNeeds counts the projects other than this one, archived ones aside,
-// where something waits on the user.
+// where a thread waits on the user.
 func (m Model) otherNeeds() int {
 	n := 0
 	for _, p := range m.snap.Projects {
@@ -242,8 +236,8 @@ func (m *Model) pickerKey(msg tea.KeyPressMsg) tea.Cmd {
 }
 
 // pickActivate goes where the selected row points: a project's coordinator
-// (started with herdr-projects open when none runs), or the pane of a
-// thread or inbox item. The picker closes when something happens.
+// (started with herdr-projects open when none runs), or a waiting thread's
+// pane. The picker closes when something happens.
 func (m *Model) pickActivate() tea.Cmd {
 	rows := m.pickRows()
 	i := pickCursor(rows, m.pick.sel)
@@ -272,16 +266,6 @@ func (m *Model) pickActivate() tea.Cmd {
 		return func() tea.Msg { return openedMsg{what: what, err: start(slug), verb: "start"} }
 	case pickThread:
 		return m.pickThreadPane(p, r.thread)
-	case pickInbox:
-		for _, t := range p.Threads {
-			if t.ID == r.inbox.Thread {
-				return m.pickThreadPane(p, t)
-			}
-		}
-		if p.PaneID != "" {
-			return m.pickFocus(p.PaneID, p.Title()+"'s coordinator")
-		}
-		m.status = "no pane for this item: ↵ on " + p.Title() + " opens its coordinator"
 	}
 	return nil
 }
@@ -350,24 +334,16 @@ func (m Model) pickLine(r pickRow, sel bool, w int) string {
 	switch r.kind {
 	case pickNote:
 		return fit("   "+dim.Render(r.note), w)
-	case pickThread, pickInbox:
-		var at time.Time
-		var glyph, text string
-		st := needsStyle
-		if r.kind == pickThread {
-			glyph, text, at = "●", r.thread.Title, needSince(r.thread)
-			if text == "" {
-				text = r.thread.ID
-			}
-			text += dim.Render(" · " + r.thread.ID)
-		} else {
-			glyph, text, at, st = "✉", "inbox: "+inboxText(r.inbox), r.inbox.Created, inboxStyle
+	case pickThread:
+		text := r.thread.Title
+		if text == "" {
+			text = r.thread.ID
 		}
 		age := ""
-		if !at.IsZero() {
+		if at := needSince(r.thread); !at.IsZero() {
 			age = ageText(m.opt.Now().Sub(at))
 		}
-		left := " " + mark + "    " + st.Render(glyph) + " " + st.Render(text)
+		left := " " + mark + "    " + needsStyle.Render("● "+text) + dim.Render(" · "+r.thread.ID)
 		return m.finish(spread(left, dim.Render(age)+"  ", w), sel, w)
 	}
 	p := r.project
@@ -388,7 +364,8 @@ func (m Model) pickLine(r pickRow, sel bool, w int) string {
 }
 
 // pickCounts is a project's short summary: its open threads by status and
-// its inbox, as the header shows them.
+// inbox items as updates, dim: they say what happened, not that the user is
+// needed.
 func (m Model) pickCounts(p deck.ProjectInfo) string {
 	var n [5]int
 	for _, t := range p.Threads {
@@ -405,7 +382,11 @@ func (m Model) pickCounts(p deck.ProjectInfo) string {
 		}
 	}
 	if c := len(p.Inbox); c > 0 && !p.Archived() {
-		parts = append(parts, inboxStyle.Render(fmt.Sprintf("✉ %d", c)))
+		word := "updates"
+		if c == 1 {
+			word = "update"
+		}
+		parts = append(parts, dim.Render(fmt.Sprintf("✉ %d %s", c, word)))
 	}
 	if len(parts) == 0 {
 		if done := n[deck.StatusDone]; done > 0 {

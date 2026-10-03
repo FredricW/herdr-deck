@@ -1,6 +1,6 @@
-# The project picker: the list's last line says two other projects need
-# you, p lists every project with what needs you, typing filters, tab adds
-# the archived ones. Render with `make demo`.
+# The project picker: the list's last line says another project needs
+# you, p lists every project with its waiting threads, typing filters, tab
+# adds the archived ones. Render with `make demo`.
 Output docs/demo/projects.gif
 Source docs/demo/setup.tape
 

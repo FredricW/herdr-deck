@@ -2,8 +2,8 @@
 
 > **Outcome (2026-10-03).** The user chose none of these directions as
 > drawn, but a smaller one: a project picker on `p` over today's deck (F's
-> picker without its tab strip), listing every project with the items that
-> need the user under it, plus one line at the end of the list when other
+> picker without its tab strip), listing every project with the threads
+> waiting on the user under it (inbox items are updates, not needs), plus one line at the end of the list when other
 > projects need the user. See PLAN.md's UI section, "Other projects".
 
 Static mockups for milestone 8's multi-project view: one deck that shows all

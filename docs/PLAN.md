@@ -253,19 +253,22 @@ lists what the user chose.
   deck, only on demand: every project under the projects root (folders with
   a PROJECT.md, as `herdr-projects list` finds them), each with its name,
   status (`here` marks the deck's own; paused dim; archived only after
-  `tab`), its thread counts and inbox, and under it the threads waiting on
-  the user and the unhandled inbox items with their age. Projects that need
-  the user come first, then the rest by name. Typing filters by name or
+  `tab`), its thread counts and a dim `✉ N updates`, and under it the
+  threads waiting on the user with their age. Inbox items are progress
+  updates (a report, a PR opened or merged, resolved), not needs (user,
+  2026-10-03): they never count, and an item about a waiting thread counts
+  only through the thread. Projects with a waiting thread come first, then
+  the rest by name. Typing filters by name or
   slug; the arrows move, `esc` clears the filter, then closes. `↵` on a
   project focuses its coordinator (`pane.focus`; herdr 0.9.3 switches to the
   pane's workspace and tab with it, verified on a scratch server), or, with
   none running, runs `herdr-projects --root <root> open <slug> --tab`, which
   starts one in the project's workspace and focuses it (`--tab` keeps it out
   of the deck's own pane; an archived project starts nothing). `↵` on a
-  thread or inbox item focuses that thread's pane. When other projects need
+  waiting thread focuses its pane. When threads in other projects wait on
   the user, the list's last line says `● N other projects need you`; a
-  click on it opens the picker. Other projects' items never join the Needs
-  you group. Data: `projects.Roster` reads `threads/t-*.toml`, `inbox/`,
+  click on it opens the picker. Other projects' threads never join the
+  Needs you group (which, for now, still pins this project's inbox items). Data: `projects.Roster` reads `threads/t-*.toml`, `inbox/`,
   `.state/project.json` and `.state/coordinator.json` of every project
   (never `thread list`, never `ticker.json`) at most every 20 s, on the
   load goroutine; herdr's reader lays the snapshot it already read over them

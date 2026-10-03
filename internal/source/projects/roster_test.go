@@ -66,7 +66,7 @@ func TestRosterReadsEveryProject(t *testing.T) {
 	if b.Name != "Billing export" || b.Goal != "Export invoices as CSV." || b.Dir != "/root/billing-export" || b.Status != "active" || b.RecordedPane != "w4J:p1" || b.Problem != "" {
 		t.Errorf("billing-export: %+v", b)
 	}
-	threads, inbox := b.Needs()
+	threads, inbox := b.Needs(), b.Inbox
 	if len(threads) != 1 || threads[0].ID != "t-0003" || threads[0].PaneID != "w4K:p3" ||
 		!threads[0].Changed.Equal(time.Date(2026, 10, 2, 14, 39, 0, 0, time.UTC)) {
 		t.Errorf("billing-export needs %+v", threads)

@@ -52,22 +52,21 @@ type ProjectInfo struct {
 // Archived reports whether herdr-projects archived the project.
 func (p ProjectInfo) Archived() bool { return p.Status == "archived" }
 
-// Needs is the project's threads waiting on the user and its unhandled
-// inbox items, the threads first.
-func (p ProjectInfo) Needs() (threads []Thread, inbox []InboxItem) {
+// Needs is the project's threads waiting on the user. Inbox items are
+// progress updates (a report, a PR opened or merged), so they never count;
+// an item about a waiting thread counts through the thread.
+func (p ProjectInfo) Needs() []Thread {
+	var threads []Thread
 	for _, t := range p.Threads {
 		if t.Status == StatusNeedsYou {
 			threads = append(threads, t)
 		}
 	}
-	return threads, p.Inbox
+	return threads
 }
 
-// NeedsYou reports whether anything in the project waits on the user.
-func (p ProjectInfo) NeedsYou() bool {
-	threads, inbox := p.Needs()
-	return len(threads)+len(inbox) > 0
-}
+// NeedsYou reports whether a thread in the project waits on the user.
+func (p ProjectInfo) NeedsYou() bool { return len(p.Needs()) > 0 }
 
 // Project identifies a herdr-projects project.
 type Project struct {

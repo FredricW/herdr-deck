@@ -494,24 +494,25 @@ picker; the wheel moves the list or scrolls the drawer.
 A deck shows one project, but `p` opens a picker over it that lists every
 project under the projects root. Under each project are the threads waiting
 on you (herdr-projects' *Waiting on you*, or an agent blocked on a prompt
-for 30 seconds) and the unhandled inbox items, with how long they have
-waited. Projects that need you come first, then the rest by name; the
+for 30 seconds), with how long they have waited. Inbox items are progress
+updates (a new report, a PR opened or merged), not needs, so they only show
+as a dim `✉ N updates` in the project's summary. Projects with a waiting
+thread come first, then the rest by name; the
 deck's own project is marked `here`, paused projects are dim, and archived
 ones show only after `tab`. Typing filters by name; the arrows move, `esc`
 clears the filter, then closes.
 
-![The project picker on sample data: the deck's last list line says two other projects need you; p lists the projects that need you first (this one, Billing export with a thread waiting and an inbox item, Docs site with an inbox item), then the rest by name; tab adds the archived project, and typing doc filters the list.](docs/demo/projects.gif)
+![The project picker on sample data: the deck's last list line says one other project needs you; p lists the projects with a waiting thread first (this one, and Billing export with its CSV export job), then the rest by name, inbox items counted as dim updates; tab adds the archived project, and typing doc filters the list.](docs/demo/projects.gif)
 
 `↵` on a project focuses its coordinator, and herdr switches to its
 workspace. When no coordinator runs, the deck runs `herdr-projects --root
 <root> open <slug> --tab`, which starts one in the project's workspace and
 focuses it; that is the only command the deck runs that changes anything,
-and only on that key. `↵` on a thread or inbox item focuses that thread's
-pane.
+and only on that key. `↵` on a waiting thread focuses its pane.
 
-When other projects need you, the list's last line says so (`● 2 other
-projects need you`); a click on it opens the picker. Other projects' items
-never join this project's *Needs you* group. The deck reads the other
+When threads in other projects wait on you, the list's last line says so
+(`● 2 other projects need you`); a click on it opens the picker. Other
+projects' threads never join this project's *Needs you* group. The deck reads the other
 projects' files (`threads/t-*.toml`, `inbox/`, `.state/project.json` and
 `.state/coordinator.json`) every 20 seconds and lays herdr's live state over
 them on every reload; it watches only its own project's folder.

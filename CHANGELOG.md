@@ -11,15 +11,16 @@ and versions follow [Semantic Versioning](https://semver.org/).
 ### Added
 
 - `p` opens a project picker over the deck: every project under the
-  projects root, with the threads waiting on you and the unhandled inbox
-  items in each, and how long they have waited. Projects that need you come
+  projects root, with the threads waiting on you in each and how long they
+  have waited. Inbox items are progress updates, not needs: each project
+  shows them as a dim `✉ N updates`. Projects with a waiting thread come
   first; paused ones are dim and archived ones show after `tab`. Type to
   filter. `↵` on a project focuses its coordinator, or starts one with
-  `herdr-projects open` when none runs; on a thread or inbox item, it
-  focuses that thread's pane, in whichever workspace it is.
-- When other projects need you, the list ends with a line such as
-  `● 2 other projects need you`; click it or press `p` to see them. Their
-  items never join this project's Needs you group.
+  `herdr-projects open` when none runs; on a waiting thread, it focuses that
+  thread's pane, in whichever workspace it is.
+- When threads in other projects wait on you, the list ends with a line
+  such as `● 2 other projects need you`; click it or press `p` to see them.
+  Their threads never join this project's Needs you group.
 
 ## [0.1.2] - 2026-10-03
 
