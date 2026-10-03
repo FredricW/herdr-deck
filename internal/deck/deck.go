@@ -76,15 +76,18 @@ const (
 
 // Thread is one herdr-projects thread.
 type Thread struct {
-	ID         string
-	Title      string
-	Status     ThreadStatus
-	StateLine  string // e.g. "needs you · ~95%"
-	PaneID     string // the pane herdr-projects recorded for the thread
-	Pane       *Pane  // the thread's live herdr pane; nil when not known
-	Worktree   string
-	Repo       string // the repository the worktree belongs to (its main checkout)
-	Branch     string
+	ID        string
+	Title     string
+	Status    ThreadStatus
+	StateLine string // e.g. "needs you · ~95%"
+	PaneID    string // the pane herdr-projects recorded for the thread
+	Pane      *Pane  // the thread's live herdr pane; nil when not known
+	Worktree  string
+	Repo      string // the repository the worktree belongs to (its main checkout)
+	Branch    string
+	// Base is the branch the thread's worktree started from, e.g.
+	// "origin/main"; the diff section compares the worktree with it.
+	Base       string
 	Activity   string       // e.g. "Writing tests"
 	PR         *PullRequest // nil when the thread has no pull request
 	Next       []string     // the report's `## Next` lines
@@ -99,6 +102,42 @@ type Thread struct {
 	// DevUp is the dev manifest's `up` command the deck started for the
 	// worktree; nil when it started none.
 	DevUp *DevUp
+}
+
+// Diff is what a thread's worktree changed against its base: the files of
+// `git diff <merge-base>`, uncommitted changes and untracked files included.
+type Diff struct {
+	// Base is the ref the worktree is compared with, e.g. "origin/main",
+	// and MergeBase the commit it and HEAD share: the {base} a diff tool
+	// gets, so it shows the same changes as Files.
+	Base      string
+	MergeBase string
+	Files     []DiffFile
+	// Note says why there are no files to show, e.g. "no worktree"; a
+	// note is never an error, the section just shows it dim.
+	Note string
+}
+
+// Totals adds up the lines the files added and deleted; binary files
+// count no lines.
+func (d Diff) Totals() (added, deleted int) {
+	for _, f := range d.Files {
+		added += f.Added
+		deleted += f.Deleted
+	}
+	return added, deleted
+}
+
+// DiffFile is one changed file. Path is relative to the worktree.
+type DiffFile struct {
+	Path    string
+	OldPath string // the path before a rename, or ""
+	Added   int
+	Deleted int
+	// Binary files have no line counts.
+	Binary bool
+	// Untracked files are new and not yet added to git.
+	Untracked bool
 }
 
 // Pane is a thread's herdr pane as herdr shows it now.

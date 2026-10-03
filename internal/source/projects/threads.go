@@ -28,6 +28,7 @@ type threadRecord struct {
 	Error          string `json:"error" toml:"error"`
 	ResolvedReason string `json:"resolved_reason" toml:"resolved_reason"`
 	Branch         string `json:"branch" toml:"branch"`
+	Base           string `json:"base" toml:"base"`
 	WorktreePath   string `json:"worktree_path" toml:"worktree_path"`
 	Repo           string `json:"repo" toml:"repo"`
 	Cwd            string `json:"cwd" toml:"cwd"`
@@ -134,6 +135,7 @@ func toThread(rec threadRecord, prs map[string]prSummary) deck.Thread {
 		Worktree:  rec.WorktreePath,
 		Repo:      rec.Repo,
 		Branch:    rec.Branch,
+		Base:      rec.Base,
 		Activity:  rec.Activity,
 		Next:      rec.Next,
 	}

@@ -78,7 +78,7 @@ func TestReadAdminRebuildFromThreadList(t *testing.T) {
 	}
 	t2 := snap.Threads[1]
 	if t2.Title != "Members /admin/users" || t2.StateLine != "needs you · ~95%" || t2.PaneID != "w1Z:p1" ||
-		t2.Activity != "Waiting for you" || t2.Branch != "hp/admin-rebuild/t-0002-members-admin-users" ||
+		t2.Activity != "Waiting for you" || t2.Branch != "hp/admin-rebuild/t-0002-members-admin-users" || t2.Base != "origin/main" ||
 		t2.Worktree != "/home/dev/worktrees/webshop/hp-admin-rebuild-t-0002-members-admin-users" {
 		t.Errorf("t-0002 = %+v", t2)
 	}

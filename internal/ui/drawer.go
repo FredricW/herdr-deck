@@ -37,10 +37,13 @@ type group struct {
 	hang  int // extra indent of the group's wrapped lines
 }
 
-// zone is a clickable link on a drawer line.
+// zone is a clickable link or changed file on a drawer line.
 type zone struct {
 	x0, x1 int // columns [x0, x1)
 	link   int
+	// file is the Files section's file number (1-based), -1 for its
+	// total line, which opens the whole diff, and 0 for a link.
+	file int
 }
 
 // dline is one rendered drawer line.
@@ -56,6 +59,8 @@ type drawer struct {
 	title  string
 	lines  []dline
 	light  bool // the terminal's background is light
+	// filesAt is the line the Files section starts on, or -1.
+	filesAt int
 }
 
 func newDrawer(width int, title string) *drawer {
@@ -63,7 +68,7 @@ func newDrawer(width int, title string) *drawer {
 	if width < wideMin {
 		lw = 8
 	}
-	return &drawer{width: width, labelW: lw, title: title}
+	return &drawer{width: width, labelW: lw, title: title, filesAt: -1}
 }
 
 func words(text string, st lipgloss.Style) group {
@@ -237,7 +242,99 @@ func (m Model) rowDrawer(r row, links []deck.Link, width int, choosing deck.Link
 	if hasThread && t.DevUp != nil {
 		d.field("Log", false, words(tilde(t.DevUp.Log), dim))
 	}
+	if hasThread {
+		m.filesField(d)
+	}
 	return d
+}
+
+// maxFiles is how many changed files the Files section lists: one per
+// digit.
+const maxFiles = 9
+
+// filesField is the Files section: the selected thread's changed files
+// with their line counts, under a total line. It shows nothing until the
+// first diff is read, and a dim note when there is none to show.
+func (m Model) filesField(d *drawer) {
+	_, df, ok := m.diff()
+	switch {
+	case !ok:
+		return
+	case df.Note != "":
+		d.field("Files", false, words(df.Note, dim))
+		return
+	case len(df.Files) == 0:
+		d.field("Files", false, words("no changes against "+df.Base, dim))
+		return
+	}
+	added, deleted := df.Totals()
+	noun := "files"
+	if len(df.Files) == 1 {
+		noun = "file"
+	}
+	groups := []group{{sep: " ", items: []item{
+		span(fmt.Sprintf("%d %s", len(df.Files), noun), plain),
+		span(fmt.Sprintf("+%d -%d", added, deleted), dim),
+		span("vs "+df.Base, dim),
+	}}}
+	d.light = m.light
+	first := len(d.lines)
+	d.field("Files", m.files, groups...)
+	d.lines[first].zones = []zone{{x0: 1 + d.labelW, x1: d.width, link: -1, file: -1}}
+	d.filesAt = first
+	for i, f := range df.Files[:min(len(df.Files), maxFiles)] {
+		d.fileLine(i+1, f)
+	}
+	if more := len(df.Files) - maxFiles; more > 0 {
+		d.line(strings.Repeat(" ", 1+d.labelW) + dim.Render(fmt.Sprintf("+%d more · d d opens the whole diff", more)))
+	}
+}
+
+// fileLine is one numbered changed file with its counts at the right edge.
+// A long path loses its start, so the file's name stays.
+func (d *drawer) fileLine(n int, f deck.DiffFile) {
+	x0 := 1 + d.labelW
+	avail := d.width - x0 - 1
+	counts := fileCounts(f)
+	num := fmt.Sprintf("%d ", n)
+	path := f.Path
+	if f.OldPath != "" {
+		path = f.OldPath + " → " + f.Path
+	}
+	room := max(avail-len(num)-2-ansi.StringWidth(counts), 4)
+	path = truncateLeft(path, room)
+	gap := max(avail-len(num)-ansi.StringWidth(path)-ansi.StringWidth(counts), 1)
+	text := strings.Repeat(" ", x0) + plain.Render(num+path) + strings.Repeat(" ", gap) + dim.Render(counts)
+	d.lines = append(d.lines, dline{
+		text:  ansi.Truncate(text, d.width, "…"),
+		zones: []zone{{x0: x0, x1: d.width, link: -1, file: n}},
+	})
+}
+
+// truncateLeft shortens plain text s to w columns by dropping its start.
+func truncateLeft(s string, w int) string {
+	if ansi.StringWidth(s) <= w {
+		return s
+	}
+	r := []rune(s)
+	for len(r) > 0 && ansi.StringWidth(string(r))+1 > w {
+		r = r[1:]
+	}
+	return "…" + string(r)
+}
+
+// fileCounts is a changed file's dim counts: "+12 -3", "binary", or
+// "+12 untracked" for a file git does not track yet.
+func fileCounts(f deck.DiffFile) string {
+	switch {
+	case f.Binary && f.Untracked:
+		return "binary untracked"
+	case f.Binary:
+		return "binary"
+	case f.Untracked:
+		return fmt.Sprintf("+%d untracked", f.Added)
+	}
+	return fmt.Sprintf("+%d -%d", f.Added, f.Deleted)
 }
 
 // paneItems describe a thread's herdr pane: its live agent when herdr shows
@@ -558,6 +655,7 @@ var helpLines = [][2]string{
 	{"↵", "focus the thread's herdr pane"},
 	{"e", "open the thread's worktree in the editor"},
 	{"u", "start the thread's dev servers: the dev manifest's up command, detached"},
+	{"d", "the thread's changed files: a digit opens that file in the diff tool, d again the whole diff; a click on a file opens it"},
 	{"r", "the thread's report, full height"},
 	{"z", "drawer: normal, full height, hidden"},
 	{"pgup pgdn", "scroll the drawer"},

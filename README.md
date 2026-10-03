@@ -267,10 +267,11 @@ auto_restart = true
 command = "code {path}"   # e.g. "zed {path}", "cursor {path}"
 terminal = false          # e.g. command = "nvim {path}" with terminal = true
 
-# The diff tool, for showing a thread's changes (the deck does not use it
-# yet). {path} is the worktree, {base} the branch it is compared against,
-# {file} one file; without a file an argument that is just {file} is left
-# out, with a "--" right before it. It runs in the worktree.
+# The diff tool, for showing a thread's changes (`d` in the deck). {path}
+# is the worktree, {base} the commit it is compared against (where it
+# forked from its base branch), {file} one file; without a file an argument
+# that is just {file} is left out, with a "--" right before it. It runs in
+# the worktree.
 [diff]
 command = "hunk diff {base} -- {file}"
 terminal = true
@@ -297,7 +298,7 @@ command also decides `terminal` (or one above it does), so `--editor "zed
 {path}"` does not open in a pane because the file says `terminal = true` for
 nvim. Without a `terminal` value, the editor is a desktop app and the diff
 tool a terminal program. A terminal program needs herdr; outside herdr, `e`
-says so in the status line.
+and `d` say so in the status line.
 
 The deck does not read `$VISUAL` or `$EDITOR`. To use yours, put it in the
 file, e.g. `command = "nvim {path}"` with `terminal = true`.
@@ -417,6 +418,7 @@ carries on.
 | `enter` | focus the thread's herdr pane; on an inbox item, its thread's pane, else the coordinator's |
 | `e` | open the thread's worktree in the editor (VS Code unless configured) |
 | `u` | start the thread's dev servers: the dev manifest's `up` command, detached (see Dev servers) |
+| `d` | the thread's changed files: a digit opens that file in the diff tool, `d` again (or `a`, `enter`) the whole diff, `esc` cancels; with one file, `d` opens the diff right away (see Changed files) |
 | `r` | the thread's report, full height |
 | `z` | drawer: normal, full height, hidden |
 | `pgup` / `pgdn` | scroll the drawer |
@@ -426,8 +428,41 @@ carries on.
 | `q`, `ctrl+c` | quit |
 
 Mouse: click a row to select it, a list heading to fold it, a drawer link to
-open it, `! N` for the sources; the wheel moves the list or scrolls the
+open it, a changed file to open its diff (its total line for the whole
+diff), `! N` for the sources; the wheel moves the list or scrolls the
 drawer.
+
+## Changed files
+
+The drawer's Files section lists every file the selected thread changed in
+its worktree, with dim `+added -deleted` counts and a total line:
+
+```
+ Files    4 files +62 -9 vs origin/main
+          1 src/pages/users/UsersPage.tsx       +48 -6
+          2 src/api/users.ts                    +13 -3
+          3 public/empty-state.png              binary
+          4 notes.md                      +1 untracked
+```
+
+The worktree is compared with where it forked from the thread's base
+branch (`base` in the thread record, e.g. `origin/main`, else
+`origin/HEAD`): `git diff --numstat <merge-base>`, so committed, staged and
+unstaged changes count, plus untracked files (`git ls-files --others
+--exclude-standard`). Renames show as `old → new`, binary files as
+`binary`. The section lists nine files, one per digit, then `+K more`.
+
+Git runs off the UI, with a 5 s timeout and without taking git's optional
+locks, so it never gets in the way of the agent working in the worktree.
+It runs when the selection moves to another thread and on every reload
+(the refresh interval, or a change in the project folder); an answer is
+reused for 2 s. A resolved thread has no Files section, and a missing
+worktree or base shows a dim note instead.
+
+`d` opens the diff tool (`[diff]` in the config file, `hunk` by default)
+with `{base}` set to the merge-base commit, so it shows the same changes:
+a terminal program in a new herdr pane below the deck, in the worktree.
+Untracked files may not show there: `git diff` leaves them out.
 
 ## Layout
 
@@ -436,7 +471,8 @@ drawer.
 - `internal/source/*`: produces snapshots and never imports the UI.
   `projects` reads herdr-projects' files and thread list, `tasks` parses
   TASKS.md and scrapes links, `herdr` reads herdr's live panes and events,
-  `dev` reads dev-server manifests and probes ports, `live` combines them and
+  `dev` reads dev-server manifests and probes ports, `diff` reads a
+  worktree's changed files with git, `live` combines them and
   watches the project folder, `fake` is sample data for tests and `--fake`.
 - `internal/config`: finds and reads `config.toml` and resolves each setting
   (flag > environment > file > default).
