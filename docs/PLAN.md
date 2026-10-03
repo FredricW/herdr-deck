@@ -422,7 +422,9 @@ marked parallel.
    "Browser tabs" has the rules), `u` starts dev servers (the manifest's
    `up`), Figma link handlers with the open-link action (see herdr
    integration), and Linear issue status next to IDs (see "Linear issue
-   status" above). Still to do: multi-project view.
+   status" above). Still to do: multi-project view (design directions to
+   choose from in
+   [docs/design/multi-project/](design/multi-project/README.md)).
 
 ## Definition of done (v1 = milestones 1–7)
 

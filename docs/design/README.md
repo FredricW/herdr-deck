@@ -15,6 +15,9 @@ long lists such as Backlog.** PLAN.md's [UI section](../PLAN.md#ui) describes it
 | C | [Tabs, with a "Now" feed](c-tabs.md) | One page at a time; the default page sorts threads by how much they want you. |
 | D | [Compact list + detail drawer](d-list-detail.md) | One dense row per piece of work, and a drawer with everything about the selected row. |
 
+The multi-project view (milestone 8) has its own directions, E–H, in
+[multi-project/](multi-project/README.md).
+
 Each direction file shows six states, each at 80 and at 60 columns: normal
 use, a thread that needs you, unhandled inbox items, the chooser for a row
 with several links of one kind, an empty project, and missing data sources.
