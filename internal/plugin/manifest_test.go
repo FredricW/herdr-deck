@@ -10,7 +10,7 @@ import (
 )
 
 // The manifest names what this package assumes: the plugin id, the deck
-// entrypoint, the hook commands, the version the build stamps in, and link
+// entrypoint, the hook commands, the build script, and link
 // handlers that send Figma links to the open-link action.
 func TestManifest(t *testing.T) {
 	type command struct {
@@ -37,8 +37,8 @@ func TestManifest(t *testing.T) {
 	if m.ID != ID {
 		t.Errorf("id = %q, want %q", m.ID, ID)
 	}
-	if len(m.Build) != 1 || !slices.Contains(m.Build[0].Command, "-X main.version="+m.Version) {
-		t.Errorf("build %v does not stamp version %s", m.Build, m.Version)
+	if m.Version == "" || len(m.Build) != 1 || !slices.Equal(m.Build[0].Command, []string{"sh", "scripts/build.sh"}) {
+		t.Errorf("version %q, build %v: want a version and sh scripts/build.sh", m.Version, m.Build)
 	}
 	if len(m.Panes) != 1 || m.Panes[0].ID != Entrypoint {
 		t.Errorf("panes = %v, want one %q", m.Panes, Entrypoint)

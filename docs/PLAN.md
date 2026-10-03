@@ -295,7 +295,34 @@ secrets there; a later settings page will edit it.
 
 ## Updates
 
-Option A of the research doc: herdr builds from source, no release binaries.
+Option B of the research doc (option A until 2026-10-03): releases carry
+prebuilt binaries, and herdr's build step uses them when it can.
+
+- `.github/workflows/release.yml` (a plain workflow, not GoReleaser): a
+  `v*` tag push checks the tag against the manifest (`check-version.sh`),
+  builds darwin and linux on arm64 and amd64 with `CGO_ENABLED=0` and
+  `-X main.version=<tag>`, packs `herdr-deck_<version>_<os>_<arch>.tar.gz`
+  (binary and README) with `SHA256SUMS`, and creates the GitHub Release with
+  notes from `scripts/changelog.sh` (first-parent PRs and commits since the
+  previous tag). Only the publish job gets `contents: write`. Pull requests
+  that touch the release files, and a manual run with `dry_run` on, only
+  build and keep the files as a workflow artifact; a manual run with a tag
+  and `dry_run` off publishes a tag that has no release yet. Artifact
+  attestations are left for later.
+- `herdr-plugin.toml`'s `[[build]]` runs `scripts/build.sh`. In a detached
+  checkout with no local changes whose commit is the `v<manifest version>`
+  tag (asked of origin, since herdr's shallow checkout has no tags) it
+  downloads that release's archive for the machine, checks it against
+  `SHA256SUMS`, checks that `--version` names the tag, and renames it to
+  `bin/herdr-deck`. Anything else (a branch checkout such as the linked dev
+  checkout, local changes, another commit, no release, no network, a
+  mismatch) builds from source with `go build`, stamped with `git describe`
+  or else the manifest's version. `HERDR_DECK_BUILD=source` forces a source
+  build; `HERDR_DECK_DOWNLOAD_URL` points at another release host (tests).
+  `scripts/test-build.sh` covers these cases against a fake release and a
+  fake `go`, in CI's version job. `make build` is unchanged.
+- Cutting a release: bump `version` in `herdr-plugin.toml` in a PR, merge,
+  then push the `vX.Y.Z` tag on that merge commit.
 
 - `herdr-deck update [--check]` (`internal/update`) reads `herdr plugin list
   --plugin herdr-deck --json`. A GitHub install compares the newest `vX.Y.Z`
