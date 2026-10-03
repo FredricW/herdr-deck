@@ -1,0 +1,28 @@
+ Admin rebuild                           ◐ 2  ◇ 1  ○ 1  ✉ 0
+────────────────────────────────────────────────────────────
+ Projects › type to filter
+ ▸ Billing export                            ● 1  ◇ 2  ✉ 1
+      ● CSV export job · t-0003                         2m
+      ✉ inbox: t-0002 has a failing check               8m
+   Docs site                                      ○ 1  ✉ 1
+      ✉ inbox: Decide the docs domain before launch     2h
+   Admin rebuild  here                       ◐ 2  ◇ 1  ○ 1
+   Search spike  paused                         no threads
+   + 1 archived project · tab shows
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+────────────────────────────────────────────────────────────
+ ↵ go to coordinator  ↑↓ move  tab archived  esc close

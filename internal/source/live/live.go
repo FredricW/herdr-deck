@@ -33,6 +33,9 @@ type Source struct {
 	// Linear adds each Linear link's issue status; nil leaves IDs without
 	// one.
 	Linear *linear.Reader
+	// Roster reads every project under the projects root for the project
+	// picker; nil leaves Snapshot.Projects empty.
+	Roster *projects.Roster
 	// Now stamps Snapshot.ReadAt; nil means time.Now.
 	Now func() time.Time
 }
@@ -88,6 +91,12 @@ func (s Source) Read(ctx context.Context) deck.Snapshot {
 	if s.Dev != nil {
 		// After herdr: its workspace port token is the fallback port.
 		s.Dev.Apply(ctx, &snap)
+	}
+	if s.Roster != nil {
+		snap.Projects = s.Roster.Read(snap)
+		if s.Herdr != nil {
+			s.Herdr.ApplyProjects(snap.Projects, snap.Project.Slug, snap.ReadAt)
+		}
 	}
 	return snap
 }

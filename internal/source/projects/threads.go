@@ -4,8 +4,10 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"io/fs"
 	"os"
 	"os/exec"
+	"path"
 	"path/filepath"
 	"regexp"
 	"sort"
@@ -34,6 +36,7 @@ type threadRecord struct {
 	Cwd            string `json:"cwd" toml:"cwd"`
 	PaneID         string `json:"pane_id" toml:"pane_id"`
 	LastGroup      string `json:"last_group" toml:"last_group"`
+	LastChange     string `json:"last_state_change" toml:"last_state_change"`
 	StateLine      string `json:"state_line" toml:"state_line"`
 	Activity       string `json:"activity" toml:"activity"`
 	PR             string `json:"pr" toml:"pr"`
@@ -96,25 +99,38 @@ func (r Reader) listThreads(ctx context.Context) ([]threadRecord, error) {
 // threadFiles reads threads/t-*.toml in id order, taking Next from each
 // thread's home report threads/t-NNNN.md.
 func (r Reader) threadFiles(note func(string, ...any)) ([]threadRecord, time.Time) {
-	dir := filepath.Join(r.Dir(), "threads")
-	paths, _ := filepath.Glob(filepath.Join(dir, "t-*.toml"))
+	return threadRecords(os.DirFS(r.Dir()), true, note)
+}
+
+// threadRecords reads threads/t-*.toml in a project folder in id order and
+// returns when the newest was written. With next it takes Next from each
+// thread's home report threads/t-NNNN.md.
+func threadRecords(project fs.FS, next bool, note func(string, ...any)) ([]threadRecord, time.Time) {
+	paths, _ := fs.Glob(project, "threads/t-*.toml")
 	sort.Strings(paths)
 	recs := make([]threadRecord, 0, len(paths))
 	var newest time.Time
 	for _, p := range paths {
-		if fi, err := os.Stat(p); err == nil && fi.ModTime().After(newest) {
+		if fi, err := fs.Stat(project, p); err == nil && fi.ModTime().After(newest) {
 			newest = fi.ModTime()
 		}
+		data, err := fs.ReadFile(project, p)
+		if err != nil {
+			note("threads/%s: %v", path.Base(p), short(err))
+			continue
+		}
 		var rec threadRecord
-		if _, err := toml.DecodeFile(p, &rec); err != nil {
-			note("threads/%s: %v", filepath.Base(p), err)
+		if _, err := toml.Decode(string(data), &rec); err != nil {
+			note("threads/%s: %v", path.Base(p), err)
 			continue
 		}
 		if rec.ID == "" {
-			rec.ID = strings.TrimSuffix(filepath.Base(p), ".toml")
+			rec.ID = strings.TrimSuffix(path.Base(p), ".toml")
 		}
-		if report, err := os.ReadFile(filepath.Join(dir, rec.ID+".md")); err == nil {
-			rec.Next = nextLines(string(report))
+		if next {
+			if report, err := fs.ReadFile(project, path.Join("threads", rec.ID+".md")); err == nil {
+				rec.Next = nextLines(string(report))
+			}
 		}
 		recs = append(recs, rec)
 	}
@@ -141,6 +157,9 @@ func toThread(rec threadRecord, prs map[string]prSummary) deck.Thread {
 	}
 	if t.Worktree == "" {
 		t.Worktree = rec.Cwd
+	}
+	if at, err := time.Parse(time.RFC3339, rec.LastChange); err == nil {
+		t.Changed = at
 	}
 	if t.StateLine == "" {
 		switch {

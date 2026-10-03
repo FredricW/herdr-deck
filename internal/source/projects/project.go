@@ -2,13 +2,13 @@ package projects
 
 import (
 	"errors"
+	"io/fs"
 	"os"
-	"path/filepath"
 
 	"github.com/FredricW/herdr-deck/internal/deck"
 )
 
-type projectFile struct {
+type projectSettings struct {
 	Name  string `toml:"name"`
 	Goal  string `toml:"goal"`
 	Repos []struct {
@@ -19,13 +19,18 @@ type projectFile struct {
 // readProject reads PROJECT.md's front matter. Without it the project still
 // has its slug.
 func (r Reader) readProject(note func(string, ...any)) deck.Project {
-	p := deck.Project{Slug: r.Slug}
-	data, err := os.ReadFile(filepath.Join(r.Dir(), "PROJECT.md"))
+	return projectFile(os.DirFS(r.Dir()), r.Slug, note)
+}
+
+// projectFile reads PROJECT.md in a project folder, as readProject does.
+func projectFile(project fs.FS, slug string, note func(string, ...any)) deck.Project {
+	p := deck.Project{Slug: slug}
+	data, err := fs.ReadFile(project, "PROJECT.md")
 	if err != nil {
 		note("PROJECT.md: %v", short(err))
 		return p
 	}
-	var f projectFile
+	var f projectSettings
 	if _, err := frontMatter(string(data), &f); err != nil {
 		note("PROJECT.md: %v", err)
 		return p

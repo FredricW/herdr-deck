@@ -43,6 +43,7 @@ All under the projects root (`$HERDR_PROJECTS_ROOT`, else
 
 | What | Where | Notes |
 |---|---|---|
+| Projects | folders under the root with a `PROJECT.md`; `<slug>/.state/project.json` → `status` (`active`, `paused`, `archived`); `<slug>/.state/coordinator.json` → `pane_id` | For the project picker; read without running `herdr-projects list`. `herdr-projects --root <root> open <slug> --tab` starts a coordinator, only when the user picks a project with none. |
 | Project settings | `<slug>/PROJECT.md` | `+++` TOML front matter: `name`, `goal`, `[[repos]] path`. |
 | Threads | `herdr-projects --root <root> thread list <slug> --json` | The only JSON output. Each row has every TOML field plus `group`, `rank`, `next[]`, `report`. Fallback: read `<slug>/threads/t-*.toml` directly. |
 | Thread status | fields `last_group`, `state_line` (e.g. `needs you · ~95%`), `activity`, `percent`, `status` | Updated by the herdr-projects ticker every ~15 s. |
@@ -248,6 +249,28 @@ lists what the user chose.
 - **Missing sources.** `! N` in the header (yellow), and `!` shows a
   *Sources* view in the drawer. Stale rows are dim with `as of HH:MM`, and
   fallback ports are marked `~`.
+- **Other projects** (milestone 8). `p` opens the project picker over the
+  deck, only on demand: every project under the projects root (folders with
+  a PROJECT.md, as `herdr-projects list` finds them), each with its name,
+  status (`here` marks the deck's own; paused dim; archived only after
+  `tab`), its thread counts and inbox, and under it the threads waiting on
+  the user and the unhandled inbox items with their age. Projects that need
+  the user come first, then the rest by name. Typing filters by name or
+  slug; the arrows move, `esc` clears the filter, then closes. `↵` on a
+  project focuses its coordinator (`pane.focus`; herdr 0.9.3 switches to the
+  pane's workspace and tab with it, verified on a scratch server), or, with
+  none running, runs `herdr-projects --root <root> open <slug> --tab`, which
+  starts one in the project's workspace and focuses it (`--tab` keeps it out
+  of the deck's own pane; an archived project starts nothing). `↵` on a
+  thread or inbox item focuses that thread's pane. When other projects need
+  the user, the list's last line says `● N other projects need you`; a
+  click on it opens the picker. Other projects' items never join the Needs
+  you group. Data: `projects.Roster` reads `threads/t-*.toml`, `inbox/`,
+  `.state/project.json` and `.state/coordinator.json` of every project
+  (never `thread list`, never `ticker.json`) at most every 20 s, on the
+  load goroutine; herdr's reader lays the snapshot it already read over them
+  on every reload (same 30 s blocked rule). Only the deck's own folder is
+  watched. The deck's own project comes from its snapshot.
 - **Threads no task names** (built in milestone 4) get their own rows under
   *Other threads* after TASKS.md's lists; resolved ones go to a *Resolved*
   list that starts folded like *Backlog*. A task naming several threads is
@@ -300,6 +323,7 @@ Keys:
   still knows the command runs. Not started again while a manifest port
   answers or that pid is alive; the drawer shows the log and `starting…`
   until the ports answer.
+- `p`: the project picker (see Other projects above).
 - Open URLs with `open` (macOS) / `xdg-open`.
 
 Mouse: a click selects a row, a click on a tab switches to it, a click on a
@@ -627,9 +651,10 @@ marked parallel.
    tool (see UI), the settings page (`s`, see Configuration),
    CHANGELOG.md with What's new (`w`, see Updates), and README GIFs that
    `make demo` renders with VHS from `docs/demo/*.tape` on `--fake` data
-   (not in CI). Still to do: multi-project view (design directions to
-   choose from in
-   [docs/design/multi-project/](design/multi-project/README.md)).
+   (not in CI), and the project picker (`p`, see "Other projects" in UI):
+   the user chose it on 2026-10-03 over the multi-project directions in
+   [docs/design/multi-project/](design/multi-project/README.md), so the
+   deck stays one project per instance.
 
 ## Definition of done (v1 = milestones 1–7)
 

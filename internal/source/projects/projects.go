@@ -3,13 +3,15 @@
 // items. Tasks (TASKS.md) are read by internal/source/tasks.
 //
 // The reader never writes under the projects root, and the only command it
-// runs is `herdr-projects --root <root> thread list <slug> --json`. Every
+// runs is `herdr-projects --root <root> thread list <slug> --json`. Open,
+// which starts a coordinator, runs only on the user's choice. Every
 // source may be missing: what can be read is returned, and what could not is
 // listed in Snapshot.Missing. Read never fails.
 package projects
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"os/exec"
@@ -74,4 +76,34 @@ func (r Reader) Read(ctx context.Context) deck.Snapshot {
 
 func execRun(ctx context.Context, name string, args ...string) ([]byte, error) {
 	return exec.CommandContext(ctx, name, args...).Output()
+}
+
+// openTimeout bounds `herdr-projects open`, which waits for the new
+// coordinator's shell before it starts the agent.
+const openTimeout = 90 * time.Second
+
+// Open runs `herdr-projects --root <root> open <slug> --tab`, which focuses
+// the project's running coordinator, or starts one in a new tab of the
+// project's workspace (making the workspace if needed) and focuses it.
+// herdr-projects records the coordinator under the project folder, so this
+// is the one command the deck runs that writes there, and it runs only when
+// the user picks a project with no coordinator. --tab keeps the agent out of
+// the deck's own pane.
+func (r Reader) Open(ctx context.Context) error {
+	bin := r.Bin
+	if bin == "" {
+		bin = DefaultBin
+	}
+	run := r.Run
+	if run == nil {
+		run = execRun
+	}
+	ctx, cancel := context.WithTimeout(ctx, openTimeout)
+	defer cancel()
+	_, err := run(ctx, bin, "--root", r.Root, "open", r.Slug, "--tab")
+	var ee *exec.ExitError
+	if errors.As(err, &ee) && len(ee.Stderr) > 0 {
+		return errors.New(firstLine(string(ee.Stderr)))
+	}
+	return err
 }

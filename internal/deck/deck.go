@@ -25,6 +25,48 @@ type Snapshot struct {
 	// missing data, such as a repo without a dev-server manifest. The
 	// Sources view lists them; they do not count as missing.
 	Notes []string
+	// Projects is every project under the projects root, this one
+	// included, for the project picker; nil when they were not read.
+	Projects []ProjectInfo
+}
+
+// ProjectInfo is one project under the projects root as the project picker
+// shows it. Other projects are read cheaply (thread files and inbox, with
+// herdr's live state over them), so they can lag their own deck a little.
+type ProjectInfo struct {
+	// Project's PaneID is the coordinator's live herdr pane, when herdr
+	// shows one.
+	Project
+	// Status is herdr-projects' project status: active, paused or
+	// archived.
+	Status string
+	// RecordedPane is the coordinator pane herdr-projects last recorded
+	// (.state/coordinator.json); herdr's live state says whether it runs.
+	RecordedPane string
+	Threads      []Thread
+	Inbox        []InboxItem
+	// Problem says what could not be read, or "".
+	Problem string
+}
+
+// Archived reports whether herdr-projects archived the project.
+func (p ProjectInfo) Archived() bool { return p.Status == "archived" }
+
+// Needs is the project's threads waiting on the user and its unhandled
+// inbox items, the threads first.
+func (p ProjectInfo) Needs() (threads []Thread, inbox []InboxItem) {
+	for _, t := range p.Threads {
+		if t.Status == StatusNeedsYou {
+			threads = append(threads, t)
+		}
+	}
+	return threads, p.Inbox
+}
+
+// NeedsYou reports whether anything in the project waits on the user.
+func (p ProjectInfo) NeedsYou() bool {
+	threads, inbox := p.Needs()
+	return len(threads)+len(inbox) > 0
 }
 
 // Project identifies a herdr-projects project.
@@ -87,8 +129,10 @@ type Thread struct {
 	Branch    string
 	// Base is the branch the thread's worktree started from, e.g.
 	// "origin/main"; the diff section compares the worktree with it.
-	Base       string
-	Activity   string       // e.g. "Writing tests"
+	Base     string
+	Activity string // e.g. "Writing tests"
+	// Changed is when herdr-projects last saw the thread's state change.
+	Changed    time.Time
 	PR         *PullRequest // nil when the thread has no pull request
 	Next       []string     // the report's `## Next` lines
 	Report     string       // the thread's report (threads/t-NNNN.md), or ""

@@ -32,6 +32,7 @@ import (
 	"github.com/FredricW/herdr-deck/internal/source/herdr"
 	"github.com/FredricW/herdr-deck/internal/source/linear"
 	"github.com/FredricW/herdr-deck/internal/source/live"
+	"github.com/FredricW/herdr-deck/internal/source/projects"
 	"github.com/FredricW/herdr-deck/internal/ui"
 	"github.com/FredricW/herdr-deck/internal/update"
 )
@@ -147,6 +148,7 @@ func run(args []string) error {
 		}
 		snap := fake.Snapshot(slug, time.Now())
 		snap.Missing = append(snap.Missing, cfg.Problems...)
+		snap.Projects = fake.Projects(snap, time.Now())
 		// Loading the same sample again reads its diff, as a live deck's
 		// first load does.
 		opt.Load = func(context.Context) deck.Snapshot { return snap }
@@ -173,6 +175,7 @@ func run(args []string) error {
 	devs := dev.NewReader()
 	devs.Logs = config.LogDir(os.Getenv)
 	src.Dev = devs
+	src.Roster = projects.NewRoster(root)
 	go plugin.MarkSelf(context.Background(), plugin.Socket{Client: client}, os.Getenv, slug)
 
 	// The program changes when a failed restart starts the deck again.
@@ -203,6 +206,9 @@ func run(args []string) error {
 		return snap
 	}
 	opt.FocusPane = func(id string) error { return client.Focus(context.Background(), id) }
+	opt.OpenProject = func(slug string) error {
+		return projects.New(root, slug).Open(context.Background())
+	}
 	opt.Diff = (&diff.Reader{}).Read
 	opt.StartDev = func(t deck.Thread) (string, error) { return devs.Up(context.Background(), slug, t) }
 	// Both switches can change while the deck runs, so the checks are

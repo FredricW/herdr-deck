@@ -27,6 +27,7 @@ type Reader struct {
 
 	mu    sync.Mutex
 	since map[string]seen // by pane id
+	last  *State          // the state the last Apply read, nil when it failed
 }
 
 type seen struct {
@@ -46,6 +47,9 @@ func NewReader(socket string) *Reader {
 func (r *Reader) Apply(ctx context.Context, snap *deck.Snapshot, now time.Time) {
 	st, err := r.Client.Snapshot(ctx)
 	if err != nil {
+		r.mu.Lock()
+		r.last = nil
+		r.mu.Unlock()
 		snap.Missing = append(snap.Missing, missingLine(err))
 		return
 	}
@@ -54,6 +58,41 @@ func (r *Reader) Apply(ctx context.Context, snap *deck.Snapshot, now time.Time) 
 
 func (r *Reader) apply(snap *deck.Snapshot, st State, now time.Time) {
 	r.track(st, now)
+	r.overlay(snap, st, now)
+}
+
+// ApplyProjects lays the state the last Apply read over the project
+// picker's projects, as Apply does for the deck's own: each coordinator's
+// pane, and each thread's pane and live status. The project skip already
+// has it from Apply, so only its coordinator is looked for again. Without a
+// state (herdr could not be read) the list stays as herdr-projects wrote it.
+func (r *Reader) ApplyProjects(list []deck.ProjectInfo, skip string, now time.Time) {
+	r.mu.Lock()
+	st := r.last
+	r.mu.Unlock()
+	if st == nil {
+		return
+	}
+	for i := range list {
+		p := &list[i]
+		if p.Slug != skip {
+			snap := deck.Snapshot{Project: p.Project, Threads: p.Threads}
+			r.overlay(&snap, *st, now)
+			p.Project, p.Threads = snap.Project, snap.Threads
+		}
+		if p.PaneID == "" && p.RecordedPane != "" {
+			// The recorded pane counts while an agent still runs in it.
+			for _, pane := range st.Panes {
+				if pane.ID == p.RecordedPane && pane.Agent != "" {
+					p.PaneID = pane.ID
+				}
+			}
+		}
+	}
+}
+
+// overlay lays st over snap; track has noted st's statuses.
+func (r *Reader) overlay(snap *deck.Snapshot, st State, now time.Time) {
 	snap.Herdr = true
 	slug := snap.Project.Slug
 	if p, ok := coordinatorPane(st, slug, snap.Project.Dir); ok {
@@ -85,6 +124,7 @@ func missingLine(err error) string {
 func (r *Reader) track(st State, now time.Time) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
+	r.last = &st
 	next := make(map[string]seen, len(st.Panes))
 	for _, p := range st.Panes {
 		s, ok := r.since[p.ID]

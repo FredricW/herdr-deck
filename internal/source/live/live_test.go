@@ -243,3 +243,25 @@ func TestReadDevServers(t *testing.T) {
 		t.Errorf("links %q, want the manifest's Web link", got)
 	}
 }
+
+func TestReadProjects(t *testing.T) {
+	src := source("testdata", "demo")
+	if snap := src.Read(context.Background()); snap.Projects != nil {
+		t.Errorf("projects without a roster: %+v", snap.Projects)
+	}
+	src.Roster = projects.NewRoster("testdata")
+	snap := src.Read(context.Background())
+	var demo *deck.ProjectInfo
+	for i := range snap.Projects {
+		if snap.Projects[i].Slug == "demo" {
+			demo = &snap.Projects[i]
+		}
+	}
+	if demo == nil {
+		t.Fatalf("no demo in %+v", snap.Projects)
+	}
+	// The deck's own project is its snapshot, links and all.
+	if len(demo.Threads) != len(snap.Threads) || demo.Name != snap.Project.Name {
+		t.Errorf("demo %+v, snapshot threads %d", demo, len(snap.Threads))
+	}
+}

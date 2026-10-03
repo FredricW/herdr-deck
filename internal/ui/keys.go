@@ -14,6 +14,7 @@ type keyMap struct {
 	Sources, Help  key.Binding
 	Settings       key.Binding
 	News           key.Binding
+	Projects       key.Binding
 	PageDown       key.Binding
 	PageUp         key.Binding
 	Back, Quit     key.Binding
@@ -39,6 +40,7 @@ func defaultKeys() keyMap {
 		Help:      key.NewBinding(key.WithKeys("?")),
 		Settings:  key.NewBinding(key.WithKeys("s")),
 		News:      key.NewBinding(key.WithKeys("w")),
+		Projects:  key.NewBinding(key.WithKeys("p")),
 		PageDown:  key.NewBinding(key.WithKeys("pgdown", "ctrl+d")),
 		PageUp:    key.NewBinding(key.WithKeys("pgup", "ctrl+u")),
 		Back:      key.NewBinding(key.WithKeys("esc")),

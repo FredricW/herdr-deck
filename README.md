@@ -476,6 +476,7 @@ carries on.
 | `pgup` / `pgdn` | scroll the drawer |
 | `!` | sources the deck could not read |
 | `s` | settings: every setting, its value and source; `↵` edits, toggles or cycles, `x` removes it from the file (see Configuration) |
+| `p` | projects: every project under the projects root with what needs you in each (see Other projects) |
 | `w` | what's new: the changelog, newest first, with the running release marked; with `↑` in the header, also what the newer version brings |
 | `?` | all keys |
 | `esc` | back to the selected row |
@@ -485,8 +486,35 @@ carries on.
 
 Mouse: click a row to select it, a list heading to fold it, a drawer link to
 open it, a changed file to open its diff (its total line for the whole
-diff), `! N` for the sources; the wheel moves the list or scrolls the
-drawer.
+diff), `! N` for the sources, the other-projects line for the project
+picker; the wheel moves the list or scrolls the drawer.
+
+## Other projects
+
+A deck shows one project, but `p` opens a picker over it that lists every
+project under the projects root. Under each project are the threads waiting
+on you (herdr-projects' *Waiting on you*, or an agent blocked on a prompt
+for 30 seconds) and the unhandled inbox items, with how long they have
+waited. Projects that need you come first, then the rest by name; the
+deck's own project is marked `here`, paused projects are dim, and archived
+ones show only after `tab`. Typing filters by name; the arrows move, `esc`
+clears the filter, then closes.
+
+![The project picker on sample data: the deck's last list line says two other projects need you; p lists the projects that need you first (this one, Billing export with a thread waiting and an inbox item, Docs site with an inbox item), then the rest by name; tab adds the archived project, and typing doc filters the list.](docs/demo/projects.gif)
+
+`↵` on a project focuses its coordinator, and herdr switches to its
+workspace. When no coordinator runs, the deck runs `herdr-projects --root
+<root> open <slug> --tab`, which starts one in the project's workspace and
+focuses it; that is the only command the deck runs that changes anything,
+and only on that key. `↵` on a thread or inbox item focuses that thread's
+pane.
+
+When other projects need you, the list's last line says so (`● 2 other
+projects need you`); a click on it opens the picker. Other projects' items
+never join this project's *Needs you* group. The deck reads the other
+projects' files (`threads/t-*.toml`, `inbox/`, `.state/project.json` and
+`.state/coordinator.json`) every 20 seconds and lays herdr's live state over
+them on every reload; it watches only its own project's folder.
 
 ## Changed files
 
@@ -565,7 +593,8 @@ and the status line says so; the whole diff leaves it out too.
   `projects` reads herdr-projects' files and thread list, `tasks` parses
   TASKS.md and scrapes links, `herdr` reads herdr's live panes and events,
   `dev` reads dev-server manifests and probes ports, `diff` reads a
-  worktree's changed files with git, `live` combines them and
+  worktree's changed files with git, `projects.Roster` reads every
+  project for the project picker, `live` combines them and
   watches the project folder, `fake` is sample data for tests and `--fake`.
 - `internal/config`: finds and reads `config.toml` and resolves each setting
   (flag > environment > file > default).

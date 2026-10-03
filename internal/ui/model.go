@@ -33,9 +33,13 @@ type Options struct {
 	// FigmaDesktop opens Figma links in the desktop app (their figma://
 	// rewrite) wherever a key or click opens a link, not only after d.
 	FigmaDesktop bool
-	// FocusPane focuses a herdr pane by id. Tests replace it so no real
-	// pane is ever focused.
+	// FocusPane focuses a herdr pane by id, switching herdr to its
+	// workspace and tab. Tests replace it so no real pane is ever focused.
 	FocusPane func(paneID string) error
+	// OpenProject starts the coordinator of the project slug and focuses it
+	// (`herdr-projects open`), for the project picker when none runs. Tests
+	// replace it so no coordinator is ever started.
+	OpenProject func(slug string) error
 	// Diff reads what a thread's worktree changed against its base. It
 	// runs off the UI goroutine when the selection moves to another
 	// thread and on every reload. Nil shows no Files section.
@@ -176,7 +180,8 @@ type Model struct {
 	diffing   bool                 // a Diff call is running
 	diffAgain bool                 // the selection moved while it ran
 
-	set settingsPage
+	set  settingsPage
+	pick picker
 }
 
 // New returns a model showing snap until Options.Load delivers a fresh one.
@@ -241,6 +246,9 @@ func (m *Model) SetSnapshot(snap deck.Snapshot) {
 		if m.mode == modeReport {
 			m.mode = modeRow
 		}
+	}
+	if m.pick.open {
+		m.pickVisible()
 	}
 	// The Sources view comes up by itself once, when something is missing.
 	if m.loaded && !m.sourcesSeen && len(snap.Missing) > 0 && m.mode == modeRow {
@@ -352,6 +360,9 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.width, m.height = msg.Width, msg.Height
 		m.scrollDrawer(0)
 		m.ensureVisible()
+		if m.pick.open {
+			m.pickVisible()
+		}
 	case tea.BackgroundColorMsg:
 		m.light = !msg.IsDark()
 	case tickMsg:
@@ -594,6 +605,9 @@ func (m *Model) openDiff(t deck.Thread, d deck.Diff, f deck.DiffFile) tea.Cmd {
 
 func (m Model) handleKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	m.status, m.notice = "", ""
+	if m.pick.open {
+		return m, m.pickerKey(msg)
+	}
 	if m.mode == modeSettings {
 		if cmd, done := m.settingsKey(msg); done {
 			return m, cmd
@@ -653,6 +667,8 @@ func (m Model) handleKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		return m, m.openSettings()
 	case key.Matches(msg, m.keys.News):
 		m.toggleMode(modeNews)
+	case key.Matches(msg, m.keys.Projects):
+		m.openPicker()
 	case key.Matches(msg, m.keys.PageDown):
 		m.scrollDrawer(max(m.layout().drawerH/2, 1))
 	case key.Matches(msg, m.keys.PageUp):
@@ -966,8 +982,13 @@ func (m *Model) handleClick(mouse tea.Mouse) (tea.Model, tea.Cmd) {
 		return *m, nil
 	}
 	m.status, m.notice = "", ""
+	if m.pick.open {
+		return *m, m.pickClick(mouse.Y)
+	}
 	l := m.layout()
 	switch {
+	case l.attn > 0 && mouse.Y == l.attn:
+		m.openPicker()
 	case mouse.Y == 0 && mouse.X >= l.bang.x0 && mouse.X < l.bang.x1:
 		m.toggleMode(modeSources)
 	case mouse.Y >= l.listTop && mouse.Y < l.listTop+l.listH:
@@ -1022,6 +1043,10 @@ func (m *Model) handleWheel(mouse tea.Mouse) {
 	case tea.MouseWheelUp:
 		delta = -1
 	default:
+		return
+	}
+	if m.pick.open {
+		m.pickMove(delta)
 		return
 	}
 	l := m.layout()
