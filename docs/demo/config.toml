@@ -1,0 +1,6 @@
+# The demo tapes' config file: made-up values only. `make demo` copies it
+# into a scratch home folder, so the settings page edits the copy.
+linear_workspace = "acme"
+reuse_browser_tabs = false
+update_check = false
+auto_restart = false

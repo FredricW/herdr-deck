@@ -12,6 +12,8 @@ worktree's dev servers, and refreshes as they change. As a herdr plugin it
 opens next to each coordinator by itself. See [docs/PLAN.md](docs/PLAN.md)
 for the plan and milestones.
 
+![The deck on sample data: Users page needs you and is pinned on top; moving down the list, the drawer below shows each row's thread, status, links, branch, dev servers and changed files; the folded Backlog opens and shuts with space.](docs/demo/hero.gif)
+
 ## Install as a herdr plugin
 
 Needs herdr 0.9.3 or newer, on macOS or Linux.
@@ -104,6 +106,8 @@ also lists what the newer version brings, read from its CHANGELOG.md (from
 GitHub at the newer tag, or `git show` of origin's commit for a linked
 checkout); without a network it just leaves that out.
 
+![After an update the footer says "Updated to v1.2.3 · w what's new" once; w opens What's new in the drawer, the changelog newest first, and z gives it the whole pane.](docs/demo/news.gif)
+
 To remove it, `herdr plugin uninstall herdr-deck`, or `herdr plugin unlink
 herdr-deck` for a linked checkout, and delete the keybinding.
 
@@ -119,7 +123,17 @@ make run ARGS="--project admin-rebuild" # build and run
 ./bin/herdr-deck --version              # version and commit
 make test                               # go test ./...
 make lint                               # golangci-lint if installed, else gofmt + go vet
+make demo                               # re-render the README's GIFs
 ```
+
+`--fake` shows a made-up project and never touches herdr or a projects
+root; its worktrees do not exist, so `e` and `d` only say they opened.
+`make demo` re-renders the GIFs in `docs/demo` from the `.tape` files there
+with [VHS](https://github.com/charmbracelet/vhs) (it needs `vhs`, `ttyd` and
+`ffmpeg`); `make demo TAPES=docs/demo/news.tape` renders one. The tapes
+run `--fake` with a build stamped `v1.2.3`, a scratch home folder holding
+`docs/demo/config.toml`, and a no-op `open` on `PATH`, so no browser starts
+and your own config is never read.
 
 `make build` stamps the version from `git describe --tags --always --dirty`;
 other builds fall back to the module version and commit Go records.
@@ -330,6 +344,8 @@ except `projects_root`, which needs a restart (the status line says so).
 `linear_api_key_command` is edited as a command; the deck never runs it
 there or shows the key it prints.
 
+![The settings page: each setting grouped with its value and source; linear_status flips to false on enter, and linear_workspace is edited in place from acme to globex, each saved to the config file at once.](docs/demo/settings.gif)
+
 The deck writes this file only from the settings page and never writes
 secrets to it. A missing file is fine. A file that does not parse, an unknown key or a bad value
 never stops the deck: the `!` sources view lists the problem (the plugin
@@ -456,6 +472,8 @@ carries on.
 | `esc` | back to the selected row |
 | `q`, `ctrl+c` | quit |
 
+![The drawer's numbered links for a thread with Linear, Figma, GitHub and localhost links: f asks which of three Figma links to open and 3 opens one; g opens the pull request, o the running dev server, and 1 the Linear issue.](docs/demo/links.gif)
+
 Mouse: click a row to select it, a list heading to fold it, a drawer link to
 open it, a changed file to open its diff (its total line for the whole
 diff), `! N` for the sources; the wheel moves the list or scrolls the
@@ -494,6 +512,8 @@ a terminal program in a new herdr pane below the deck, in the worktree.
 A renamed file opens with its old and new path, so git pairs them. An
 untracked file does not open: `git diff` leaves it out until it is added,
 and the status line says so; the whole diff leaves it out too.
+
+![The Files section of a thread that changed five files: z makes the drawer full height, d asks which file, 2 opens one file's diff, and d d opens the whole diff.](docs/demo/diff.gif)
 
 ## Layout
 

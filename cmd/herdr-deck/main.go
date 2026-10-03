@@ -134,6 +134,10 @@ func run(args []string) error {
 			Apply:   func(s config.Settings) { cur.Store(&s) },
 		},
 	}
+	// The sample deck notes an update too, so `make demo` can show it.
+	if dir := config.StateDir(os.Getenv); dir != "" {
+		opt.Updated = changelog.Seen(filepath.Join(dir, changelog.SeenFile), opt.Version)
+	}
 	if *demo {
 		slug := *slugFlag
 		if slug == "" {
@@ -141,6 +145,13 @@ func run(args []string) error {
 		}
 		snap := fake.Snapshot(slug, time.Now())
 		snap.Missing = append(snap.Missing, cfg.Problems...)
+		// Loading the same sample again reads its diff, as a live deck's
+		// first load does.
+		opt.Load = func(context.Context) deck.Snapshot { return snap }
+		opt.Diff = fake.Diff
+		// The sample's worktrees do not exist: e and d only say they opened.
+		opt.OpenEditor = func(string) error { return nil }
+		opt.OpenDiff = func(string, string, []string) error { return nil }
 		_, err := tea.NewProgram(ui.New(snap, opt)).Run()
 		return err
 	}
@@ -200,9 +211,6 @@ func run(args []string) error {
 			return ui.Update{}
 		}
 		return hint(ctx)
-	}
-	if dir := config.StateDir(os.Getenv); dir != "" {
-		opt.Updated = changelog.Seen(filepath.Join(dir, changelog.SeenFile), opt.Version)
 	}
 	// The binary's path is taken now, before an update can move it.
 	var exe string
