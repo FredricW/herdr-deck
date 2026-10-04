@@ -391,3 +391,89 @@ func patchLine(line string) deck.PatchLine {
 	}
 	return deck.PatchLine{Kind: deck.LineContext, Text: text}
 }
+
+// commitFilesCacheSize is how many commits' file lists are remembered.
+const commitFilesCacheSize = 64
+
+// ReadCommitFiles returns the files commit sha of t's worktree changed,
+// against its first parent, with their line counts (`git show --raw
+// --numstat`, parsed as Parse does). The answer is cached by sha. A
+// problem is the second result; the list is then empty.
+func (r *Reader) ReadCommitFiles(ctx context.Context, t deck.Thread, sha string) ([]deck.DiffFile, error) {
+	if t.Worktree == "" {
+		return nil, fmt.Errorf("no worktree")
+	}
+	key := t.Worktree + "\x00" + sha
+	r.mu.Lock()
+	fs, ok := r.commitFiles[key]
+	r.mu.Unlock()
+	if ok {
+		return fs, nil
+	}
+	ctx, cancel := context.WithTimeout(ctx, Timeout)
+	defer cancel()
+	out, err := r.git()(ctx, t.Worktree, "show", "--no-color", "--no-ext-diff", "--format=", "--raw", "--numstat", "-z", "-M",
+		"--diff-merges=first-parent", sha, "--")
+	if err != nil {
+		return nil, fmt.Errorf("git show: %w", err)
+	}
+	fs = Parse(out)
+	r.mu.Lock()
+	if len(r.commitFiles) >= commitFilesCacheSize {
+		clear(r.commitFiles)
+	}
+	if r.commitFiles == nil {
+		r.commitFiles = map[string][]deck.DiffFile{}
+	}
+	r.commitFiles[key] = fs
+	r.mu.Unlock()
+	return fs, nil
+}
+
+// ReadCommitFilePatch returns f's change in commit sha of t's worktree,
+// against the commit's first parent: `git show <sha> -- [old] <path>`, as
+// the preview shows a file. The answer is cached by sha and file.
+func (r *Reader) ReadCommitFilePatch(ctx context.Context, t deck.Thread, sha string, f deck.DiffFile) deck.Patch {
+	if t.Worktree == "" {
+		return deck.Patch{Note: "no worktree"}
+	}
+	key := strings.Join([]string{t.Worktree, sha, f.OldPath, f.Path}, "\x00")
+	r.mu.Lock()
+	p, ok := r.patches[key]
+	r.mu.Unlock()
+	if ok {
+		return p
+	}
+	ctx, cancel := context.WithTimeout(ctx, Timeout)
+	defer cancel()
+	args := []string{"show", "--no-color", "--no-ext-diff", "--no-textconv", "--format=", "-M", "--diff-merges=first-parent", sha, "--"}
+	if f.OldPath != "" {
+		args = append(args, f.OldPath)
+	}
+	args = append(args, f.Path)
+	var (
+		out []byte
+		cut bool
+		err error
+	)
+	if r.Git != nil {
+		out, err = r.Git(ctx, t.Worktree, args...)
+	} else {
+		out, cut, err = execGitLimit(ctx, t.Worktree, maxPatchBytes, args...)
+	}
+	if err != nil {
+		return deck.Patch{Note: fmt.Sprintf("git show: %v", err)}
+	}
+	p = ParsePatch(out, MaxPatchLines)
+	p.Cut = cut
+	r.mu.Lock()
+	if len(r.patches) >= patchCacheSize {
+		clear(r.patches)
+	}
+	if r.patches == nil {
+		r.patches = map[string]deck.Patch{}
+	}
+	r.patches[key] = p
+	r.mu.Unlock()
+	return p
+}

@@ -289,7 +289,18 @@ lists what the user chose.
   `{base}` = `sha^`, the sha inserted after a lone `{base}`, so `hunk diff
   sha^ sha`) and `g` the commit inside the PR on GitHub
   (`…/pull/N/commits/<sha>`, with tab reuse; an unpushed commit says so).
-  From the list, `d` and `g` keep their meaning.
+  From the list, `d` and `g` keep their meaning. In the focused drawer,
+  `space`/`→`/`l` (or a click on the `▸` marker after the digit) expands a
+  commit to its files and `space`/`←`/`h` collapses it (also from one of
+  its files); several may be open. File rows are styled as on Files
+  (status letter, path, `+N −M` with `−`, list or tree by `diff_view`),
+  indented under the commit, unnumbered (the digits stay the commits').
+  `ReadCommitFiles` (`git show --format= --raw --numstat -z -M
+  --diff-merges=first-parent`, parsed as the Files tab's diff) runs off
+  the UI goroutine on the first expand and is cached by sha. `↵`/click on a
+  file previews `git show <sha> -- [old] <path>` (`ReadCommitFilePatch`),
+  `d` opens it at that commit (`CommitArgv` with files). The cursor keeps
+  its row (sha and path) when rows open, close or arrive above it.
 - **Log tab.** The thread's timeline, newest first, one line per event:
   age (dim, right-aligned), a glyph in its colour, the text, and at 80
   columns the clock time (dim, with the weekday before today). Only what

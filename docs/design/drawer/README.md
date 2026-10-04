@@ -165,8 +165,9 @@ the focus too.
 | `a` | — | the whole diff in the diff tool | the whole diff in the diff tool | — |
 | `v` | — | the diff preview on or off (built after this design; see PLAN.md) | the commit preview on or off | — |
 | `t` | — | list ↔ tree | — | — |
+| `space` `→` `l` / `←` `h` | — | — | with the drawer focused, expand the commit to its files / collapse it (`space` toggles; a click on `▸`/`▾` too); from the list as today | — |
 | `↵` (list focus) | the thread's pane | same | same | same |
-| `↵` (drawer focus) | open the link under the cursor | preview the file under the cursor, numbered or not | preview the commit; on the uncommitted row, show Files | the event: a report shows it, a PR event opens the PR, the rest focus the pane |
+| `↵` (drawer focus) | open the link under the cursor | preview the file under the cursor, numbered or not | preview the commit, or a file's change in its commit; on the uncommitted row, show Files | the event: a report shows it, a PR event opens the PR, the rest focus the pane |
 | `r` `e` `u` `z` `pgup` `pgdn` | as today | same | same | same |
 
 `d` used to open a chooser over the Files section; with Files a tab of its
@@ -187,13 +188,16 @@ merge-base, newest first.
 ```text
  Overview   Files 11   Commits 4   Log 7
  ● uncommitted · 2 files                                                → Files
-▸1 c3a91f0 Show the overview cards above the users table          12m  +214 −12
- 2 8be2d41 Add the users columns                                   2h    +48 −0
- 3 51f0c9a ⋔ Merge origin/main into the users page                 5h
- 4 a07de3b Rename members to users                                 1d     +1 −1
+▸1 ▾ c3a91f0 Show the overview cards above the users table        12m  +214 −12
+       M  apps/admin/src/pages/users/UsersOverviewPage.tsx             +166 −12
+       A  apps/admin/src/pages/users/overview.ts                            +48
+ 2 ▸ 8be2d41 Add the users columns                                 2h    +48 −0
+ 3 ▸ 51f0c9a ⋔ Merge origin/main into the users page               5h
+ 4 ▸ a07de3b Rename members to users                               1d     +1 −1
 ```
 
-The sha, age and a merge commit's row are dim; `● ` is yellow, as an
+A commit expands to its files (`▾`), styled as on Files and indented
+under it. The sha, age and a merge commit's row are dim; `● ` is yellow, as an
 unhandled update; `+N` green, `−M` red. A commit previews in the diff
 preview's place, as `git show` shows it. README's *Commits* section and
 PLAN.md describe the details.

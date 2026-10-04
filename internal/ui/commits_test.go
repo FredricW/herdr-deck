@@ -3,6 +3,7 @@ package ui
 import (
 	"context"
 	"fmt"
+	"path"
 	"slices"
 	"strings"
 	"testing"
@@ -49,6 +50,23 @@ func withCommits(cs deck.Commits, shas *[]string) func(*Options) {
 			}
 			return cs
 		}
+		o.CommitFiles = func(_ context.Context, _ deck.Thread, sha string) ([]deck.DiffFile, error) {
+			if sha == "c3a91f0e" {
+				return []deck.DiffFile{
+					{Path: "apps/admin/src/pages/users/UsersOverviewPage.tsx", Added: 166, Deleted: 12},
+					{Path: "apps/admin/src/pages/users/overview.ts", Change: deck.ChangeAdded, Added: 48},
+					{Path: "apps/admin/src/pages/users/index.ts", OldPath: "apps/admin/src/pages/members/index.ts", Change: deck.ChangeRenamed},
+					{Path: "apps/admin/src/old.ts", Change: deck.ChangeDeleted, Deleted: 9},
+				}, nil
+			}
+			return []deck.DiffFile{{Path: "apps/admin/src/pages/users/columns.ts", Change: deck.ChangeAdded, Added: 48}}, nil
+		}
+		o.CommitFilePatch = func(_ context.Context, _ deck.Thread, sha string, f deck.DiffFile) deck.Patch {
+			if shas != nil {
+				*shas = append(*shas, sha+" "+f.Path)
+			}
+			return diff.ParsePatch([]byte("@@ -0,0 +1 @@\n+export const "+path.Base(f.Path)+" = 1;\n"), diff.MaxPatchLines)
+		}
 		o.CommitPatch = func(_ context.Context, _ deck.Thread, sha string) deck.CommitPatch {
 			if shas != nil {
 				*shas = append(*shas, sha)
@@ -63,7 +81,10 @@ func commitsModel(t *testing.T, w, h int, cs deck.Commits, shas *[]string) (Mode
 	var opened []string
 	m, _ := newModelWith(t, deck.Snapshot{}, w, h, func(o *Options) {
 		withCommits(cs, shas)(o)
-		o.OpenCommit = func(path, sha string) error { opened = append(opened, path+" "+sha); return nil }
+		o.OpenCommit = func(path, sha string, files []string) error {
+			opened = append(opened, strings.TrimSpace(path+" "+sha+" "+strings.Join(files, " ")))
+			return nil
+		}
 	})
 	m, _ = press(m, snapshotMsg(calm()))
 	return m, &opened
@@ -89,6 +110,9 @@ func TestCommitsGolden(t *testing.T) {
 		{name: "commits-note", cs: gone, keys: keys("]]")},
 		{name: "commits-preview", cs: sampleCommits(), keys: keys("]]1")},
 		{name: "commits-preview-scrolled", cs: sampleCommits(), keys: keys("]]1JJJJ")},
+		{name: "commits-expanded", cs: sampleCommits(), keys: append(append(keys("]]"), tabKey), keys("j jjjjj ")...)},
+		{name: "commits-expanded-tree", cs: sampleCommits(), keys: keys("dt]j ")},
+		{name: "commits-file-preview", cs: sampleCommits(), keys: append(append(keys("]]"), tabKey), append(keys("j j"), enterKey)...)},
 	}
 	for _, c := range cases {
 		for _, w := range []int{80, 60} {
@@ -282,5 +306,89 @@ func TestCommitsCursorFollowsCommit(t *testing.T) {
 	m, _ = press(m, commitsMsg{key: diffKey(m.snap.Threads[1]), commits: more})
 	if _, c, ok := m.previewCommitAt(); !ok || c.SHA != "8be2d417" || !m.preview || m.dcur != 3 {
 		t.Errorf("the cursor moved off 8be2d41: %+v cursor %d preview %v", c, m.dcur, m.preview)
+	}
+}
+
+func TestCommitsExpand(t *testing.T) {
+	var shas []string
+	m, opened := commitsModel(t, 80, 28, sampleCommits(), &shas)
+	m, _ = press(m, keys("]]")...)
+	// From the list, l is still Linear's key and space folds.
+	m, _ = press(m, keys("l")...)
+	if len(m.expand) != 0 || m.choosing != deck.LinkLinear {
+		t.Fatalf("l from the list: expanded %v, chooser %v", m.expand, m.choosing)
+	}
+	m, _ = press(m, esc)
+	m, _ = press(m, keys("]]")...)
+	m, _ = press(m, tabKey)
+	m, _ = press(m, keys("jl")...)
+	if !strings.Contains(screen(m), "▾ c3a91f0") || !strings.Contains(screen(m), "M  apps/admin/src/pages/users/UsersOverviewPage.tsx") {
+		t.Fatalf("l did not expand c3a91f0:\n%s", screen(m))
+	}
+	// The digits stay the commits'.
+	if !strings.Contains(screen(m), "2 ▸ 8be2d41") {
+		t.Errorf("the second commit lost its digit:\n%s", screen(m))
+	}
+	// j onto the first file, ↵ previews its change in that commit.
+	m, _ = press(m, keys("j")...)
+	m, _ = press(m, enterKey)
+	if !m.preview || shas[len(shas)-1] != "c3a91f0e apps/admin/src/pages/users/UsersOverviewPage.tsx" {
+		t.Fatalf("↵ on a file: preview %v, reads %v", m.preview, shas)
+	}
+	if !strings.Contains(screen(m), "c3a91f0 apps/admin/src/pages/users/UsersOverviewPage.tsx  +166 −12") {
+		t.Errorf("the file preview's header:\n%s", screen(m))
+	}
+	// d opens that file at that commit; a rename passes both paths.
+	m, _ = press(m, keys("d")...)
+	m, _ = press(m, keys("jj")...)
+	m, _ = press(m, keys("d")...)
+	want := []string{
+		worktree2 + " c3a91f0e apps/admin/src/pages/users/UsersOverviewPage.tsx",
+		worktree2 + " c3a91f0e apps/admin/src/pages/members/index.ts apps/admin/src/pages/users/index.ts",
+	}
+	if !slices.Equal(*opened, want) {
+		t.Errorf("d opened %q, want %q", *opened, want)
+	}
+	// h collapses from a file and puts the cursor on its commit.
+	m, _ = press(m, keys("h")...)
+	if m.dcur != 1 || strings.Contains(screen(m), "overview.ts") {
+		t.Errorf("h: cursor %d\n%s", m.dcur, screen(m))
+	}
+	// A click on the marker expands; another collapses.
+	x, y := find(t, m, "▸ 8be2d41")
+	m, _ = press(m, click(x, y))
+	if !strings.Contains(screen(m), "columns.ts") {
+		t.Errorf("a click on ▸ did not expand:\n%s", screen(m))
+	}
+	m, _ = press(m, click(x, y))
+	if strings.Contains(screen(m), "columns.ts") {
+		t.Errorf("a click on ▾ did not collapse:\n%s", screen(m))
+	}
+}
+
+// Expanding or collapsing a commit above the cursor, files arriving and
+// commits added above keep the cursor on the same row.
+func TestCommitsExpandKeepsCursor(t *testing.T) {
+	m, _ := commitsModel(t, 80, 40, sampleCommits(), nil)
+	m, _ = press(m, keys("]]")...)
+	m, _ = press(m, tabKey)
+	m, _ = press(m, keys("j j")...) // expand c3a91f0, then onto its first file
+	m, _ = press(m, keys("jjjj")...)
+	if f, ok := m.cursorCommitFile(); ok || m.cursorCommit(sampleCommits()) != 1 {
+		t.Fatalf("not on 8be2d41: %v %v", f, m.dcur)
+	}
+	m, _ = press(m, keys(" ")...) // expand 8be2d41
+	m, _ = press(m, keys("j")...) // its file
+	before := m.dcur
+	// Files of the commit above collapse: the cursor follows its row.
+	m.keepCursor(func() { delete(m.expand, commitKey(m.snap.Threads[1], "c3a91f0e")) })
+	if f, ok := m.cursorCommitFile(); !ok || f.Path != "apps/admin/src/pages/users/columns.ts" || m.dcur != before-4 {
+		t.Errorf("after collapsing above: %v %v cursor %d (was %d)", f, ok, m.dcur, before)
+	}
+	more := sampleCommits()
+	more.List = append([]deck.Commit{{SHA: "ffff0000", Short: "ffff000", Subject: "Newer"}}, more.List...)
+	m, _ = press(m, commitsMsg{key: diffKey(m.snap.Threads[1]), commits: more})
+	if f, ok := m.cursorCommitFile(); !ok || f.Path != "apps/admin/src/pages/users/columns.ts" {
+		t.Errorf("after a new commit: %v %v", f, ok)
 	}
 }

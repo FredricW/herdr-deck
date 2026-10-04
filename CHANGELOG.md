@@ -17,6 +17,10 @@ and versions follow [Semantic Versioning](https://semver.org/).
   `↵` or a digit previews a commit as `git show` does (author, date, body
   and a syntax-coloured diff, file by file); in the focused drawer `d`
   opens it in the diff tool against its parent and `g` in the PR on GitHub.
+  `space`, `→` or `l` in the focused drawer (or a click on `▸`) expands a
+  commit to the files it changed, styled as on Files; `↵` on one previews
+  that file's change in that commit and `d` opens it there in the diff
+  tool. `←` or `h` collapses it.
 
 ### Changed
 

@@ -123,24 +123,34 @@ func DiffArgv(c Command, path, base string, files ...string) []string {
 	return argv
 }
 
-// CommitArgv is the diff command for one commit of the worktree at path:
-// {base} is the commit's first parent (sha^), and the commit itself goes
-// in right after an argument that is just {base}, so `hunk diff {base}`
-// and `git diff --merge-base {base}` compare the parent with the commit
-// rather than with the working tree. A {file} argument is dropped as
-// for the whole diff.
-func CommitArgv(c Command, path, sha string) []string {
-	argv := DiffArgv(c, path, sha+"^")
-	if !slices.Contains(c.Argv, "{base}") {
+// CommitArgv is the diff command for one commit of the worktree at path,
+// limited to files when there are any (a rename's old and new path): {base}
+// is the commit's first parent (sha^), and the commit itself goes in right
+// after an argument that is just {base}, so `hunk diff {base}` and `git
+// diff --merge-base {base}` compare the parent with the commit rather
+// than with the working tree. {file} works as in DiffArgv.
+func CommitArgv(c Command, path, sha string, files ...string) []string {
+	argv := DiffArgv(c, path, sha+"^", files...)
+	i := slices.Index(c.Argv, "{base}")
+	if i < 0 {
 		return argv
 	}
-	// Without files, DiffArgv drops each {file} and a "--" right before
-	// one; every other argument stays one argument.
-	i := slices.Index(c.Argv, "{base}")
-	at := i
+	n := 0
+	for _, f := range files {
+		if f != "" {
+			n++
+		}
+	}
+	// Where {base} landed: DiffArgv turns each {file} into n arguments
+	// and, without files, drops a "--" right before one.
+	at := 0
 	for j, a := range c.Argv[:i] {
-		if a == "{file}" || a == "--" && j+1 < len(c.Argv) && c.Argv[j+1] == "{file}" {
-			at--
+		switch {
+		case a == "{file}":
+			at += n
+		case a == "--" && n == 0 && j+1 < len(c.Argv) && c.Argv[j+1] == "{file}":
+		default:
+			at++
 		}
 	}
 	return slices.Insert(argv, at+1, sha)

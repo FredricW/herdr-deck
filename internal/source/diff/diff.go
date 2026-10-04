@@ -50,6 +50,7 @@ type Reader struct {
 	commits       map[string]cachedCommits
 	logs          map[string]logCache         // commit lists, by worktree and base
 	commitPatches map[string]deck.CommitPatch // ReadCommitPatch's answers, by sha
+	commitFiles   map[string][]deck.DiffFile  // ReadCommitFiles' answers, by sha
 }
 
 type gitFunc func(ctx context.Context, dir string, args ...string) ([]byte, error)

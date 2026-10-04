@@ -54,18 +54,21 @@ func (t tabKind) String() string {
 type actKind int
 
 const (
-	actNone   actKind = iota
-	actLink           // open link n (an index into the row's links)
-	actFile           // preview file n (1-based, in display order)
-	actDiff           // open the whole diff in the diff tool
-	actEvent          // act on Log event n
-	actTab            // switch to tab n
-	actCommit         // preview commit n (1-based); 0 is the uncommitted row
+	actNone       actKind = iota
+	actLink               // open link n (an index into the row's links)
+	actFile               // preview file n (1-based, in display order)
+	actDiff               // open the whole diff in the diff tool
+	actEvent              // act on Log event n
+	actTab                // switch to tab n
+	actCommit             // preview commit n (1-based); 0 is the uncommitted row
+	actExpand             // expand or collapse commit n (1-based)
+	actCommitFile         // preview file f (0-based, in display order) of commit n
 )
 
 type action struct {
 	kind actKind
 	n    int
+	f    int // actCommitFile's file
 }
 
 // item is one piece of a drawer value: a word of text or a whole link.
@@ -450,6 +453,7 @@ var helpLines = [][2]string{
 	{"v", "on Files and Commits: preview the file or commit under the cursor in the list's place, coloured by its language; j k pick another, v or esc returns to the list"},
 	{"Files", "↵, a digit or a click previews a file; in the focused drawer d opens it in the diff tool; a opens the whole diff there"},
 	{"Commits", "the branch's commits since its base, newest first: ↵, a digit or a click previews one as git show does; in the focused drawer d opens the commit in the diff tool and g in the PR on GitHub; a opens the whole diff"},
+	{"space → l", "in the focused Commits tab: expand the commit to the files it changed (space again, ← or h collapses it; a click on ▸ / ▾ too); ↵ or a click on a file previews its change in that commit, d opens it in the diff tool"},
 	{"J K", "scroll the preview a line; pgup pgdn a page, the wheel over it three lines"},
 	{"r", "the thread's report, full height"},
 	{"z", "drawer: normal, full height, hidden"},

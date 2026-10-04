@@ -528,6 +528,7 @@ only threads waiting on you. The deck never marks an item handled.
 | `t` | on Files: switch between list and folder tree (see Changed files) |
 | `v` | on Files or Commits: turn the preview of the file or commit under the cursor on or off; `esc` brings the list back (see Diff preview) |
 | `g` on Commits | in the focused drawer, open the commit under the cursor in the PR on GitHub (see Commits) |
+| `space` `→` `l` / `←` `h` on Commits | in the focused drawer, expand the commit under the cursor to its files / collapse it (`space` toggles); from the list, `space` folds and `l` is Linear as before |
 | `J` / `K` | scroll the preview a line (`pgup` / `pgdn` a page) |
 | `r` | the thread's report, full height, rendered as Markdown |
 | `z` | drawer: normal, full height, hidden |
@@ -689,7 +690,7 @@ ends the preview and brings back the list with its cursor and scroll as
 they were. While it shows, `d` opens the file in the diff tool and `a`
 the whole diff; the preview stays.
 
-![The Files tab and the diff preview on sample data: d focuses the Files tab of a thread that changed eight files, each with a coloured status letter, counts and a bar; ↵ shows the first file, an untracked Markdown file, all added where the task list was; j moves to a TypeScript file whose diff shows syntax colours, red and green tinted lines and dim hunk headers, and J scrolls it; v brings the list back, and t switches the Files tab to the folder tree; ] shows the Commits tab, 1 previews the newest commit with its author, date and diff, j the next one with its body, and v brings the list back.](docs/demo/diff.gif)
+![The Files tab and the diff preview on sample data: d focuses the Files tab of a thread that changed eight files, each with a coloured status letter, counts and a bar; ↵ shows the first file, an untracked Markdown file, all added where the task list was; j moves to a TypeScript file whose diff shows syntax colours, red and green tinted lines and dim hunk headers, and J scrolls it; v brings the list back, and t switches the Files tab to the folder tree; ] shows the Commits tab, 1 previews the newest commit with its author, date and diff, j the next one with its body, and v brings the list back; l expands the newest commit to its files, ↵ previews one of them in that commit, and h collapses it.](docs/demo/diff.gif)
 
 ## Commits
 
@@ -699,14 +700,16 @@ newest first.
 
 ```
  ● uncommitted · 2 files                                                → Files
- 1 c3a91f0 Show the overview cards above the users table          12m  +214 −12
- 2 8be2d41 Add the users columns                                   2h    +48 −0
- 3 51f0c9a ⋔ Merge origin/main into the users page                 5h
- 4 a07de3b Rename members to users                                 1d     +1 −1
+ 1 ▾ c3a91f0 Show the overview cards above the users table        12m  +214 −12
+       M  apps/admin/src/pages/users/UsersOverviewPage.tsx             +166 −12
+       A  apps/admin/src/pages/users/overview.ts                            +48
+ 2 ▸ 8be2d41 Add the users columns                                 2h    +48 −0
+ 3 ▸ 51f0c9a ⋔ Merge origin/main into the users page               5h
+ 4 ▸ a07de3b Rename members to users                               1d     +1 −1
 ```
 
-Each row has its number (1–9 take the digits), the short sha (dim), the
-subject, the commit's age and its `+N −M` in green and red. A merge commit
+Each row has its number (1–9 take the digits), a disclosure marker, the
+short sha (dim), the subject, the commit's age and its `+N −M` in green and red. A merge commit
 is dim, marked `⋔`, and has no counts. When the worktree has changes not
 committed yet, a first row counts their files (untracked ones included);
 `↵` on it shows the Files tab. A branch of more than 100 commits ends with
@@ -720,6 +723,20 @@ and body, then the diff against its first parent (`git show
 file coloured by its language. `j`/`k` move to the next commit and the
 preview follows; `v` turns it on and off, and `esc`, another tab or row
 brings the list back, as on Files.
+
+**Expanding a commit.** In the focused drawer, `space`, `→` or `l` (or a
+click on its `▸`) lists the files a commit changed under it, as the Files
+tab shows them: the status letter coloured by kind, the path, `+N −M`
+(`+N` only for an added file, `−M` only for a deleted one), in the list or
+folder tree that `diff_view` (or `t` on Files) chose. `space` again, `←`
+or `h` (also from one of its files) or a click on `▾` collapses it.
+Several commits can be open at once. The digits stay the commits', and
+the cursor stays on its row when commits open, close or arrive above it.
+`↵` or a click on a file previews that file's change in that commit
+(`git show <sha> -- <file>`, a rename with both paths), and `d` opens it
+at that commit in the diff tool. The list is read (`git show --raw
+--numstat`) off the UI the first time a commit is expanded and kept by
+sha. From the list, `space` still folds and `l` is still Linear.
 
 As on Files, `a` opens the branch's whole diff in the diff tool. In the
 focused drawer, `d` opens the commit under the cursor in the diff

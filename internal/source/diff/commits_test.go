@@ -268,3 +268,38 @@ func TestReadCommitsBaseAndFailures(t *testing.T) {
 		t.Errorf("a moved base did not read the log again: %d", logs)
 	}
 }
+
+func TestReadCommitFilesTempRepo(t *testing.T) {
+	dir := repo(t)
+	r := &Reader{}
+	ctx := context.Background()
+	th := deck.Thread{Worktree: dir, Base: "main"}
+	sha := r.ReadCommits(ctx, th).List[0].SHA
+	files, err := r.ReadCommitFiles(ctx, th, sha)
+	want := []deck.DiffFile{
+		{Path: "app.go", Added: 2},
+		{Path: "gone.txt", Change: deck.ChangeDeleted, Deleted: 1},
+		{Path: "renamed.txt", OldPath: "old.txt", Change: deck.ChangeRenamed},
+	}
+	if err != nil || !reflect.DeepEqual(files, want) {
+		t.Fatalf("files %+v (%v), want %+v", files, err, want)
+	}
+	p := r.ReadCommitFilePatch(ctx, th, sha, files[0])
+	if p.Note != "" || len(p.Lines) == 0 || p.Lines[0].Kind != deck.LineHunk {
+		t.Errorf("app.go at the commit: %+v", p)
+	}
+	if p := r.ReadCommitFilePatch(ctx, th, sha, files[2]); p.Note != "renamed, content unchanged" {
+		t.Errorf("the rename: %+v", p)
+	}
+	// Cached by sha: a second read runs no git.
+	r.Git = func(context.Context, string, ...string) ([]byte, error) {
+		t.Error("git ran for a cached commit")
+		return nil, errors.New("no")
+	}
+	if again, err := r.ReadCommitFiles(ctx, th, sha); err != nil || !reflect.DeepEqual(again, want) {
+		t.Errorf("cached files %+v %v", again, err)
+	}
+	if _, err := r.ReadCommitFiles(ctx, deck.Thread{}, sha); err == nil {
+		t.Error("no worktree, no error")
+	}
+}

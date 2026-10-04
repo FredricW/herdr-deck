@@ -127,9 +127,9 @@ func run(args []string) error {
 			df := cur.Load().Diff
 			return runner.Run(df, launch.DiffArgv(df, path, base, files...), path)
 		},
-		OpenCommit: func(path, sha string) error {
+		OpenCommit: func(path, sha string, files []string) error {
 			df := cur.Load().Diff
-			return runner.Run(df, launch.CommitArgv(df, path, sha), path)
+			return runner.Run(df, launch.CommitArgv(df, path, sha, files...), path)
 		},
 		DiffTree:  cfg.DiffView == config.DiffViewTree,
 		Tick:      cfg.RefreshInterval,
@@ -160,10 +160,12 @@ func run(args []string) error {
 		opt.Patch = fake.Patch
 		opt.Commits = fake.Commits
 		opt.CommitPatch = fake.CommitPatch
+		opt.CommitFiles = fake.CommitFiles
+		opt.CommitFilePatch = fake.CommitFilePatch
 		// The sample's worktrees do not exist: e and d only say they opened.
 		opt.OpenEditor = func(string) error { return nil }
 		opt.OpenDiff = func(string, string, []string) error { return nil }
-		opt.OpenCommit = func(string, string) error { return nil }
+		opt.OpenCommit = func(string, string, []string) error { return nil }
 		_, err := tea.NewProgram(ui.New(snap, opt)).Run()
 		return err
 	}
@@ -222,6 +224,8 @@ func run(args []string) error {
 	opt.Patch = diffs.ReadPatch
 	opt.Commits = diffs.ReadCommits
 	opt.CommitPatch = diffs.ReadCommitPatch
+	opt.CommitFiles = diffs.ReadCommitFiles
+	opt.CommitFilePatch = diffs.ReadCommitFilePatch
 	opt.StartDev = func(t deck.Thread) (string, error) { return devs.Up(context.Background(), slug, t) }
 	// Both switches can change while the deck runs, so the checks are
 	// always set up and ask cur each time.

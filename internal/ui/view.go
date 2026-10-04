@@ -673,13 +673,13 @@ func (m Model) rowHint(r row, narrow bool) string {
 			}
 			switch {
 			case m.preview && narrow:
-				return "j k commit  J K scroll  v off  esc list"
+				return "j k move  J K scroll  v off  esc list"
 			case m.preview:
-				return "j k commit  J K scroll  v preview off  d diff tool" + gh + "  esc list"
+				return "j k move  J K scroll  v preview off  space files  d diff tool" + gh + "  esc list"
 			case narrow:
-				return "j k commit  ↵ preview  d tool" + gh + "  esc list"
+				return "j k move  ↵ preview  space files  d tool  esc list"
 			}
-			return "j k commit  ↵ preview  d diff tool" + gh + "  esc list  ? help"
+			return "j k move  ↵ preview  space files  d diff tool" + gh + "  esc list  ? help"
 		case tabLog:
 			return "j k event  ↵ act  tab next tab  esc list  ? help"
 		}

@@ -74,3 +74,36 @@ func CommitPatch(_ context.Context, t deck.Thread, sha string) deck.CommitPatch 
 	}
 	return deck.CommitPatch{Patch: deck.Patch{Note: "no such commit"}}
 }
+
+// CommitFiles is the files one of the sample's commits changed, with the
+// counts the sample's Files tab gives them.
+func CommitFiles(ctx context.Context, t deck.Thread, sha string) ([]deck.DiffFile, error) {
+	all := Diff(ctx, t).Files
+	for _, c := range sampleCommits {
+		if c.sha != sha || t.ID != "t-0002" {
+			continue
+		}
+		if c.merge {
+			return []deck.DiffFile{{Path: "README.md", Added: 1}}, nil
+		}
+		var files []deck.DiffFile
+		for _, p := range c.files {
+			for _, f := range all {
+				if f.Path == p {
+					f.Untracked = false
+					files = append(files, f)
+				}
+			}
+		}
+		return files, nil
+	}
+	return nil, fmt.Errorf("no such commit")
+}
+
+// CommitFilePatch is one file's change in one of the sample's commits.
+func CommitFilePatch(ctx context.Context, t deck.Thread, sha string, f deck.DiffFile) deck.Patch {
+	if t.ID != "t-0002" || sha == "" {
+		return deck.Patch{Note: "no changes"}
+	}
+	return Patch(ctx, t, "", f)
+}

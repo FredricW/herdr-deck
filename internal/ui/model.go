@@ -59,9 +59,17 @@ type Options struct {
 	// CommitPatch reads one commit for the preview (v or ↵ on the Commits
 	// tab). It runs off the UI goroutine. Nil turns that preview off.
 	CommitPatch func(ctx context.Context, t deck.Thread, sha string) deck.CommitPatch
+	// CommitFiles reads the files a commit changed, for an expanded
+	// commit on the Commits tab. It runs off the UI goroutine. Nil leaves
+	// commits unexpandable.
+	CommitFiles func(ctx context.Context, t deck.Thread, sha string) ([]deck.DiffFile, error)
+	// CommitFilePatch reads one file's change in a commit for the preview.
+	// It runs off the UI goroutine.
+	CommitFilePatch func(ctx context.Context, t deck.Thread, sha string, f deck.DiffFile) deck.Patch
 	// OpenCommit opens the diff tool for commit sha of the worktree at
-	// path. Tests replace it so no diff tool is ever run.
-	OpenCommit func(path, sha string) error
+	// path, for some files (a rename's old and new path) or, with none,
+	// the whole commit. Tests replace it so no diff tool is ever run.
+	OpenCommit func(path, sha string, files []string) error
 	// DiffTree starts the Files section in the tree view (diff_view =
 	// "tree"); d t switches views for the session.
 	DiffTree bool
@@ -200,6 +208,11 @@ type Model struct {
 	commitsSel   string                  // the diffKey last asked for
 	committing   bool                    // a Commits call is running
 	commitsAgain bool                    // the selection moved while it ran
+	// Expanded commits (by commitKey), their files once read, and the
+	// reads running.
+	expand         map[string]bool
+	commitFileSets map[string]commitFiles
+	filesReading   map[string]bool
 
 	// The diff preview (preview.go): on, the thread (diffKey) and file
 	// (patchKey) or commit (commitKey) it shows, and its scroll.
@@ -229,18 +242,21 @@ func New(snap deck.Snapshot, opt Options) Model {
 		opt.UpdateEvery = DefaultUpdateEvery
 	}
 	m := Model{
-		opt:         opt,
-		keys:        defaultKeys(),
-		folds:       map[string]bool{},
-		diffs:       map[string]deck.Diff{},
-		commitLists: map[string]deck.Commits{},
-		patches:     map[string]preview{},
-		choosing:    noKind,
-		tree:        opt.DiffTree,
-		width:       defaultWidth,
-		height:      defaultHeight,
-		loaded:      opt.Load == nil,
-		loading:     opt.Load != nil, // Init starts the first load
+		opt:            opt,
+		keys:           defaultKeys(),
+		folds:          map[string]bool{},
+		diffs:          map[string]deck.Diff{},
+		commitLists:    map[string]deck.Commits{},
+		expand:         map[string]bool{},
+		commitFileSets: map[string]commitFiles{},
+		filesReading:   map[string]bool{},
+		patches:        map[string]preview{},
+		choosing:       noKind,
+		tree:           opt.DiffTree,
+		width:          defaultWidth,
+		height:         defaultHeight,
+		loaded:         opt.Load == nil,
+		loading:        opt.Load != nil, // Init starts the first load
 	}
 	if opt.Updated != "" {
 		m.notice = "Updated to v" + opt.Updated + " · " + m.keys.News.Keys()[0] + " what's new"
@@ -461,6 +477,10 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.commitsAgain = false
 			return m, tea.Batch(m.readCommits(true), m.readPatch(false))
 		}
+		return m, m.readPatch(false)
+	case commitFilesMsg:
+		m.setCommitFiles(msg)
+		m.syncPreview()
 		return m, m.readPatch(false)
 	case patchMsg:
 		m.patching = false
@@ -686,7 +706,7 @@ func (m *Model) moveDrawerCursor(delta int) {
 	}
 	lo := 0
 	if _, cs, ok := m.commits(); ok && m.preview && m.curTab() == tabCommits && len(cs.List) > 0 {
-		lo = commitStop(cs, 0) // the preview stays on the commits
+		lo = m.commitStop(cs, 0) // the preview stays on the commits
 	}
 	m.dcur = clamp(m.dcur+delta, lo, len(l.drawer.stops)-1)
 	line := l.drawer.stops[m.dcur].line
@@ -736,6 +756,10 @@ func (m *Model) act(a action) tea.Cmd {
 			return nil
 		}
 		m.previewCommit(a.n - 1)
+	case actExpand:
+		return m.toggleExpand(a.n-1, -1)
+	case actCommitFile:
+		m.previewCommitFile(a.n-1, a.f)
 	}
 	return nil
 }

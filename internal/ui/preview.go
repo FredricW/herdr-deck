@@ -78,6 +78,9 @@ func (m Model) previewing() (deck.Thread, string, bool) {
 		}
 	case tabCommits:
 		if t, c, ok := m.previewCommitAt(); ok {
+			if f, ok := m.cursorCommitFile(); ok {
+				return t, commitKey(t, c.SHA) + "\x00" + f.OldPath + "\x00" + f.Path, true
+			}
 			return t, commitKey(t, c.SHA), true
 		}
 	}
@@ -112,7 +115,7 @@ func (m *Model) togglePreview() {
 		// From the uncommitted row, the preview starts at the newest
 		// commit.
 		if _, cs, ok := m.commits(); ok && m.cursorCommit(cs) < 0 && len(cs.List) > 0 {
-			m.dcur = commitStop(cs, 0)
+			m.dcur = m.commitStop(cs, 0)
 		}
 	}
 	if _, _, ok := m.previewing(); !ok {
@@ -170,6 +173,20 @@ func (m *Model) readPatch(force bool) tea.Cmd {
 	if m.patching {
 		m.patchAgain = true
 		return nil
+	}
+	if f, ok := m.cursorCommitFile(); ok && m.curTab() == tabCommits {
+		_, c, _ := m.previewCommitAt()
+		read := m.opt.CommitFilePatch
+		if read == nil {
+			return nil
+		}
+		m.patching, m.patchSel = true, k
+		if old, had := m.patches[k]; had {
+			return func() tea.Msg { return patchMsg{key: k, data: old} }
+		}
+		return func() tea.Msg {
+			return patchMsg{key: k, data: newPreview(f.Path, read(context.Background(), t, c.SHA, f))}
+		}
 	}
 	if m.curTab() == tabCommits {
 		_, c, _ := m.previewCommitAt()
@@ -339,12 +356,16 @@ func (m *Model) scrollPreview(delta int) {
 func (m Model) previewLines(w, h int) []string {
 	p, ok := m.patches[m.prevKey]
 	var head string
-	if m.curTab() == tabCommits {
+	switch f, onFile := m.cursorCommitFile(); {
+	case m.curTab() == tabCommits && onFile:
+		_, c, _ := m.previewCommitAt()
+		head = m.previewHeader(f, c.Short, ok, w, h)
+	case m.curTab() == tabCommits:
 		_, c, _ := m.previewCommitAt()
 		head = m.commitHeader(c, ok, w, h)
-	} else {
+	default:
 		_, _, f, _ := m.previewFile()
-		head = m.previewHeader(f, ok, w, h)
+		head = m.previewHeader(f, "", ok, w, h)
 	}
 	lines := []string{head}
 	if !ok {
@@ -395,9 +416,10 @@ func (m Model) previewLines(w, h int) []string {
 	return lines[:h+1]
 }
 
-// previewHeader names the file with its +N −M, and at the right which
+// previewHeader names the file (after the short sha of the commit it is
+// shown at, if any) with its +N −M, and at the right which
 // lines show. A long path loses its start, so the counts stay.
-func (m Model) previewHeader(f deck.DiffFile, ok bool, w, h int) string {
+func (m Model) previewHeader(f deck.DiffFile, sha string, ok bool, w, h int) string {
 	counts := addedStyle.Render(fmt.Sprintf("+%d", f.Added)) + " " + deletedStyle.Render(fmt.Sprintf("−%d", f.Deleted))
 	if f.Binary {
 		counts = dim.Render("binary")
@@ -409,9 +431,13 @@ func (m Model) previewHeader(f deck.DiffFile, ok bool, w, h int) string {
 	if total := m.previewTotal(); ok && total > h {
 		right = dim.Render(fmt.Sprintf("%d–%d/%d", m.prevOff+1, min(m.prevOff+h, total), total)) + " "
 	}
-	room := w - 1 - 2 - ansi.StringWidth(counts) - ansi.StringWidth(right) - 2
+	lead := " "
+	if sha != "" {
+		lead += dim.Render(sha) + " "
+	}
+	room := w - ansi.StringWidth(lead) - 2 - ansi.StringWidth(counts) - ansi.StringWidth(right) - 2
 	name := truncateLeft(listName(f), max(room, 8))
-	return spread(" "+bold.Render(name)+"  "+counts, right, w)
+	return spread(lead+bold.Render(name)+"  "+counts, right, w)
 }
 
 // commitHeader names the commit with its short sha, subject and +N −M,
