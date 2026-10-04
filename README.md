@@ -525,6 +525,26 @@ without a manifest is noted in the `!` sources view; a manifest or state file
 that cannot be read is listed there as missing, and the rest of the deck
 carries on.
 
+### The shared dev manifest
+
+`.herdr-deck/dev.json` is being replaced by a shared, tool-neutral
+`.config/dev.json` ([the spec](docs/dev-manifest.md), schemas in
+`schema/v1/`); the deck does not read it yet. The agent skill in
+[`skills/dev-manifest`](skills/dev-manifest/SKILL.md) writes one for a repo,
+or for a folder of repos: it reads their task runners, scripts, compose
+files and framework settings without running anything, migrates a legacy
+`.herdr-deck/dev.json`, validates the result against `schema/v1` and lists
+what it could not work out as questions. Install it for Claude Code by
+linking the folder from your checkout (a link keeps it current and lets it
+reach the spec and its validator):
+
+```sh
+ln -s "$PWD/skills/dev-manifest" ~/.claude/skills/dev-manifest
+```
+
+A copy works too; its validator then runs with
+`go run github.com/FredricW/herdr-deck/skills/dev-manifest/validate@main`.
+
 ## The drawer
 
 The drawer under the list describes the selected row and takes half of the
@@ -869,3 +889,7 @@ to the repository.
 - `internal/ui`: the Bubble Tea model; renders a `deck.Snapshot` and nothing else.
   Its rendering is pinned by `internal/ui/testdata/*.golden` (every state at
   60 and 80 columns); `go test ./internal/ui -update` rewrites them.
+- `schema`: the dev manifest's JSON Schemas (embedded), checked against the
+  spec's examples.
+- `skills/dev-manifest`: the agent skill that writes `.config/dev.json`, its
+  validator (`go run ./skills/dev-manifest/validate <file>`) and fixture repos.

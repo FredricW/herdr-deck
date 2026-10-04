@@ -1,0 +1,13 @@
+{
+  "name": "api",
+  "private": true,
+  "scripts": {
+    "dev": "tsx watch src/server.ts",
+    "start": "node dist/server.js",
+    "test": "vitest run",
+    "lint": "eslint src",
+    "migrate": "prisma migrate dev",
+    "seed": "tsx prisma/seed.ts"
+  },
+  "dependencies": { "express": "^5.0.0", "@prisma/client": "^6.0.0" }
+}
