@@ -1,9 +1,6 @@
  Admin rebuild                                               ◐ 2  ◇ 1  ○ 1  ✉ 0
 ────────────────────────────────────────────────────────────────────────────────
 ─ Settings · /home/ada/.config/herdr-deck/config.toml ──────────────────────────
-   linear_status           true                                          default
-   linear_api_key_command  none                                          default
-
  Editor and diff
    editor.command          zed {path}                                    file
    editor.terminal         false                                         default
@@ -18,6 +15,9 @@
  Browser
    reuse_browser_tabs      true                                          default
    figma_desktop           false                                         default
+
+ List
+   ui.folded_lists         Backlog, Resolved                             default
 
  Projects and refresh
    refresh_interval        5s                                            default

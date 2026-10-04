@@ -152,8 +152,9 @@ lists what the user chose.
   the header's `✉ N`, which counts every unhandled item.
 - **Folding.** `space` on a list heading folds or unfolds the list. A folded
   heading starts with `+` and shows its count (`+ Backlog (6)`); open
-  headings have no marker. `▸` only ever marks the selected row. *Backlog*
-  starts folded, and a folded list still shows its threads' glyphs.
+  headings have no marker. `▸` only ever marks the selected row. The lists
+  named in `ui.folded_lists` start folded (default *Backlog* and *Resolved*;
+  see Configuration), and a folded list still shows its threads' glyphs.
   Folding never hides a need, because those rows are pinned on top.
 - **Drawer.** It shows the selected row, and takes half of the pane below
   the header (the list keeps the rest; it scrolls to keep the cursor in
@@ -524,16 +525,33 @@ never a secret.
   finds the default path itself.
 - `linear_status` (default true) and `linear_api_key_command`: see
   "Linear issue status" below.
+- `ui.folded_lists` (`[ui] folded_lists`, flag `--ui-folded-lists`, env
+  `$HERDR_DECK_UI_FOLDED_LISTS`; default `["Backlog", "Resolved"]`): the list headings
+  that start folded, matched whole and without regard to case; `[]` folds
+  none. One setting covers TASKS.md's lists and the deck's own groups
+  (Resolved, Other threads), since the user sees them all as list headings
+  and folds them the same way; Needs you never folds. The flag, env var and
+  settings page take comma-separated names, `none` for an empty list
+  (`KindList`; saved as a TOML array). A change applies at once to the
+  lists the user has not folded or unfolded by hand this session; manual
+  folds stay. Whole-heading matching replaced the earlier hard-coded
+  "heading contains backlog" rule. Naming: settings are moving to one TOML
+  table per area, the dotted path being the canonical name
+  (`ui.refresh_interval`, `linear.workspace`, `diff.view`, …); this is the
+  first key in `[ui]`, and a follow-up renames the existing keys.
+  `config.Load` decodes such tables one key at a time (`decodeTable`), so a
+  bad value or unknown key in one is skipped on its own.
 - `update_check` (the header's update hint) and `auto_restart` (re-exec
   when the binary is replaced), both on by default. New keys are new
   optional fields, so an older deck only reports a newer file's keys as
   unknown.
 - Settings page (`s`, `internal/ui/settings.go`): a full-height drawer view
   listing `config.Specs` in groups (Links and Linear, Editor and diff,
-  Updates, Browser, Projects and refresh), each with its effective value
+  Updates, Browser, List, Projects and refresh), each with its effective value
   and source (`Settings.Values`, recorded by `Resolve` as it settles each
   setting). `↵` toggles a boolean, cycles a choice (`KindChoice`, its values in
-  `Spec.Choices`, such as `diff_view`) or edits a value in place, checked by
+  `Spec.Choices`, such as `diff_view`) or edits a value in place (a list
+  as comma-separated names), checked by
   `config.Check` as you type; `x` removes the key from the file. A save goes through `config.Save`: it patches only
   that key's line (comments, order and unknown keys stay; a new key goes
   after the last key of its table, a new table at the end), refuses a file
@@ -542,8 +560,8 @@ never a secret.
   old one (through a symlink, keeping the mode). A value set by a flag or
   env var still saves to the file; the page and status line say the
   override wins. After a save the deck resolves again and applies it at
-  once: the UI takes the refresh interval, Figma desktop and the update
-  hint, and `main` swaps an `atomic.Pointer[config.Settings]` that opening
+  once: the UI takes the refresh interval, Figma desktop, the folded lists
+  and the update hint, and `main` swaps an `atomic.Pointer[config.Settings]` that opening
   links, the editor and the diff tool, the Linear workspace and reader
   (rebuilt when the key command changes), the update check and
   auto-restart read each time.

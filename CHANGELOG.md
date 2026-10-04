@@ -21,6 +21,12 @@ and versions follow [Semantic Versioning](https://semver.org/).
   commit to the files it changed, styled as on Files; `↵` on one previews
   that file's change in that commit and `d` opens it there in the diff
   tool. `←` or `h` collapses it.
+- `folded_lists` under `[ui]` in the config file (and the settings page,
+  `--ui-folded-lists`, `$HERDR_DECK_UI_FOLDED_LISTS`) names the lists that start
+  folded, by heading in any case: `["Backlog", "Resolved"]` by default, `[]`
+  for none. A change on the settings page applies at once to the lists you
+  have not folded or unfolded by hand. A heading now matches whole, so a
+  list such as "Backlog later" no longer folds on its own.
 
 ### Changed
 

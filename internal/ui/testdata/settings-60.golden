@@ -23,6 +23,6 @@
    reuse_browser_tabs      true                      default
    figma_desktop           false                     default
 
- Projects and refresh
+ List
 ────────────────────────────────────────────────────────────
  ↵ edit  x remove  j k move  esc back  q quit         v9.9.9

@@ -22,7 +22,7 @@
    reuse_browser_tabs      true                                          default
    figma_desktop           false                                         default
 
- Projects and refresh
-   refresh_interval        5s                                            default
+ List
+   ui.folded_lists         Backlog, Resolved                             default
 ────────────────────────────────────────────────────────────────────────────────
  ↵ edit  x remove  j k move  esc back  q quit                             v9.9.9

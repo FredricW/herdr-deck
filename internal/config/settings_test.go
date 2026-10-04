@@ -24,6 +24,9 @@ command = "zed {path}"
 
 [diff]
 terminal = false
+
+[ui]
+folded_lists = ["In progress", " backlog ", "Backlog"]
 `)
 	no := false
 	s, err := Resolve(Flags{UpdateCheck: &no, DiffTool: "git diff {base}"}, getenv, noHunk)
@@ -40,6 +43,7 @@ terminal = false
 		KeyDiffCommand:     {Text: "git diff {base}", Source: FromFlag},
 		KeyDiffTerminal:    {Text: "true", Source: FromDefault},
 		KeyDiffView:        {Text: "tree", Source: FromFile},
+		KeyFoldedLists:     {Text: "In progress, backlog", Source: FromFile},
 		KeyUpdateCheck:     {Text: "false", Source: FromFlag},
 		KeyAutoRestart:     {Text: "true", Source: FromDefault},
 		KeyReuseTabs:       {Text: "true", Source: FromDefault},
@@ -113,6 +117,20 @@ func TestSpecs(t *testing.T) {
 	}
 	if err := Check(KeyDiffView, "grid"); err == nil || err.Error() != `"grid" is not list or tree` {
 		t.Errorf("Check(diff_view, grid) = %v", err)
+	}
+	for text, want := range map[string]string{
+		"Backlog, Done": "",
+		"none":          "",
+		" , ":           "a list name is empty",
+		"Backlog,,Done": "a list name is empty",
+	} {
+		got := ""
+		if err := Check(KeyFoldedLists, text); err != nil {
+			got = err.Error()
+		}
+		if got != want {
+			t.Errorf("Check(folded_lists, %q) = %q, want %q", text, got, want)
+		}
 	}
 	if sp, _ := SpecFor(KeyEditorCommand); sp.Override(FromFlag) != "--editor" || sp.Override(FromEnv) != "$"+EnvEditor || sp.Override(FromFile) != "" {
 		t.Errorf("Override = %q, %q", sp.Override(FromFlag), sp.Override(FromEnv))

@@ -2,6 +2,7 @@ package ui
 
 import (
 	"context"
+	"slices"
 	"strings"
 
 	"charm.land/bubbles/v2/key"
@@ -252,6 +253,11 @@ func (m *Model) applySettings(cfg config.Settings) tea.Cmd {
 	m.set.cfg, m.set.loaded, m.set.err = cfg, true, ""
 	m.opt.Tick = cfg.RefreshInterval
 	m.opt.FigmaDesktop = cfg.FigmaDesktop
+	if cfg.FoldedLists != nil && !slices.Equal(cfg.FoldedLists, m.opt.FoldedLists) {
+		// Lists the user folded or unfolded by hand keep that.
+		m.opt.FoldedLists = cfg.FoldedLists
+		m.SetSnapshot(m.snap)
+	}
 	if h := m.opt.Settings; h != nil && h.Apply != nil {
 		h.Apply(cfg)
 	}

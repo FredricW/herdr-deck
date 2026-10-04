@@ -477,6 +477,19 @@ func TestFolding(t *testing.T) {
 	}
 }
 
+// FoldedLists names the lists that start folded, ignoring case; an empty
+// list folds none.
+func TestFoldedListsOption(t *testing.T) {
+	m, _ := newModelWith(t, calm(), 80, 40, func(o *Options) { o.FoldedLists = []string{} })
+	if s := screen(m); strings.Contains(s, "+ Backlog") || !strings.Contains(s, "Settings page") {
+		t.Errorf("an empty list still folds Backlog:\n%s", s)
+	}
+	m, _ = newModelWith(t, calm(), 80, 40, func(o *Options) { o.FoldedLists = []string{"IN PROGRESS"} })
+	if s := screen(m); !strings.Contains(s, "+ In progress (3)") || strings.Contains(s, "+ Backlog") {
+		t.Errorf("only In progress should start folded:\n%s", s)
+	}
+}
+
 // A blank line separates two groups, never ends the list, and the cursor,
 // the wheel and clicks all step over it.
 func TestGapsBetweenGroups(t *testing.T) {
