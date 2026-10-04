@@ -236,11 +236,11 @@ func (m Model) patchRow(p preview, k, w int) string {
 		return m.sideCell(p, r.r, false, w)
 	}
 	lw := (w - 1) / 2
-	return m.sideCell(p, r.l, true, lw) + dim.Render("│") + m.sideCell(p, r.r, false, w-1-lw)
+	return m.sideCell(p, r.l, true, lw) + greyStyle(dividerDark, dividerLight, m.light).Render("│") + m.sideCell(p, r.r, false, w-1-lw)
 }
 
 // sideCell draws patch line i on the old (left) or new side in w
-// columns: its line number dim, then like a unified line, a red − or
+// columns: its line number in a grey that barely shows, then like a unified line, a red − or
 // green + and the tint under removed and added code. Long lines are cut
 // with …; i < 0 is blank filler.
 func (m Model) sideCell(p preview, i int, old bool, w int) string {
@@ -256,7 +256,7 @@ func (m Model) sideCell(p preview, i int, old bool, w int) string {
 	if old {
 		no = sv.oldNo[i]
 	}
-	num := " " + dim.Render(fmt.Sprintf("%*d", sv.numW, no)) + " "
+	num := " " + greyStyle(lineNoDark, lineNoLight, m.light).Render(fmt.Sprintf("%*d", sv.numW, no)) + " "
 	rest := max(w-sv.numW-2, 1)
 	sign := "  "
 	switch l.Kind {

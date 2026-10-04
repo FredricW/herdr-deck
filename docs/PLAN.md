@@ -273,9 +273,10 @@ lists what the user chose.
   unified and split for the session; `diff.layout` (`unified` | `split`,
   `--diff-layout`, `HERDR_DECK_DIFF_LAYOUT`, a cycling choice on the
   settings page) is the start. Split (`internal/ui/split.go`): old left,
-  new right, each side a dim right-aligned line number from the hunk
-  header, the sign, the code (tinted as in unified, cut with `…` per side,
-  a blank column before the dim `│`). `pairLines` lays the patch out once
+  new right, each side a right-aligned line number from the hunk header
+  in a fixed grey (256-colour 238 dark / 252 light, so the code
+  dominates), the sign, the code (tinted as in unified, cut with `…` per
+  side, a blank column before the `│` divider in 240 / 250). `pairLines` lays the patch out once
   per read, off the UI goroutine: each run of removed lines pairs with
   the added lines after it, filler on the shorter side; context on both
   sides; hunk headers and a commit's file rules span both; a

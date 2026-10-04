@@ -749,8 +749,9 @@ many more there are; git runs off the UI with the same 5 s timeout, and an
 answer is reused while the file's content is unchanged.
 
 `S` (or `|`) switches the preview to the split layout and back: the old
-file on the left, the new one on the right, each with dim line numbers
-and a thin divider between them, as side-by-side diff tools show it.
+file on the left, the new one on the right, each with line numbers in a
+dark grey that barely shows (light grey on a light terminal), so the code
+stands out, and a thin divider a shade brighter between them, as side-by-side diff tools show it.
 Within a hunk, each run of removed lines sits next to the added lines
 that follow it, and the shorter side gets blank filler; context lines
 show on both sides, hunk headers (and a commit's file rules) across both.

@@ -2,6 +2,7 @@ package ui
 
 import (
 	"fmt"
+	"image/color"
 	"strings"
 	"testing"
 
@@ -204,9 +205,24 @@ func TestSplitColoursAndCuts(t *testing.T) {
 		"added tint":   "\x1b[" + addBgDark + "m",
 		"removed tint": "\x1b[" + delBgDark + "m",
 		"keyword":      "\x1b[35mimport",
+		"line number":  fmt.Sprintf("\x1b[38;5;%dm 1", lineNoDark),
+		"divider":      fmt.Sprintf("\x1b[38;5;%dm│", dividerDark),
 	} {
 		if !strings.Contains(out, want) {
 			t.Errorf("no %s (%q) in the split preview", what, want)
+		}
+	}
+	if strings.Contains(out, "\x1b[2m 1") {
+		t.Error("line numbers are faint rather than the fixed grey")
+	}
+	light, _ := press(m, tea.BackgroundColorMsg{Color: color.White})
+	out = light.View().Content
+	for what, want := range map[string]string{
+		"line number": fmt.Sprintf("\x1b[38;5;%dm 1", lineNoLight),
+		"divider":     fmt.Sprintf("\x1b[38;5;%dm│", dividerLight),
+	} {
+		if !strings.Contains(out, want) {
+			t.Errorf("light terminal: no %s (%q)", what, want)
 		}
 	}
 	for _, l := range strings.Split(ansi.Strip(out), "\n") {
