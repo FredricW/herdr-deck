@@ -58,7 +58,7 @@ const prFields = `state isDraft mergeable mergeStateStatus reviewDecision baseRe
 autoMergeRequest { enabledAt }
 reviewRequests(first: 10) { nodes { requestedReviewer { __typename ... on User { login } ... on Team { name } ... on Bot { login } ... on Mannequin { login } } } }
 commits(last: 1) { nodes { commit { statusCheckRollup { contexts(first: 60) { nodes { __typename
-  ... on CheckRun { name status conclusion detailsUrl startedAt completedAt }
+  ... on CheckRun { name status conclusion detailsUrl startedAt completedAt checkSuite { workflowRun { workflow { name } } } }
   ... on StatusContext { context state targetUrl createdAt } } } } } } }
 reviewThreads(first: 50) { nodes { isResolved isOutdated path line originalLine
   comments(first: 1) { totalCount nodes { author { login } body url createdAt } } } }`
@@ -161,6 +161,13 @@ type gqlContext struct {
 	DetailsURL  string    `json:"detailsUrl"`
 	StartedAt   time.Time `json:"startedAt"`
 	CompletedAt time.Time `json:"completedAt"`
+	CheckSuite  *struct {
+		WorkflowRun *struct {
+			Workflow struct {
+				Name string `json:"name"`
+			} `json:"workflow"`
+		} `json:"workflowRun"`
+	} `json:"checkSuite"`
 	// StatusContext
 	Context   string    `json:"context"`
 	State     string    `json:"state"`
@@ -281,17 +288,22 @@ func (g *gqlPR) data() *pullData {
 	return p
 }
 
-// checks turns the rollup into one check per name: a re-run leaves the
-// earlier run in the rollup too, and the latest one counts.
+// checks turns the rollup into one check per workflow and name: a re-run
+// leaves the earlier run in the rollup too, and the latest one counts. Two
+// workflows' jobs of the same name stay apart.
 func checks(nodes []gqlContext) []deck.Check {
 	var out []deck.Check
 	at := map[string]int{}
 	for _, n := range nodes {
 		var c deck.Check
+		key := n.Typename
 		switch n.Typename {
 		case "CheckRun":
 			c = deck.Check{Name: n.Name, State: runState(n.Status, n.Conclusion), URL: n.DetailsURL,
 				JobID: JobID(n.DetailsURL), Started: n.StartedAt, Completed: n.CompletedAt}
+			if s := n.CheckSuite; s != nil && s.WorkflowRun != nil {
+				key += "\x00" + s.WorkflowRun.Workflow.Name
+			}
 		case "StatusContext":
 			c = deck.Check{Name: n.Context, State: statusState(n.State), URL: n.TargetURL, Started: n.CreatedAt}
 			if c.State == deck.CheckPassed || c.State == deck.CheckFailed {
@@ -303,13 +315,14 @@ func checks(nodes []gqlContext) []deck.Check {
 		if c.Name == "" {
 			continue
 		}
-		if i, ok := at[c.Name]; ok {
+		key += "\x00" + c.Name
+		if i, ok := at[key]; ok {
 			if c.Started.After(out[i].Started) {
 				out[i] = c
 			}
 			continue
 		}
-		at[c.Name] = len(out)
+		at[key] = len(out)
 		out = append(out, c)
 	}
 	slices.SortStableFunc(out, func(a, b deck.Check) int { return strings.Compare(a.Name, b.Name) })

@@ -109,12 +109,13 @@ func TestApplyReadsAndMerges(t *testing.T) {
 	for _, c := range pr.Checks {
 		got = append(got, c.Name+":"+[]string{"queued", "running", "passed", "failed", "skipped"}[c.State])
 	}
-	want := []string{"coverage:passed", "deploy-preview:queued", "docs:skipped", "lint:failed", "test (macos-latest):running", "test (ubuntu-latest):passed"}
+	// Docs' own lint job passed later; it does not hide CI's failing one.
+	want := []string{"coverage:passed", "deploy-preview:queued", "docs:skipped", "lint:failed", "lint:passed", "test (macos-latest):running", "test (ubuntu-latest):passed"}
 	if !slices.Equal(got, want) {
 		t.Errorf("checks = %q\nwant %q", got, want)
 	}
-	if pr.Checks[3].JobID != 9001 || pr.Checks[1].JobID != 0 {
-		t.Errorf("job IDs = %d, %d; want 9001 and 0 for a check outside Actions", pr.Checks[3].JobID, pr.Checks[1].JobID)
+	if pr.Checks[3].JobID != 9001 || pr.Checks[4].JobID != 9100 || pr.Checks[1].JobID != 0 {
+		t.Errorf("job IDs = %d, %d, %d; want 9001, 9100 and 0 for a check outside Actions", pr.Checks[3].JobID, pr.Checks[4].JobID, pr.Checks[1].JobID)
 	}
 	if s.Threads[1].PR.Live {
 		t.Error("a PR GitHub does not know was marked live")

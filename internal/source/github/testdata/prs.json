@@ -17,7 +17,12 @@
         "commits": {"nodes": [{"commit": {"statusCheckRollup": {"contexts": {"nodes": [
           {"__typename": "CheckRun", "name": "lint", "status": "COMPLETED", "conclusion": "FAILURE",
            "detailsUrl": "https://github.com/acme/webshop/actions/runs/4242/job/9001",
-           "startedAt": "2026-10-02T14:30:00Z", "completedAt": "2026-10-02T14:32:00Z"},
+           "startedAt": "2026-10-02T14:30:00Z", "completedAt": "2026-10-02T14:32:00Z",
+           "checkSuite": {"workflowRun": {"workflow": {"name": "CI"}}}},
+          {"__typename": "CheckRun", "name": "lint", "status": "COMPLETED", "conclusion": "SUCCESS",
+           "detailsUrl": "https://github.com/acme/webshop/actions/runs/4250/job/9100",
+           "startedAt": "2026-10-02T14:38:00Z", "completedAt": "2026-10-02T14:39:00Z",
+           "checkSuite": {"workflowRun": {"workflow": {"name": "Docs"}}}},
           {"__typename": "CheckRun", "name": "test (ubuntu-latest)", "status": "COMPLETED", "conclusion": "CANCELLED",
            "detailsUrl": "https://github.com/acme/webshop/actions/runs/4241/job/8990",
            "startedAt": "2026-10-02T14:20:00Z", "completedAt": "2026-10-02T14:21:00Z"},

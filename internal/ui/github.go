@@ -240,7 +240,9 @@ func (m Model) prOf() (deck.PullRequest, bool) {
 }
 
 // watchPR tells the GitHub reader which PR the drawer shows, when that
-// changed, so it keeps that PR fresher.
+// changed, so it keeps that PR fresher. It calls FocusPR at once, not as a
+// command: commands run in no set order, and an older PR's call landing
+// last would keep the reader on it. FocusPR never waits on the network.
 func (m *Model) watchPR() tea.Cmd {
 	if m.opt.FocusPR == nil {
 		return nil
@@ -253,8 +255,8 @@ func (m *Model) watchPR() tea.Cmd {
 		return nil
 	}
 	m.watched = url
-	focus := m.opt.FocusPR
-	return func() tea.Msg { focus(url); return nil }
+	m.opt.FocusPR(url)
+	return nil
 }
 
 // failedChecks are the indexes of the PR's failed checks.
