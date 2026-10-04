@@ -28,6 +28,10 @@ type Snapshot struct {
 	// Projects is every project under the projects root, this one
 	// included, for the project picker; nil when they were not read.
 	Projects []ProjectInfo
+	// LinearKey is set when a Linear API key is configured and Linear
+	// gives the links their URLs (or its first answer is pending), so no
+	// linear.workspace is needed.
+	LinearKey bool
 }
 
 // ProjectInfo is one project under the projects root as the project picker
@@ -351,12 +355,21 @@ type Link struct {
 	Issue *Issue
 }
 
-// Issue is a Linear issue's workflow state as Linear's API last gave it.
+// Issue is a Linear issue as Linear's API last gave it.
 type Issue struct {
 	State string // the state's name, e.g. "In Progress"
 	// StateType is Linear's kind of state: triage, backlog, unstarted,
 	// started, completed or canceled.
 	StateType string
+	Title     string
+	// URL is the issue's page as Linear gives it; a link without a URL of
+	// its own takes it.
+	URL  string
+	Team string // the team's name, e.g. "Admin"
+	// Assignee is the assignee's display name and AssigneeInitials their
+	// initials; both are empty for an unassigned issue.
+	Assignee         string
+	AssigneeInitials string
 }
 
 // Same reports whether l and o are one link: Linear links with the same ID

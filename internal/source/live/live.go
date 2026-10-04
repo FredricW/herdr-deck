@@ -22,7 +22,8 @@ import (
 type Source struct {
 	Projects projects.Reader
 	// LinearWorkspace is the slug bare Linear IDs link into. Empty leaves
-	// them without a URL, and Read names that in Snapshot.Missing.
+	// them without a URL, and Read names that in Snapshot.Missing, unless
+	// Linear has a key and gives the URLs itself.
 	LinearWorkspace string
 	// Herdr lays herdr's live panes and agent states over the threads; nil
 	// leaves the deck on herdr-projects' data alone.
@@ -70,14 +71,15 @@ func (s Source) Read(ctx context.Context) deck.Snapshot {
 		}
 	}
 
-	if s.LinearWorkspace == "" {
-		if id := unlinkedLinearID(snap); id != "" {
-			snap.Missing = append(snap.Missing, "Linear: no workspace set, so "+id+" and other bare IDs cannot open; set linear.workspace in the config file, --linear-workspace or $"+deck.EnvLinearWorkspace)
-		}
-	}
-
 	if s.Linear != nil {
 		s.Linear.Apply(&snap)
+	}
+	// With a key, Linear gives the URLs; until its first answer arrives
+	// the IDs wait for them rather than missing a workspace.
+	if s.LinearWorkspace == "" && !snap.LinearKey {
+		if id := unlinkedLinearID(snap); id != "" {
+			snap.Missing = append(snap.Missing, "Linear: no workspace set, so "+id+" and other bare IDs cannot open; set linear.workspace in the config file, --linear-workspace or $"+deck.EnvLinearWorkspace+", or a Linear API key")
+		}
 	}
 
 	now := time.Now

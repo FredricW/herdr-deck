@@ -26,6 +26,7 @@ const testKey = "lin_api_TESTKEY0123456789"
 type fakeLinear struct {
 	mu       sync.Mutex
 	issues   map[string]deck.Issue
+	urlKey   string           // the organization's urlKey; empty answers null
 	requests []map[string]any // each request's variables
 	auth     []string
 	// respond, when set, answers instead of the table, unless it returns
@@ -66,10 +67,22 @@ func (f *fakeLinear) RoundTrip(req *http.Request) (*http.Response, error) {
 		for _, num := range nums {
 			id := fmt.Sprintf("%s-%v", team, num)
 			if is, ok := f.issues[id]; ok {
-				nodes = append(nodes, map[string]any{"identifier": id, "state": map[string]string{"name": is.State, "type": is.StateType}})
+				node := map[string]any{"identifier": id, "title": is.Title, "url": is.URL,
+					"state": map[string]string{"name": is.State, "type": is.StateType},
+					"team":  map[string]string{"key": team, "name": is.Team}, "assignee": nil}
+				if is.Assignee != "" {
+					node["assignee"] = map[string]string{"displayName": is.Assignee, "initials": is.AssigneeInitials}
+				}
+				nodes = append(nodes, node)
 			}
 		}
 		data["t"+strconv.Itoa(i)] = map[string]any{"nodes": nodes}
+	}
+	if strings.Contains(body.Query, "organization { urlKey }") {
+		data["organization"] = nil
+		if f.urlKey != "" {
+			data["organization"] = map[string]string{"urlKey": f.urlKey}
+		}
 	}
 	return jsonResponse(http.StatusOK, map[string]any{"data": data}, nil), nil
 }
@@ -512,5 +525,138 @@ func TestUnknownIDKeepsTheBatch(t *testing.T) {
 	}
 	if len(s.Missing) != 0 {
 		t.Errorf("Missing = %q", s.Missing)
+	}
+}
+
+func TestIssueFieldsAndLinearURL(t *testing.T) {
+	f := &fakeLinear{urlKey: "acme", issues: map[string]deck.Issue{
+		"ABC-1": {State: "In Progress", StateType: "started", Title: "Fix login", URL: "https://linear.app/acme/issue/ABC-1/fix-login", Team: "Admin", Assignee: "ana", AssigneeInitials: "A"},
+		"ABC-2": {State: "Todo", StateType: "unstarted", Title: "Invite flow", URL: "https://linear.app/acme/issue/ABC-2/invite-flow", Team: "Admin"},
+	}}
+	r := newTestReader(f, newClock(), &Key{Getenv: envWith(testKey)})
+	s := apply(r)
+	if !s.LinearKey {
+		t.Error("LinearKey is not set with a key")
+	}
+	l := s.TaskLists[0].Tasks[0].Links[0]
+	want := deck.Issue{State: "In Progress", StateType: "started", Title: "Fix login", URL: "https://linear.app/acme/issue/ABC-1/fix-login", Team: "Admin", Assignee: "ana", AssigneeInitials: "A"}
+	if l.Issue == nil || *l.Issue != want {
+		t.Fatalf("ABC-1 = %+v, want %+v", l.Issue, want)
+	}
+	if l.URL != "https://linear.app/acme/issue/ABC-1" {
+		t.Errorf("ABC-1 links to %q, want the URL it was written with", l.URL)
+	}
+	if is := s.TaskLists[0].Tasks[0].Links[1].Issue; is == nil || is.Assignee != "" || is.AssigneeInitials != "" {
+		t.Errorf("unassigned ABC-2 = %+v", is)
+	}
+}
+
+// Without linear.workspace, IDs Linear knows take its URL, and the rest
+// link into the key's workspace.
+func TestURLsWithoutWorkspace(t *testing.T) {
+	bare := func() deck.Snapshot {
+		return deck.Snapshot{Threads: []deck.Thread{{ID: "t-0001", Links: []deck.Link{
+			{Kind: deck.LinkLinear, Label: "ABC-1"}, {Kind: deck.LinkLinear, Label: "ABC-404"},
+		}}}}
+	}
+	f := &fakeLinear{urlKey: "acme", issues: map[string]deck.Issue{
+		"ABC-1": {State: "Todo", StateType: "unstarted", Title: "Fix login", URL: "https://linear.app/acme/issue/ABC-1/fix-login"},
+	}}
+	r := newTestReader(f, newClock(), &Key{Getenv: envWith(testKey)})
+	s := bare()
+	r.Apply(&s)
+	if got := s.Threads[0].Links[0].URL; got != "" {
+		t.Errorf("before the fetch ABC-1 links to %q, want no URL yet", got)
+	}
+	r.Wait()
+	s = bare()
+	r.Apply(&s)
+	if got, want := s.Threads[0].Links[0].URL, "https://linear.app/acme/issue/ABC-1/fix-login"; got != want {
+		t.Errorf("ABC-1 links to %q, want %q", got, want)
+	}
+	if got, want := s.Threads[0].Links[1].URL, "https://linear.app/acme/issue/ABC-404"; got != want {
+		t.Errorf("ABC-404 links to %q, want %q", got, want)
+	}
+}
+
+// A made-up answer as Linear sends it: a null team search, an issue
+// without a state, a URL that is not https and an odd workspace key are
+// all left out.
+func TestDecodesRawAnswer(t *testing.T) {
+	raw := `{"data":{
+		"t0":{"nodes":[
+			{"identifier":"ABC-1","title":"  Fix login ","url":"https://linear.app/acme/issue/ABC-1/fix-login","state":{"name":"In Review","type":"started"},"team":{"key":"ABC","name":"Admin"},"assignee":{"displayName":"sam.lee","initials":"SL"}},
+			{"identifier":"ABC-2","title":"No state","url":"https://linear.app/acme/issue/ABC-2","state":null,"team":null,"assignee":null},
+			{"identifier":"ABC-3","title":"Odd URL","url":"javascript:alert(1)","state":{"name":"Todo","type":"unstarted"},"team":null,"assignee":null}
+		]},
+		"t1":null,
+		"organization":{"urlKey":"acme/../x"}
+	},"errors":[{"message":"team XYZ not found","path":["t1"]}]}`
+	f := &fakeLinear{respond: func(*http.Request) (*http.Response, error) {
+		return &http.Response{StatusCode: http.StatusOK, Header: http.Header{}, Body: io.NopCloser(strings.NewReader(raw))}, nil
+	}}
+	r := newTestReader(f, newClock(), &Key{Getenv: envWith(testKey)})
+	got, urlKey, err := r.request(context.Background(), testKey, []string{"ABC-1", "ABC-2", "ABC-3", "XYZ-1"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if urlKey != "" {
+		t.Errorf("urlKey = %q, want an unsafe key left out", urlKey)
+	}
+	want := deck.Issue{State: "In Review", StateType: "started", Title: "Fix login", URL: "https://linear.app/acme/issue/ABC-1/fix-login", Team: "Admin", Assignee: "sam.lee", AssigneeInitials: "SL"}
+	if got["ABC-1"] == nil || *got["ABC-1"] != want {
+		t.Errorf("ABC-1 = %+v, want %+v", got["ABC-1"], want)
+	}
+	if got["ABC-2"] != nil || got["XYZ-1"] != nil {
+		t.Errorf("ABC-2 = %+v, XYZ-1 = %+v, want nil", got["ABC-2"], got["XYZ-1"])
+	}
+	if is := got["ABC-3"]; is == nil || is.URL != "" {
+		t.Errorf("ABC-3 = %+v, want it without a URL", is)
+	}
+}
+
+func TestWorkspace(t *testing.T) {
+	f := &fakeLinear{urlKey: "acme"}
+	r := newTestReader(f, newClock(), &Key{Getenv: envWith(testKey)})
+	for range 2 {
+		ws, err := r.Workspace(context.Background())
+		if err != nil || ws != "acme" {
+			t.Fatalf("Workspace() = %q, %v", ws, err)
+		}
+	}
+	if n := f.count(); n != 1 {
+		t.Errorf("%d requests, want 1: the workspace is kept", n)
+	}
+
+	f = &fakeLinear{respond: func(*http.Request) (*http.Response, error) {
+		return jsonResponse(http.StatusUnauthorized, map[string]any{}, nil), nil
+	}}
+	r = newTestReader(f, newClock(), &Key{Getenv: envWith(testKey)})
+	if _, err := r.Workspace(context.Background()); err == nil || strings.Contains(err.Error(), "TESTKEY") {
+		t.Errorf("refused key: err = %v", err)
+	}
+	r = newTestReader(f, newClock(), &Key{Getenv: envWith("")})
+	if _, err := r.Workspace(context.Background()); err == nil {
+		t.Error("no key: no error")
+	}
+}
+
+// A key Linear refuses before it names the workspace brings the
+// workspace hint back: Linear will not give URLs.
+func TestRefusedKeyIsNoLinearKey(t *testing.T) {
+	f := &fakeLinear{respond: func(*http.Request) (*http.Response, error) {
+		return jsonResponse(http.StatusUnauthorized, map[string]any{}, nil), nil
+	}}
+	r := newTestReader(f, newClock(), &Key{Getenv: envWith(testKey)})
+	s := snapshot()
+	r.Apply(&s)
+	if !s.LinearKey {
+		t.Error("LinearKey is not set while the first answer is pending")
+	}
+	r.Wait()
+	s = snapshot()
+	r.Apply(&s)
+	if s.LinearKey {
+		t.Error("LinearKey is set after Linear refused the key")
 	}
 }

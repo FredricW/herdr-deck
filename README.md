@@ -73,9 +73,10 @@ What the plugin does (`herdr-plugin.toml`):
   config file, else in the browser. herdr only makes http(s) URLs clickable,
   so a bare Linear ID such as `ABC-123` works through a selection instead:
   double-click the ID, then press a key bound to the action, and it opens in
-  your `linear.workspace` by the same rules the deck links it. The first
-  link or ID in a longer selection opens. Without a workspace nothing opens
-  and a herdr notification says why.
+  your `linear.workspace` by the same rules the deck links it (with a Linear
+  API key and no workspace, in the key's workspace). The first link or ID in
+  a longer selection opens. Without a workspace or key nothing opens and a
+  herdr notification says why.
 
   ```toml
   [[keys.command]]
@@ -198,16 +199,26 @@ The project slug comes from, in order:
 The slug is per pane, so it has no config-file key.
 
 Bare Linear IDs such as `ABC-123` link into the Linear workspace you set
-(`linear.workspace`, below). There is no default: without one, the IDs still
-show, but the drawer and the `!` sources view say a workspace must be set,
-and opening one says so too. Full Linear URLs always open.
+(`linear.workspace`, below), or, with a Linear API key, to the URL Linear
+gives for the issue, so the workspace is not needed then. Without either,
+the IDs still show, but the drawer and the `!` sources view say a workspace
+must be set, and opening one says so too. Full Linear URLs always open.
 
 ### Linear issue status
 
-With a Linear API key, the drawer shows each issue's state next to its ID:
-`1 ABC-123 in progress  2 ABC-124 todo`. Started states are cyan (in
-review magenta), triage yellow, and a done or canceled issue is dim as a
-whole. The deck asks Linear's GraphQL API for the IDs on screen in one
+With a Linear API key, the drawer's *Links* section shows each issue on a
+line of its own, with its title, state and assignee:
+
+```text
+ ── Links ──
+ [1 ABC-123 Fix login · in progress · ana]
+ [2 ABC-124 Invite flow · todo]
+```
+
+In a narrow drawer the assignee becomes their initials and the title is
+cut. Started states are cyan (in review magenta), triage yellow, and a done
+or canceled issue is dim as a whole. A bare ID opens Linear's own URL for
+the issue. The deck asks Linear's GraphQL API for the IDs on screen in one
 batch, in the background, and keeps the answers for 3 minutes, so a reload
 never waits on the network. When Linear cannot be reached, refuses the key
 or rate-limits the deck, the IDs show without a state and the `!` sources
@@ -282,9 +293,10 @@ folded_lists = ["Backlog", "Resolved"]
 root = "~/.herdr-projects"
 
 [linear]
-# Linear workspace that bare IDs such as ABC-123 link into.
+# Linear workspace that bare IDs such as ABC-123 link into; not needed
+# with a Linear API key.
 workspace = "acme"
-# Show each Linear issue's state next to its ID (needs an API key).
+# Show each Linear issue's state, title and assignee (needs an API key).
 status = true
 # A command that prints the Linear API key; $LINEAR_API_KEY wins over it.
 # Run without a shell. Never put the key itself in this file.

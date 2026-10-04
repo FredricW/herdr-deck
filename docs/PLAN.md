@@ -82,8 +82,9 @@ Accept both shapes. For each list item under a `##` heading:
   each file scraped on its own):
   - Linear: `\b[A-Z][A-Z0-9]{1,5}-\d+\b` → `https://linear.app/<workspace>/issue/<ID>`.
     There is no default workspace: it comes from `--linear-workspace` or
-    `$HERDR_DECK_LINEAR_WORKSPACE`. Without one, IDs still show but say a
-    workspace must be set instead of opening. A branch name gives a ticket
+    `$HERDR_DECK_LINEAR_WORKSPACE`. With a Linear API key the URL comes from
+    Linear instead (see "Linear issue status"). Without either, IDs still
+    show but say a workspace must be set instead of opening. A branch name gives a ticket
     too (`dev/abc-123-users` → ABC-123). Word boundaries on both sides, so
     ABC-110 ≠ ABC-1100 and P-ABC-49 is not ABC-49. Bare IDs inside code
     (backtick spans, fenced blocks) and in a `## Remember` section are
@@ -501,7 +502,8 @@ live under that home, apart from the user's own herdr):
   the same action on a selection instead: a `[[keys.command]] type =
   "plugin_action"` key passes the selection as `selected_text`, and the
   action opens its first link or Linear ID with the deck's scraper rules.
-  With no Linear workspace it opens nothing, shows a herdr notification and
+  With no Linear workspace it asks Linear for the API key's workspace
+  (`organization { urlKey }`); with neither it opens nothing, shows a herdr notification and
   logs why. herdr re-reads a linked plugin's manifest on each click, so a
   new handler needs no relink and no `reload-config`; the binary must be
   rebuilt for a new subcommand.
@@ -686,15 +688,43 @@ prebuilt binaries, and herdr's build step uses them when it can.
 
 ## Linear issue status
 
-The drawer's Linear line shows each issue's state next to its ID (`1
+The drawer's Linear chips show each issue's state next to its ID (`1
 ABC-123 in progress`), coloured by Linear's state type: started cyan (a
 name with "review" magenta), triage yellow, unstarted and backlog plain,
 completed and canceled dim, the ID too. The list's LINKS column keeps its
-`L4` badge: six columns have no room for states. `internal/source/linear`:
+`L4` badge: six columns have no room for states or titles.
+
+Titles, assignees and URLs (L1 in
+[research/integrations-linear-github.md](research/integrations-linear-github.md),
+built 2026-10-04): an issue Linear answered for gets a line of its own in
+the Overview's *Links* section, `[1 ABC-123 Fix login · in progress · ana]`,
+shortened to the drawer's width in this order: the assignee becomes their
+initials, the title is cut (to no fewer than 8 columns), then left out,
+and last the assignee goes. The other links keep sharing a line of chips.
+A link without a URL takes the `url` Linear gives (https only); an ID
+Linear has not answered for links into the key's workspace
+(`organization { urlKey }`, asked in the same request), so
+`linear.workspace` is only needed without a key. A URL the link was
+written with stays, since it may point at a comment or another workspace.
+With a key, the "no workspace" note and hint stay away while the first
+answer is pending, and come back if Linear fails before naming the
+workspace (a refused key, a failing key command). The open-link plugin action asks for the
+workspace once when `linear.workspace` is unset. Still to do: the issue
+description in a drawer view (L3), which needs an on-demand `issue(id:)`
+fetch.
+
+`internal/source/linear`:
 
 - One GraphQL request (`https://api.linear.app/graphql`) per 50 IDs: per
   team key an aliased `issues(filter: { team: { key: { eq: $kN } }, number:
-  { in: $nN } }, includeArchived: true)`, keys and numbers as variables. An
+  { in: $nN } }, includeArchived: true)`, keys and numbers as variables,
+  asking `identifier title url state { name type } team { key name }
+  assignee { displayName initials }`, plus `organization { urlKey }`. A
+  batch of 50 costs about 250 complexity points (object 1, field 0.1,
+  times `first`; a query may cost 10,000, a key gets 3,000,000 an hour and
+  2,500 requests, checked against Linear's docs 2026-10-04). A key with only
+  *Read* permission is enough; a key limited to some teams just gets no
+  nodes for the others, which then link through the workspace. An
   ID Linear does not know is just missing from the nodes and has no state.
   Not `issue(id:)`: it returns a non-null `Issue!`, so one unknown ID would
   null the whole response.

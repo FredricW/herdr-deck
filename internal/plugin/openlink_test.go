@@ -2,6 +2,7 @@ package plugin
 
 import (
 	"context"
+	"errors"
 	"slices"
 	"strings"
 	"testing"
@@ -11,6 +12,9 @@ func TestLinkURL(t *testing.T) {
 	const figma = "https://www.figma.com/design/AbC123/Admin?node-id=1-2"
 	acme := LinkSettings{LinearWorkspace: "acme"}
 	desktop := LinkSettings{LinearWorkspace: "acme", FigmaDesktop: true}
+	keyWS := LinkSettings{LinearKeyWorkspace: func() (string, error) { return "keyco", nil }}
+	keyFails := LinkSettings{LinearKeyWorkspace: func() (string, error) { return "", errors.New("cannot reach Linear: timed out") }}
+	bothWS := LinkSettings{LinearWorkspace: "acme", LinearKeyWorkspace: keyWS.LinearKeyWorkspace}
 	tests := []struct {
 		name, text string
 		s          LinkSettings
@@ -22,6 +26,9 @@ func TestLinkURL(t *testing.T) {
 		{"ID after a dash is not one", "P-ABC-49", acme, "", "no link or Linear ID"},
 		{"standard, not a ticket", "UTF-8", acme, "", "no link or Linear ID"},
 		{"no workspace", "ABC-123", LinkSettings{}, "", "ABC-123: no Linear workspace set"},
+		{"workspace from the key", "ABC-123", keyWS, "https://linear.app/keyco/issue/ABC-123", ""},
+		{"set workspace wins over asking", "ABC-123", bothWS, "https://linear.app/acme/issue/ABC-123", ""},
+		{"asking Linear fails", "ABC-123", keyFails, "", "asking Linear failed: cannot reach Linear"},
 		{"Linear URL needs no workspace", "https://linear.app/other/issue/ABC-7", LinkSettings{}, "https://linear.app/other/issue/ABC-7", ""},
 		{"Figma in the browser", figma, acme, figma, ""},
 		{"Figma in the desktop app", figma, desktop, "figma://design/AbC123/Admin?node-id=1-2", ""},

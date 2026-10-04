@@ -206,7 +206,7 @@ var Specs = []Spec{
 		Help:    "the herdr-projects root; ~/ is your home folder"},
 	{Key: KeyLinearWorkspace, Kind: KindWord, Flag: "--linear-workspace", Env: EnvLinearWorkspace, Old: "linear_workspace",
 		Default: "none",
-		Help:    "Linear workspace that bare IDs such as ABC-123 link into"},
+		Help:    "Linear workspace that bare IDs such as ABC-123 link into; not needed with a Linear API key"},
 	{Key: KeyLinearStatus, Kind: KindBool, Flag: "--linear-status", Env: EnvLinearStatus, Old: "linear_status",
 		Default: "true",
 		Help:    "show each Linear issue's state next to its ID (needs an API key)"},

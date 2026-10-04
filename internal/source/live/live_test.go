@@ -3,6 +3,7 @@ package live
 import (
 	"context"
 	"errors"
+	"net/http"
 	"os"
 	"path/filepath"
 	"strings"
@@ -11,6 +12,7 @@ import (
 
 	"github.com/FredricW/herdr-deck/internal/deck"
 	"github.com/FredricW/herdr-deck/internal/source/dev"
+	"github.com/FredricW/herdr-deck/internal/source/linear"
 	"github.com/FredricW/herdr-deck/internal/source/projects"
 )
 
@@ -90,6 +92,18 @@ func TestLinearWorkspace(t *testing.T) {
 	if !containsSub(snap.Missing, "Linear: no workspace set, so ABC-12") || !containsSub(snap.Missing, deck.EnvLinearWorkspace) {
 		t.Errorf("Missing = %q, want a Linear workspace note", snap.Missing)
 	}
+
+	// With a key Linear gives the URLs, so no workspace is missing. Its
+	// fetch never leaves the process.
+	key := linear.NewReader(func(string) string { return "lin_api_made_up" }, nil)
+	key.HTTP = &http.Client{Transport: offline{}}
+	src.Linear = key
+	snap = src.Read(context.Background())
+	key.Wait()
+	if containsSub(snap.Missing, "no workspace set") || !snap.LinearKey {
+		t.Errorf("with a key: Missing = %q, LinearKey = %v", snap.Missing, snap.LinearKey)
+	}
+	src.Linear = nil
 
 	src.LinearWorkspace = "acme"
 	snap = src.Read(context.Background())
@@ -264,4 +278,11 @@ func TestReadProjects(t *testing.T) {
 	if len(demo.Threads) != len(snap.Threads) || demo.Name != snap.Project.Name {
 		t.Errorf("demo %+v, snapshot threads %d", demo, len(snap.Threads))
 	}
+}
+
+// offline fails every request, so tests never reach Linear.
+type offline struct{}
+
+func (offline) RoundTrip(*http.Request) (*http.Response, error) {
+	return nil, errors.New("offline")
 }

@@ -16,6 +16,11 @@ and versions follow [Semantic Versioning](https://semver.org/).
   `diff.layout = "split"` (or the settings page, `--diff-layout`,
   `$HERDR_DECK_DIFF_LAYOUT`) starts with it. A pane under 100 columns shows
   unified and says so in the preview's header.
+- Linear issues in the drawer show their title and assignee, one line
+  each: `[1 ABC-123 Fix login · in progress · ana]`, shortened to fit a
+  narrow drawer. With a Linear API key bare IDs open Linear's own URL, so
+  `linear.workspace` is no longer needed; the open-link action asks Linear
+  for the workspace too.
 
 ## [0.1.4] - 2026-10-04
 

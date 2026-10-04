@@ -61,11 +61,22 @@ func (m Model) overview(d *drawer, r row, links []deck.Link, h int) {
 			}
 		}})
 	}
-	if g, unlinked := m.chips(d, links, prLink, func(l deck.Link) bool { return l.Kind != deck.LinkLocalhost }); len(g.items) > 0 {
+	// Linear issues with a title get a line each; the other links share
+	// a wrapping line of chips.
+	chipped := func(l deck.Link) bool { return l.Kind != deck.LinkLocalhost && !titled(l) }
+	if g, unlinked := m.chips(d, links, prLink, chipped); len(g.items) > 0 || hasTitled(links, prLink) {
 		secs = append(secs, sec{"Links", bold, func() {
-			g, _ := m.chips(d, links, prLink, func(l deck.Link) bool { return l.Kind != deck.LinkLocalhost })
-			d.flow(g)
-			if unlinked {
+			for i, l := range links {
+				if i != prLink && titled(l) {
+					d.flow(group{items: []item{m.issueChip(d, l, i)}})
+				}
+			}
+			g, _ := m.chips(d, links, prLink, chipped)
+			if len(g.items) > 0 {
+				d.flow(g)
+			}
+			// With a key, Linear gives the URLs once it answers.
+			if unlinked && !m.snap.LinearKey {
 				d.flow(words(noWorkspace, dim))
 			}
 		}})
@@ -181,6 +192,86 @@ func (m Model) chip(d *drawer, l deck.Link, i int, first bool) item {
 		style = dim
 	}
 	it := item{text: text, style: style, act: action{kind: actLink, n: i}, stop: true}
+	it.sel = d.nextStop() || m.choosing == l.Kind
+	return it
+}
+
+// titled reports whether l is a Linear link whose issue has a title, which
+// the Links section shows on a line of its own.
+func titled(l deck.Link) bool {
+	return l.Kind == deck.LinkLinear && l.Issue != nil && l.Issue.Title != ""
+}
+
+func hasTitled(links []deck.Link, prLink int) bool {
+	for i, l := range links {
+		if i != prLink && titled(l) {
+			return true
+		}
+	}
+	return false
+}
+
+// minTitle is the fewest columns a cut title keeps; with less room the
+// chip leaves the title out.
+const minTitle = 8
+
+// issueChip is a Linear issue as a one-line chip, `[1 ABC-123 Fix login ·
+// in progress · ana]`, shortened to fit the drawer: the assignee first
+// becomes their initials, then the title is cut, then left out, and last
+// the assignee goes.
+func (m Model) issueChip(d *drawer, l deck.Link, i int) item {
+	is := *l.Issue
+	avail := max(d.width-1, 1)
+	head := "["
+	if i < 9 {
+		head += fmt.Sprint(i+1) + " "
+	}
+	state := shortState(is.State)
+	who := is.Assignee
+	title := is.Title
+	width := func() int {
+		w := ansi.StringWidth(head+l.Label) + 3 + ansi.StringWidth(state) + 1 // " · " and "]"
+		if title != "" {
+			w += 1 + ansi.StringWidth(title)
+		}
+		if who != "" {
+			w += 3 + ansi.StringWidth(who)
+		}
+		return w
+	}
+	if width() > avail && who != "" && is.AssigneeInitials != "" {
+		who = is.AssigneeInitials
+	}
+	if over := width() - avail; over > 0 {
+		if keep := ansi.StringWidth(title) - over; keep >= minTitle {
+			title = strings.TrimRight(ansi.Truncate(title, keep-1, ""), " ") + "…"
+		} else {
+			title = ""
+		}
+	}
+	if width() > avail {
+		who = ""
+	}
+
+	var b strings.Builder
+	b.WriteString(dim.Render("["))
+	if i < 9 {
+		b.WriteString(bold.Render(fmt.Sprint(i+1)) + " ")
+	}
+	b.WriteString(chipStyle(l.Kind).Render(l.Label))
+	if title != "" {
+		b.WriteString(" " + plain.Render(title))
+	}
+	b.WriteString(dim.Render(" · ") + issueStyle(is).Render(state))
+	if who != "" {
+		b.WriteString(dim.Render(" · ") + dim.Render(who))
+	}
+	b.WriteString(dim.Render("]"))
+	style := plain
+	if issueClosed(is) {
+		style = dim
+	}
+	it := item{text: b.String(), style: style, act: action{kind: actLink, n: i}, stop: true}
 	it.sel = d.nextStop() || m.choosing == l.Kind
 	return it
 }

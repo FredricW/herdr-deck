@@ -447,5 +447,8 @@ func runPlugin(args []string) error {
 		Links:   plugin.LinkSettings{LinearWorkspace: cfg.LinearWorkspace, FigmaDesktop: cfg.FigmaDesktop},
 		OpenURL: launch.Browser{Reuse: cfg.ReuseTabs}.OpenURL,
 	}
+	if lin := linear.NewReader(os.Getenv, cfg.LinearAPIKeyCommand); cfg.LinearStatus && lin.Key.Configured() {
+		env.Links.LinearKeyWorkspace = func() (string, error) { return lin.Workspace(ctx) }
+	}
 	return plugin.Run(ctx, h, env, args)
 }
