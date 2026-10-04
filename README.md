@@ -217,7 +217,7 @@ line of its own, with its title, state and assignee:
 
 In a narrow drawer the assignee becomes their initials and the title is
 cut. Started states are cyan (in review magenta), triage yellow, and a done
-or canceled issue is dim as a whole. The links open Linear's own URL for
+or canceled issue is dim as a whole. A bare ID opens Linear's own URL for
 the issue. The deck asks Linear's GraphQL API for the IDs on screen in one
 batch, in the background, and keeps the answers for 3 minutes, so a reload
 never waits on the network. When Linear cannot be reached, refuses the key

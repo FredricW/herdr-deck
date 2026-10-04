@@ -1,8 +1,9 @@
 // Package linear reads the Linear issues a snapshot links to (workflow
 // state, title, assignee, team and URL) through Linear's GraphQL API, and
-// lays them over the snapshot's Linear links. A link takes the URL Linear
-// gives, and IDs Linear has not answered for link into the workspace the
-// key belongs to, so linear.workspace is not needed with a key.
+// lays them over the snapshot's Linear links. A link without a URL takes
+// the one Linear gives, or, before Linear answers for its ID, one into the
+// workspace the key belongs to, so linear.workspace is not needed with a
+// key.
 //
 // Fetches run in the background, batched and cached, so a reload never
 // waits on the network: Apply shows what the cache holds and starts a fetch
@@ -235,10 +236,12 @@ func (r *Reader) Apply(snap *deck.Snapshot) {
 		snap.Notes = append(snap.Notes, "Linear status: off, no API key; set $"+EnvAPIKey+" or linear.api_key_command in the config file")
 		return
 	}
-	snap.LinearKey = true
 
 	r.mu.Lock()
 	defer r.mu.Unlock()
+	// Linear gives the URLs once it has named the workspace, or while its
+	// first answer is pending; after a failure the workspace hint returns.
+	snap.LinearKey = r.urlKey != "" || r.problem == ""
 	now := r.now()
 	ttl := r.TTL
 	if ttl == 0 {
@@ -251,10 +254,13 @@ func (r *Reader) Apply(snap *deck.Snapshot) {
 		if ok {
 			l.Issue = e.issue
 		}
+		// A URL the link was written with stays: it may point at a
+		// comment, or into another workspace.
 		switch {
+		case l.URL != "":
 		case l.Issue != nil && l.Issue.URL != "":
 			l.URL = l.Issue.URL
-		case l.URL == "" && r.urlKey != "":
+		case r.urlKey != "":
 			l.URL = IssueURL(r.urlKey, l.Label)
 		}
 		if (!ok || now.Sub(e.at) >= ttl) && !seen[l.Label] {

@@ -28,8 +28,9 @@ type Snapshot struct {
 	// Projects is every project under the projects root, this one
 	// included, for the project picker; nil when they were not read.
 	Projects []ProjectInfo
-	// LinearKey is set when a Linear API key is configured, so Linear
-	// links get their URLs from Linear rather than from linear.workspace.
+	// LinearKey is set when a Linear API key is configured and Linear
+	// gives the links their URLs (or its first answer is pending), so no
+	// linear.workspace is needed.
 	LinearKey bool
 }
 
@@ -361,8 +362,8 @@ type Issue struct {
 	// started, completed or canceled.
 	StateType string
 	Title     string
-	// URL is the issue's page as Linear gives it; the link's URL is set to
-	// it too.
+	// URL is the issue's page as Linear gives it; a link without a URL of
+	// its own takes it.
 	URL  string
 	Team string // the team's name, e.g. "Admin"
 	// Assignee is the assignee's display name and AssigneeInitials their

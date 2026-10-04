@@ -701,11 +701,14 @@ the Overview's *Links* section, `[1 ABC-123 Fix login · in progress · ana]`,
 shortened to the drawer's width in this order: the assignee becomes their
 initials, the title is cut (to no fewer than 8 columns), then left out,
 and last the assignee goes. The other links keep sharing a line of chips.
-A link takes the `url` Linear gives (https only); an ID Linear has not
-answered for links into the key's workspace (`organization { urlKey }`,
-asked in the same request), so `linear.workspace` is only needed without
-a key. With a key, the "no workspace" note and hint stay away while the
-first answer is pending. The open-link plugin action asks for the
+A link without a URL takes the `url` Linear gives (https only); an ID
+Linear has not answered for links into the key's workspace
+(`organization { urlKey }`, asked in the same request), so
+`linear.workspace` is only needed without a key. A URL the link was
+written with stays, since it may point at a comment or another workspace.
+With a key, the "no workspace" note and hint stay away while the first
+answer is pending, and come back if Linear fails before naming the
+workspace (a refused key, a failing key command). The open-link plugin action asks for the
 workspace once when `linear.workspace` is unset. Still to do: the issue
 description in a drawer view (L3), which needs an on-demand `issue(id:)`
 fetch.

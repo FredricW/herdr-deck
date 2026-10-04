@@ -543,8 +543,8 @@ func TestIssueFieldsAndLinearURL(t *testing.T) {
 	if l.Issue == nil || *l.Issue != want {
 		t.Fatalf("ABC-1 = %+v, want %+v", l.Issue, want)
 	}
-	if l.URL != want.URL {
-		t.Errorf("ABC-1 links to %q, want Linear's own %q", l.URL, want.URL)
+	if l.URL != "https://linear.app/acme/issue/ABC-1" {
+		t.Errorf("ABC-1 links to %q, want the URL it was written with", l.URL)
 	}
 	if is := s.TaskLists[0].Tasks[0].Links[1].Issue; is == nil || is.Assignee != "" || is.AssigneeInitials != "" {
 		t.Errorf("unassigned ABC-2 = %+v", is)
@@ -638,5 +638,25 @@ func TestWorkspace(t *testing.T) {
 	r = newTestReader(f, newClock(), &Key{Getenv: envWith("")})
 	if _, err := r.Workspace(context.Background()); err == nil {
 		t.Error("no key: no error")
+	}
+}
+
+// A key Linear refuses before it names the workspace brings the
+// workspace hint back: Linear will not give URLs.
+func TestRefusedKeyIsNoLinearKey(t *testing.T) {
+	f := &fakeLinear{respond: func(*http.Request) (*http.Response, error) {
+		return jsonResponse(http.StatusUnauthorized, map[string]any{}, nil), nil
+	}}
+	r := newTestReader(f, newClock(), &Key{Getenv: envWith(testKey)})
+	s := snapshot()
+	r.Apply(&s)
+	if !s.LinearKey {
+		t.Error("LinearKey is not set while the first answer is pending")
+	}
+	r.Wait()
+	s = snapshot()
+	r.Apply(&s)
+	if s.LinearKey {
+		t.Error("LinearKey is set after Linear refused the key")
 	}
 }
