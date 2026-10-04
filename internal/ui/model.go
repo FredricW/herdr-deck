@@ -554,9 +554,9 @@ func (m *Model) readDiff(force bool) tea.Cmd {
 	return func() tea.Msg { return diffMsg{key: k, diff: read(context.Background(), t)} }
 }
 
-// diffKeyPressed focuses the drawer's Files tab, so a digit then opens
-// that file's diff and v previews the file under the cursor; on a focused
-// Files tab, d again opens the whole diff.
+// diffKeyPressed focuses the drawer's Files tab, so a digit then previews
+// that file and d (filesOnlyKey) opens the file under the cursor in the
+// diff tool.
 func (m *Model) diffKeyPressed() tea.Cmd {
 	if m.opt.Diff == nil {
 		m.status = "the Files tab is off"
@@ -571,13 +571,6 @@ func (m *Model) diffKeyPressed() tea.Cmd {
 		}
 		return nil
 	}
-	t, d, ok := m.diff()
-	if m.mode == modeRow && m.curTab() == tabFiles && m.dfocus {
-		if ok && len(d.Files) > 0 {
-			return m.openDiff(t, d, deck.DiffFile{})
-		}
-		return nil
-	}
 	if m.mode != modeRow || m.curTab() != tabFiles {
 		m.switchTab(tabFiles)
 	}
@@ -589,7 +582,28 @@ func (m *Model) diffKeyPressed() tea.Cmd {
 	return nil
 }
 
-// openFile opens the diff of the file at display index i.
+// previewFileAt shows the file at display index i in the preview, with
+// the Files tab focused and its cursor on that file. Without a preview
+// (Options.Patch nil) it opens the file in the diff tool instead.
+func (m *Model) previewFileAt(i int) tea.Cmd {
+	t, d, ok := m.diff()
+	if !ok || d.Note != "" || i < 0 || i >= len(d.Files) {
+		m.status = fmt.Sprintf("no file %d on this row", i+1)
+		return nil
+	}
+	m.dfocus = true
+	m.dcur = i // every file is a stop, in display order
+	m.moveDrawerCursor(0)
+	if m.opt.Patch == nil {
+		return m.openFile(t, d, i)
+	}
+	if !m.preview {
+		m.togglePreview()
+	}
+	return nil
+}
+
+// openFile opens the file at display index i in the diff tool.
 func (m *Model) openFile(t deck.Thread, d deck.Diff, i int) tea.Cmd {
 	if i < 0 || i >= len(d.Files) {
 		m.status = fmt.Sprintf("no file %d on this row", i+1)
@@ -604,8 +618,10 @@ func (m *Model) openFile(t deck.Thread, d deck.Diff, i int) tea.Cmd {
 }
 
 // filesOnlyKey handles the Files tab's own keys: t switches list and tree,
-// a opens the whole diff, v turns the preview on and off. done is false
-// for any other key.
+// a opens the whole diff in the diff tool, v turns the preview on and
+// off, and in the focused drawer d opens the file under the cursor in the
+// diff tool. done is false for any other key, so d from the list focuses
+// Files.
 func (m *Model) filesOnlyKey(msg tea.KeyPressMsg) (tea.Cmd, bool) {
 	if m.mode != modeRow || m.curTab() != tabFiles {
 		return nil, false
@@ -622,6 +638,14 @@ func (m *Model) filesOnlyKey(msg tea.KeyPressMsg) (tea.Cmd, bool) {
 		return nil, true
 	case "v":
 		m.togglePreview()
+		return nil, true
+	case "d":
+		if !m.dfocus {
+			return nil, false
+		}
+		if t, d, ok := m.diff(); ok && d.Note == "" && len(d.Files) > 0 {
+			return m.openFile(t, d, m.dcur), true
+		}
 		return nil, true
 	}
 	return nil, false
@@ -688,7 +712,7 @@ func (m *Model) act(a action) tea.Cmd {
 		case a.kind == actDiff:
 			return m.openDiff(t, d, deck.DiffFile{})
 		}
-		return m.openFile(t, d, a.n-1)
+		return m.previewFileAt(a.n - 1)
 	case actEvent:
 		switch kind, n := m.eventAction(a.n); kind {
 		case cmdReport:
@@ -764,10 +788,7 @@ func (m Model) handleKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 			return m, nil
 		}
 		if m.mode == modeRow && m.curTab() == tabFiles {
-			if t, d, ok := m.diff(); ok {
-				return m, m.openFile(t, d, int(s[0]-'1'))
-			}
-			return m, nil
+			return m, m.previewFileAt(int(s[0] - '1'))
 		}
 		return m, m.openNumbered(int(s[0] - '1'))
 	}
@@ -1208,9 +1229,6 @@ func (m *Model) handleClick(mouse tea.Mouse) (tea.Model, tea.Cmd) {
 				if st.line == i && st.act == z.act {
 					m.dcur = k
 				}
-			}
-			if m.preview && (z.act.kind == actFile || z.act.kind == actCommit && z.act.n > 0) {
-				return *m, nil // the click picks the file or commit to preview
 			}
 			return *m, m.act(z.act)
 		}

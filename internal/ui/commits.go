@@ -239,9 +239,10 @@ func (m *Model) previewCommit(i int) {
 }
 
 // commitsOnlyKey handles the Commits tab's own keys: v turns the preview
-// on and off; in the focused drawer d opens the commit under the cursor
-// in the diff tool and g on GitHub. done is false for any other key, so
-// d and g act as usual from the list.
+// on and off, a opens the branch's whole diff in the diff tool, as on
+// Files; in the focused drawer d opens the commit under the cursor in the
+// diff tool and g on GitHub. done is false for any other key, so d and g
+// act as usual from the list.
 func (m *Model) commitsOnlyKey(msg tea.KeyPressMsg) (tea.Cmd, bool) {
 	if m.mode != modeRow || m.curTab() != tabCommits {
 		return nil, false
@@ -249,6 +250,11 @@ func (m *Model) commitsOnlyKey(msg tea.KeyPressMsg) (tea.Cmd, bool) {
 	switch msg.String() {
 	case "v":
 		m.togglePreview()
+		return nil, true
+	case "a":
+		if t, cs, ok := m.commits(); ok && cs.Note == "" && cs.MergeBase != "" {
+			return m.openDiff(t, deck.Diff{Base: cs.Base, MergeBase: cs.MergeBase}, deck.DiffFile{}), true
+		}
 		return nil, true
 	case "d":
 		if m.dfocus {

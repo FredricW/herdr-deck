@@ -18,6 +18,16 @@ and versions follow [Semantic Versioning](https://semver.org/).
   and a syntax-coloured diff, file by file); in the focused drawer `d`
   opens it in the diff tool against its parent and `g` in the PR on GitHub.
 
+### Changed
+
+- The Files tab previews by default, as Commits does: `↵`, a digit
+  (`d 3` from the list) or a click on a file shows its diff in the deck
+  instead of opening the diff tool. The diff tool is now `d` in the
+  focused Files or Commits tab (the file or commit under the cursor, so
+  `d d` from the list opens the first file there), and `a` opens the
+  whole diff in it, as before. The total line's click still opens the
+  whole diff.
+
 ## [0.1.3] - 2026-10-03
 
 ### Added

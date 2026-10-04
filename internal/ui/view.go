@@ -659,13 +659,13 @@ func (m Model) rowHint(r row, narrow bool) string {
 			}
 			switch {
 			case m.preview && narrow:
-				return "j k file  J K scroll  v off  ↵ open  esc list"
+				return "j k file  J K scroll  v off  d tool  esc list"
 			case m.preview:
-				return "j k file  J K scroll  v preview off  ↵ open  d whole diff  esc list"
+				return "j k file  J K scroll  v preview off  d diff tool  a all  esc list"
 			case narrow:
-				return "j k file  v preview  ↵ open  d all  " + view + "  esc list"
+				return "j k file  ↵ preview  d tool  a all  " + view + "  esc list"
 			}
-			return "j k file  v preview  ↵ open  d whole diff  " + view + "  esc list  ? help"
+			return "j k file  ↵ preview  d diff tool  a whole diff  " + view + "  esc list  ? help"
 		case tabCommits:
 			gh := ""
 			if hasThread && t.PR != nil {
@@ -692,9 +692,9 @@ func (m Model) rowHint(r row, narrow bool) string {
 			view = "t list"
 		}
 		if narrow {
-			return "1-9 file  v preview  d d diff  " + view + "  [ ] tab"
+			return "1-9 preview  a all  " + view + "  tab focus  [ ] tab"
 		}
-		return "1-9 file  v preview  d d whole diff  " + view + "  [ ] tab  ? help"
+		return "1-9 preview file  a whole diff  " + view + "  tab focus  [ ] tab  ? help"
 	case tab == tabCommits && narrow:
 		return "1-9 commit  v preview  tab focus  [ ] tab"
 	case tab == tabCommits:

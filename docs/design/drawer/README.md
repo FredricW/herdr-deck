@@ -159,13 +159,14 @@ the focus too.
 | Key | Overview | Files | Commits | Log |
 |---|---|---|---|---|
 | `[` `]` | previous / next tab, from the list or the drawer | same | same | same |
-| `1`–`9` | open the numbered link | open the numbered file's diff | preview the numbered commit | open the numbered link (PR events carry the PR's chip) |
+| `1`–`9` | open the numbered link | preview the numbered file | preview the numbered commit | open the numbered link (PR events carry the PR's chip) |
 | `l` `f` `n` `g` `o` | first link of that kind, as today, on every tab (the chooser for several highlights the chips) | same | same; with the drawer focused, `g` opens the commit under the cursor on GitHub | same |
-| `d` | focus Files (`d 3` still opens file 3; `d d` the whole diff) | `d` again or `a`: the whole diff | as on Overview; with the drawer focused, the commit in the diff tool | as on Overview |
+| `d` | focus Files (`d 3` previews file 3; `d d` opens file 1 in the diff tool) | with the drawer focused, the file under the cursor in the diff tool | as on Overview; with the drawer focused, the commit in the diff tool | as on Overview |
+| `a` | — | the whole diff in the diff tool | the whole diff in the diff tool | — |
 | `v` | — | the diff preview on or off (built after this design; see PLAN.md) | the commit preview on or off | — |
 | `t` | — | list ↔ tree | — | — |
 | `↵` (list focus) | the thread's pane | same | same | same |
-| `↵` (drawer focus) | open the link under the cursor | open the file under the cursor, numbered or not | preview the commit; on the uncommitted row, show Files | the event: a report shows it, a PR event opens the PR, the rest focus the pane |
+| `↵` (drawer focus) | open the link under the cursor | preview the file under the cursor, numbered or not | preview the commit; on the uncommitted row, show Files | the event: a report shows it, a PR event opens the PR, the rest focus the pane |
 | `r` `e` `u` `z` `pgup` `pgdn` | as today | same | same | same |
 
 `d` used to open a chooser over the Files section; with Files a tab of its
@@ -173,7 +174,8 @@ own the chooser is the tab, so the old key sequences keep working.
 
 **Mouse.** A click on a tab switches to it; a click on a chip, file or
 event opens it, as a click on a drawer link does today; a click on the
-total line opens the whole diff; a click on the card does nothing (the row
+total line opens the whole diff in the diff tool (since the Commits tab, a file
+previews rather than opening the tool); a click on the card does nothing (the row
 is already selected). The wheel scrolls the tab under the pointer.
 
 ## Commits

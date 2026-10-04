@@ -240,12 +240,13 @@ lists what the user chose.
   `GIT_OPTIONAL_LOCKS=0`) when the selection moves to another thread and
   on every reload; answers are reused for 2 s. A missing worktree or base
   is a dim note.
-- **Diff preview.** `v` on the Files tab (focusing it) shows the diff of
-  the file under the drawer cursor in the list's place: the column-titles
+- **Diff preview.** The Files tab's default action (t-0044): `↵`, a digit
+  or a click on a file, or `v` for the file under the cursor, focuses the
+  tab and shows that file's diff in the list's place: the column-titles
   line becomes a header (the path, losing its start when long, `+N −M`,
   `untracked`, and at the right the lines shown, `1–11/19`), the list's
   lines the diff. The drawer keeps Files, so `j`/`k` or a click pick
-  another file (a click previews it rather than opening it); a new file
+  another file; a new file
   starts at its top. `diff.Reader.ReadPatch` runs `git diff --no-color
   --no-ext-diff --no-textconv -M <merge-base> -- [old] <file>` with the
   Files tab's 5 s timeout and optional locks off, keeps 2000 lines (and
@@ -349,13 +350,13 @@ Keys:
   drawer. `tab` moves the focus into the drawer: the list's `▸` turns dim
   and a drawer cursor (`▸` and the selection background) appears; inside
   the drawer `tab`/`shift+tab` switch tabs, `j`/`k` move the drawer cursor,
-  `enter` acts on the item under it (Overview: opens the link; Files: opens
-  the file's diff, numbered or not; Commits: previews the commit; Log: a report event shows the report,
+  `enter` acts on the item under it (Overview: opens the link; Files:
+  previews the file, numbered or not; Commits: previews the commit; Log: a report event shows the report,
   a PR event opens the PR, other events focus the pane), and `esc` returns
   the focus to the list. A click in the drawer focuses it too.
-- `1`–`9` open the drawer's numbered links on Overview and Log, the
-  numbered files' diffs on Files, and preview the numbered commit on
-  Commits. `l` Linear, `f` Figma,
+- `1`–`9` open the drawer's numbered links on Overview and Log, and
+  preview the numbered file or commit on Files and Commits (without a
+  preview reader, a file opens in the diff tool). `l` Linear, `f` Figma,
   `n` Notion, `g` GitHub PR open the first link of that kind, on any tab. When there
   are several, the key highlights that kind's chips and waits: a digit opens
   one, `a` opens all of that kind, `d` opens a Figma link in the desktop
@@ -376,9 +377,13 @@ Keys:
   `s` settings and `w` What's new replace the whole drawer (today's title
   rule, no card or tabs); `esc` returns to the tab you were on.
 - `d`: focuses the drawer's Files tab (unhiding the drawer), so `d 3`
-  opens file 3 as before; on a focused Files tab, `d` again or `a` opens
-  the whole diff, and `v` turns the diff preview on and off (see Files
-  tab). `t` on Files switches list and tree. A click on a file opens it, on the total line the whole diff. The
+  previews file 3. In the focused Files or Commits tab, `d` opens the file
+  or commit under the cursor in the diff tool, so `d d` from the list
+  opens the first file there (t-0044: the preview became the default and
+  the tool an explicit key in both tabs). `a` on Files or Commits opens
+  the whole diff in the tool, `v` turns the preview on and off (see Files
+  tab), `t` on Files switches list and tree. A click on a file previews
+  it, on the total line opens the whole diff. The
   diff tool gets the merge-base commit as `{base}`. A rename passes both
   paths (a lone `{file}` argument becomes one per file) so git pairs them;
   an untracked file does not open, since git diff leaves it out.

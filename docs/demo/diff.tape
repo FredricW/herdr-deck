@@ -1,4 +1,4 @@
-# The Files tab and the diff preview: d focuses the Files tab, v shows the
+# The Files tab and the diff preview: d focuses the Files tab, enter shows the
 # file under the cursor's diff where the list is, j picks another file and
 # J scrolls; v brings the list back. t switches to the folder tree. ]
 # shows Commits: 1 previews the newest commit, j the next, v ends it.
@@ -14,8 +14,8 @@ Sleep 1.2s
 # d focuses the Files tab: a diffstat of every changed file.
 Type "d"
 Sleep 1.8s
-# v previews the file under the cursor: an untracked Markdown file.
-Type "v"
+# enter previews the file under the cursor: an untracked Markdown file.
+Enter
 Sleep 2.2s
 # j moves to the next files; the preview follows.
 Type "jjj"
