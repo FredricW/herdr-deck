@@ -535,6 +535,38 @@ func TestResolveDiffView(t *testing.T) {
 	}
 }
 
+func TestResolveDiffLayout(t *testing.T) {
+	tests := []struct {
+		name, file, env, flag string
+		want                  string
+		problems              int
+	}{
+		{"default unified", "", "", "", DiffLayoutUnified, 0},
+		{"file", "[diff]\nlayout = \"split\"\n", "", "", DiffLayoutSplit, 0},
+		{"env beats file", "[diff]\nlayout = \"split\"\n", "unified", "", DiffLayoutUnified, 0},
+		{"flag beats env", "", "unified", "split", DiffLayoutSplit, 0},
+		{"bad env falls back to the file", "[diff]\nlayout = \"split\"\n", "columns", "", DiffLayoutSplit, 1},
+		{"bad file value", "[diff]\nlayout = \"side\"\n", "", "", DiffLayoutUnified, 1},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			getenv, home := env(t, map[string]string{EnvDiffLayout: tt.env})
+			write(t, filepath.Join(home, ".config", "herdr-deck", "config.toml"), tt.file)
+			s, err := Resolve(fls(KeyDiffLayout, tt.flag), getenv, noHunk)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if s.DiffLayout != tt.want || len(s.Problems) != tt.problems {
+				t.Errorf("DiffLayout = %q, problems %q; want %q and %d problems", s.DiffLayout, s.Problems, tt.want, tt.problems)
+			}
+		})
+	}
+	getenv, _ := env(t, nil)
+	if _, err := Resolve(fls(KeyDiffLayout, "side"), getenv, noHunk); err == nil || err.Error() != `--diff-layout: "side" is not unified or split` {
+		t.Errorf("bad flag: %v", err)
+	}
+}
+
 func TestResolveFoldedLists(t *testing.T) {
 	tests := []struct {
 		name, file, env, flag string

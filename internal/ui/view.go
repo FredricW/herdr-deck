@@ -650,6 +650,10 @@ func pad(s string, n int) string {
 func (m Model) rowHint(r row, narrow bool) string {
 	t, hasThread := r.thread()
 	tab := m.curTab()
+	layout := "S split"
+	if m.split {
+		layout = "S unified"
+	}
 	if m.dfocus {
 		switch tab {
 		case tabFiles:
@@ -661,7 +665,7 @@ func (m Model) rowHint(r row, narrow bool) string {
 			case m.preview && narrow:
 				return "j k file  J K scroll  v off  d tool  esc list"
 			case m.preview:
-				return "j k file  J K scroll  v preview off  d diff tool  a all  esc list"
+				return "j k file  J K scroll  " + layout + "  v off  d diff tool  a all  esc list"
 			case narrow:
 				return "j k file  ↵ preview  d tool  a all  " + view + "  esc list"
 			}
@@ -674,8 +678,10 @@ func (m Model) rowHint(r row, narrow bool) string {
 			switch {
 			case m.preview && narrow:
 				return "j k move  J K scroll  v off  esc list"
+			case m.preview && gh == "":
+				return "j k move  J K scroll  " + layout + "  v off  space files  d diff tool  esc list"
 			case m.preview:
-				return "j k move  J K scroll  v preview off  space files  d diff tool" + gh + "  esc list"
+				return "j k move  J K scroll  " + layout + "  v off  d diff tool" + gh + "  esc list"
 			case narrow:
 				return "j k move  ↵ preview  space files  d tool  esc list"
 			}

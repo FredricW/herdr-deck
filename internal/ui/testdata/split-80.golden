@@ -1,6 +1,6 @@
  Admin rebuild                                               ◐ 2  ◇ 1  ○ 1  ✉ 0
 ────────────────────────────────────────────────────────────────────────────────
- apps/admin/src/pages/users/UsersOverviewPage.tsx  +214 −12             1–11/19
+ …/pages/users/UsersOverviewPage.tsx  +214 −12  split needs ≥ 100 cols  1–11/19
  @@ -1,9 +1,14 @@ import { Page } from "@acme/ui";
    import { useState } from "react";
  − import { MembersList } from "../members/MembersList";
@@ -25,4 +25,4 @@
  6 M  apps/admin/src/routes.tsx                                 +6 -2  ▇▁▁▁▁▁▁▁
  7 ?  docs/users-page.md                                          +19  ▇▁▁▁▁▁▁▁
 ────────────────────────────────────────────────────────────────────────────────
- j k file  J K scroll  S split  v off  d diff tool  a all  esc list       v9.9.9
+ j k file  J K scroll  S unified  v off  d diff tool  a all  esc list     v9.9.9

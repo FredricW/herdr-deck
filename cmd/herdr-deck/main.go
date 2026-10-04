@@ -116,6 +116,7 @@ func run(args []string) error {
 			return runner.Run(df, launch.CommitArgv(df, path, sha, files...), path)
 		},
 		DiffTree:    cfg.DiffView == config.DiffViewTree,
+		DiffSplit:   cfg.DiffLayout == config.DiffLayoutSplit,
 		FoldedLists: cfg.FoldedLists,
 		Tick:        cfg.RefreshInterval,
 		Version:     shortVersionString(),

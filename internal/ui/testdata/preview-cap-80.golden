@@ -25,4 +25,4 @@
  8 M  package.json                                              +1 -1  ▇▁▁▁▁▁▁▁
 ▸9 M  pnpm-lock.yaml                                         +102 -40  ▇▇▇▇▇▇▁▁
 ────────────────────────────────────────────────────────────────────────────────
- j k file  J K scroll  v preview off  d diff tool  a all  esc list        v9.9.9
+ j k file  J K scroll  S split  v off  d diff tool  a all  esc list       v9.9.9

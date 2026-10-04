@@ -105,6 +105,7 @@ func (f File) values() map[string]string {
 		str(KeyDiffCommand, t.Command)
 		boolean(KeyDiffTerminal, t.Terminal)
 		str(KeyDiffView, t.View)
+		str(KeyDiffLayout, t.Layout)
 	}
 	return out
 }
@@ -140,6 +141,7 @@ const (
 	KeyDiffCommand         = "diff.command"
 	KeyDiffTerminal        = "diff.terminal"
 	KeyDiffView            = "diff.view"
+	KeyDiffLayout          = "diff.layout"
 )
 
 // Spec describes one setting: its names everywhere and how the settings
@@ -243,6 +245,9 @@ var Specs = []Spec{
 	{Key: KeyDiffView, Kind: KindChoice, Flag: "--diff-view", Env: EnvDiffView, Choices: DiffViews, Old: "diff_view",
 		Default: DiffViewList,
 		Help:    "the Files section's view at start: list, or tree (files under their folders); d t switches"},
+	{Key: KeyDiffLayout, Kind: KindChoice, Flag: "--diff-layout", Env: EnvDiffLayout, Choices: DiffLayouts,
+		Default: DiffLayoutUnified,
+		Help:    "the diff preview's layout at start: unified, or split (old left, new right); S switches"},
 }
 
 // SpecFor returns the spec of key.

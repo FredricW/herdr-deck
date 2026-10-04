@@ -269,6 +269,25 @@ lists what the user chose.
   drawer height on the thread it started on: `v`, `esc`, another tab, row
   or full view, or `z` ends it, and the list shows again with its cursor
   and scroll untouched.
+- **Split layout** (t-0049). `S` (or `|`) switches the preview between
+  unified and split for the session; `diff.layout` (`unified` | `split`,
+  `--diff-layout`, `HERDR_DECK_DIFF_LAYOUT`, a cycling choice on the
+  settings page) is the start. Split (`internal/ui/split.go`): old left,
+  new right, each side a dim right-aligned line number from the hunk
+  header, the sign, the code (tinted as in unified, cut with `…` per side,
+  a blank column before the dim `│`). `pairLines` lays the patch out once
+  per read, off the UI goroutine: each run of removed lines pairs with
+  the added lines after it, filler on the shorter side; context on both
+  sides; hunk headers and a commit's file rules span both; a
+  `\ No newline` note goes on the side of the line before it (both after
+  context). A file whose hunks all start at `-0,0` (added, untracked) shows
+  only its new side across the width, one whose hunks all end at `+0,0`
+  (deleted) only its old side. The split needs a preview of at least 100
+  columns (`splitMinWidth`: two sides of 49, about 40 of code); narrower,
+  it draws unified with `split needs ≥ 100 cols` in the header, and
+  switches back on a resize. `prevOff` counts rows of the layout shown;
+  a layout change maps it through the row that shows the same patch line,
+  so the same hunk stays in view.
 - **Commits tab** (t-0044). The thread branch's own commits:
   `diff.Reader.ReadCommits` runs `git log --numstat <merge-base>..HEAD`
   (100 at most, `rev-list --count` for the rest) in the worktree, against
@@ -503,7 +522,7 @@ never a secret.
   `[linear]` workspace, status, api_key_command; `[figma]` desktop;
   `[browser]` reuse_tabs (default true); `[updates]` check, auto_restart;
   `[editor]` command, terminal; `[diff]` command, terminal, view (list or
-  tree, default list). The dotted path (`linear.workspace`) is the one name
+  tree, default list), layout (unified or split, default unified). The dotted path (`linear.workspace`) is the one name
   in docs, the settings page, notes and errors (`Spec.Key`). Flags are
   `--<table>-<key>` and env vars `HERDR_DECK_<TABLE>_<KEY>`; only
   `projects.root` keeps herdr-projects' `HERDR_PROJECTS_ROOT`, and

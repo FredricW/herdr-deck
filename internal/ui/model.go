@@ -75,6 +75,9 @@ type Options struct {
 	// case (ui.folded_lists). Nil is config.DefaultFoldedLists; an empty,
 	// non-nil list folds none.
 	FoldedLists []string
+	// DiffSplit starts the diff preview in the split layout (diff.layout =
+	// "split"); S switches layouts for the session.
+	DiffSplit bool
 	// DiffTree starts the Files section in the tree view (diff.view =
 	// "tree"); d t switches views for the session.
 	DiffTree bool
@@ -226,6 +229,8 @@ type Model struct {
 	prevThread string
 	prevKey    string
 	prevOff    int
+	prevSplit  bool               // prevOff counts rows of the split layout
+	split      bool               // the split layout is chosen (it shows when wide enough)
 	patches    map[string]preview // the last patch read, by patchKey (one)
 	patchSel   string             // the patchKey last asked for
 	patching   bool               // a Patch call is running
@@ -261,6 +266,7 @@ func New(snap deck.Snapshot, opt Options) Model {
 		patches:        map[string]preview{},
 		choosing:       noKind,
 		tree:           opt.DiffTree,
+		split:          opt.DiffSplit,
 		width:          defaultWidth,
 		height:         defaultHeight,
 		loaded:         opt.Load == nil,
@@ -423,6 +429,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.width, m.height = msg.Width, msg.Height
 		m.scrollDrawer(0)
 		m.ensureVisible()
+		m.relayoutPreview()
 		m.scrollPreview(0)
 		if m.pick.open {
 			m.pickVisible()

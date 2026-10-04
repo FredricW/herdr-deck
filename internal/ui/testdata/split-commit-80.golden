@@ -1,6 +1,10 @@
  Admin rebuild                                               ◐ 2  ◇ 1  ○ 1  ✉ 0
 ────────────────────────────────────────────────────────────────────────────────
- c3a91f0 Show the overview cards above the users table  +214 −12        5–15/18
+ c3a91f0 Show the overview cards ab…  +214 −12  split needs ≥ 100 cols  1–11/18
+ Agent · 2026-10-02 14:29 · 12m ago
+
+ The cards count active and invited users (ABC-1256).
+
  They read the table's query.
 
  ── apps/admin/src/pages/users/UsersOverviewPage.tsx ───────────────────────────
@@ -8,10 +12,6 @@
    import { useState } from "react";
  + import { overview } from "./overview";
 
- − export function MembersPage() {
- + export function UsersOverviewPage() {
- ── apps/admin/src/pages/users/overview.ts ─────────────────────────────────────
- @@ -0,0 +1,3 @@
 ────────────────────────────────────────────────────────────────────────────────
  Users page                                                     ◐ working  ~60%
  t-0002 · Members /admin/users · Building overview · pane w1Z:p1     ▰▰▰▰▰▰▱▱▱▱
@@ -25,4 +25,4 @@
 
 
 ────────────────────────────────────────────────────────────────────────────────
- j k move  J K scroll  S split  v off  space files  d diff tool  esc list
+ j k move  J K scroll  S unified  v off  space files  d diff tool  esc list

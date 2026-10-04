@@ -164,6 +164,7 @@ the focus too.
 | `d` | focus Files (`d 3` previews file 3; `d d` opens file 1 in the diff tool) | with the drawer focused, the file under the cursor in the diff tool | as on Overview; with the drawer focused, the commit in the diff tool | as on Overview |
 | `a` | — | the whole diff in the diff tool | the whole diff in the diff tool | — |
 | `v` | — | the diff preview on or off (built after this design; see PLAN.md) | the commit preview on or off | — |
+| `S` | — | in the preview: unified or split layout (see PLAN.md) | as on Files | — |
 | `t` | — | list ↔ tree | — | — |
 | `space` `→` `l` / `←` `h` | — | — | with the drawer focused, expand the commit to its files / collapse it (`space` toggles; a click on `▸`/`▾` too); from the list as today | — |
 | `↵` (list focus) | the thread's pane | same | same | same |
