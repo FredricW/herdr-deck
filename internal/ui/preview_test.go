@@ -131,10 +131,14 @@ func TestPreviewShowsAndFollowsFile(t *testing.T) {
 	if len(o.diffs) != 0 || !strings.Contains(screen(m), "routes.tsx  +6 −2") {
 		t.Errorf("click: opened %q\n%s", o.diffs, screen(m))
 	}
-	// enter still opens the file in the diff tool.
+	// enter previews too; d opens the file in the diff tool.
 	m, _ = press(m, tea.KeyPressMsg{Code: tea.KeyEnter})
-	if want := []string{worktree2 + " 4b825dc apps/admin/src/routes.tsx"}; !slices.Equal(o.diffs, want) {
-		t.Errorf("enter opened %q, want %q", o.diffs, want)
+	if len(o.diffs) != 0 || !m.preview {
+		t.Errorf("enter: opened %q, preview %v", o.diffs, m.preview)
+	}
+	m, _ = press(m, keys("d")...)
+	if want := []string{worktree2 + " 4b825dc apps/admin/src/routes.tsx"}; !slices.Equal(o.diffs, want) || !m.preview {
+		t.Errorf("d opened %q, want %q", o.diffs, want)
 	}
 	// A rename's note and a binary file's line.
 	m, _ = press(m, keys("kk")...)
@@ -289,11 +293,12 @@ func TestPreviewKeyEdges(t *testing.T) {
 	if !m.preview || m.size != sizeNormal {
 		t.Errorf("from full height: preview %v, size %v", m.preview, m.size)
 	}
-	// While the preview shows, d opens the whole diff and the preview stays.
+	// While the preview shows, d opens the file in the diff tool and a the
+	// whole diff, and the preview stays.
 	m, o := previewModel(t, 80, 28, nil)
-	m, _ = press(m, keys("dvd")...)
-	if want := []string{worktree2 + " 4b825dc"}; !m.preview || !slices.Equal(o.diffs, want) {
-		t.Errorf("d in the preview: preview %v, opened %q", m.preview, o.diffs)
+	m, _ = press(m, keys("dvda")...)
+	if want := []string{worktree2 + " 4b825dc apps/admin/src/pages/users/UsersOverviewPage.tsx", worktree2 + " 4b825dc"}; !m.preview || !slices.Equal(o.diffs, want) {
+		t.Errorf("d a in the preview: preview %v, opened %q", m.preview, o.diffs)
 	}
 }
 
@@ -306,5 +311,32 @@ func TestDiffLineCutsLongLines(t *testing.T) {
 	}
 	if w := len([]rune(ansi.Strip(got))); w != 60 {
 		t.Errorf("width %d, want 60", w)
+	}
+}
+
+// With the preview, the Files tab previews by default: d then a digit, a
+// click or ↵, in the tree's numbering in the tree view; d d opens the file
+// under the cursor (the first, after t) in the diff tool.
+func TestFilesPreviewByDefault(t *testing.T) {
+	m, o := previewModel(t, 80, 28, nil)
+	m, _ = press(m, keys("d2")...)
+	if !m.preview || len(o.diffs) != 0 || !strings.Contains(screen(m), "columns.ts  +48 −0") {
+		t.Fatalf("d 2: preview %v, opened %q\n%s", m.preview, o.diffs, screen(m))
+	}
+	m, _ = press(m, esc)
+	m, _ = press(m, keys("t2")...)
+	if !m.preview || !strings.Contains(screen(m), "api/users.ts  +31 −9") {
+		t.Errorf("t 2 did not preview the tree's second file:\n%s", screen(m))
+	}
+	m, _ = press(m, esc)
+	m, _ = press(m, keys("tdd")...)
+	if want := []string{worktree2 + " 4b825dc apps/admin/src/pages/users/UsersOverviewPage.tsx"}; !slices.Equal(o.diffs, want) {
+		t.Errorf("d d opened %q, want %q (t puts the cursor on file 1)", o.diffs, want)
+	}
+	// On Commits, a opens the branch's whole diff in the diff tool too.
+	m, _ = commitsModel(t, 80, 28, sampleCommits(), nil)
+	m, _ = press(m, keys("]]a")...)
+	if !strings.Contains(m.Status(), "opened the diff of t-0002") {
+		t.Errorf("a on Commits: %q", m.Status())
 	}
 }

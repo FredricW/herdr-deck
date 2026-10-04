@@ -33,6 +33,7 @@ type tabKind int
 const (
 	tabOverview tabKind = iota
 	tabFiles
+	tabCommits
 	tabLog
 	numTabs
 )
@@ -41,6 +42,8 @@ func (t tabKind) String() string {
 	switch t {
 	case tabFiles:
 		return "Files"
+	case tabCommits:
+		return "Commits"
 	case tabLog:
 		return "Log"
 	}
@@ -51,17 +54,21 @@ func (t tabKind) String() string {
 type actKind int
 
 const (
-	actNone  actKind = iota
-	actLink          // open link n (an index into the row's links)
-	actFile          // open the diff of file n (1-based, in display order)
-	actDiff          // open the whole diff
-	actEvent         // act on Log event n
-	actTab           // switch to tab n
+	actNone       actKind = iota
+	actLink               // open link n (an index into the row's links)
+	actFile               // preview file n (1-based, in display order)
+	actDiff               // open the whole diff in the diff tool
+	actEvent              // act on Log event n
+	actTab                // switch to tab n
+	actCommit             // preview commit n (1-based); 0 is the uncommitted row
+	actExpand             // expand or collapse commit n (1-based)
+	actCommitFile         // preview file f (0-based, in display order) of commit n
 )
 
 type action struct {
 	kind actKind
 	n    int
+	f    int // actCommitFile's file
 }
 
 // item is one piece of a drawer value: a word of text or a whole link.
@@ -434,16 +441,19 @@ func (m Model) helpDrawer(width int) *drawer {
 var helpLines = [][2]string{
 	{"j k", "move; the drawer follows"},
 	{"space", "fold or unfold the list under the cursor"},
-	{"[ ]", "previous / next tab: Overview, Files, Log"},
+	{"[ ]", "previous / next tab: Overview, Files, Commits, Log"},
 	{"tab", "focus the drawer: j k move in it, ↵ opens, tab switches tabs, esc returns"},
-	{"1-9", "open the numbered link; on Files, that file's diff"},
+	{"1-9", "open the numbered link; on Files and Commits, preview that file or commit"},
 	{"l f n g", "open the first Linear, Figma, Notion or PR link; with several, pick one: a digit, a all, d Figma desktop app, the letter again the first, esc cancels"},
 	{"o", "open the first localhost link whose dev server is running"},
 	{"↵", "focus the thread's herdr pane"},
 	{"e", "open the thread's worktree in the editor"},
 	{"u", "start the thread's dev servers: the dev manifest's up command, detached"},
-	{"d", "focus the Files tab: a digit opens that file's diff in the diff tool, d again or a the whole diff, t list or tree"},
-	{"v", "on Files: preview the file under the cursor in the list's place, coloured by its language; j k pick another file, v or esc returns to the list"},
+	{"d", "focus the Files tab: a digit previews that file; d again opens the file under the cursor in the diff tool; t list or tree"},
+	{"v", "on Files and Commits: preview the file or commit under the cursor in the list's place, coloured by its language; j k pick another, v or esc returns to the list"},
+	{"Files", "↵, a digit or a click previews a file; in the focused drawer d opens it in the diff tool; a opens the whole diff there"},
+	{"Commits", "the branch's commits since its base, newest first: ↵, a digit or a click previews one as git show does; in the focused drawer d opens the commit in the diff tool and g in the PR on GitHub; a opens the whole diff"},
+	{"space → l", "in the focused Commits tab: expand the commit to the files it changed (space again, ← or h collapses it; a click on ▸ / ▾ too); ↵ or a click on a file previews its change in that commit, d opens it in the diff tool"},
 	{"J K", "scroll the preview a line; pgup pgdn a page, the wheel over it three lines"},
 	{"r", "the thread's report, full height"},
 	{"z", "drawer: normal, full height, hidden"},

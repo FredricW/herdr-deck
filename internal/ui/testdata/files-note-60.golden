@@ -15,7 +15,7 @@
 ────────────────────────────────────────────────────────────
  Users page                                 ◐ working  ~60%
  t-0002 · Building overview                      ▰▰▰▰▰▰▱▱▱▱
- Overview   Files   Log 7
+ Overview   Files   Commits   Log 7
  the worktree is gone
 
 
@@ -25,4 +25,4 @@
 
 
 ────────────────────────────────────────────────────────────
- j k file  v preview  ↵ open  d all  t tree  esc list
+ j k file  ↵ preview  d tool  a all  t tree  esc list

@@ -84,7 +84,7 @@ func run(m Model, cmd tea.Cmd) Model {
 		for _, c := range msg {
 			m = run(m, c)
 		}
-	case openedMsg, devUpMsg, diffMsg, patchMsg:
+	case openedMsg, devUpMsg, diffMsg, patchMsg, commitsMsg, commitFilesMsg:
 		next, _ := m.Update(msg)
 		m = next.(Model)
 	case settingsMsg, settingsSavedMsg:
@@ -1128,11 +1128,15 @@ func TestFilesOpenDiffs(t *testing.T) {
 	if !strings.Contains(screen(m), "11 files  +447 -68  vs origin/main") || !strings.Contains(screen(m), "tsconfig.json") {
 		t.Fatalf("no Files tab:\n%s", screen(m))
 	}
+	// Without a preview, a digit opens the file in the diff tool; d in
+	// the focused drawer the file under the cursor, a the whole diff.
 	m, _ = press(m, keys("2")...)
 	m, _ = press(m, keys("d")...)
+	m, _ = press(m, keys("a")...)
 	m, _ = press(m, esc)
 	m, _ = press(m, keys("9")...)
 	want := []string{
+		"/src/worktrees/t-0002 4b825dc apps/admin/src/pages/users/columns.ts",
 		"/src/worktrees/t-0002 4b825dc apps/admin/src/pages/users/columns.ts",
 		"/src/worktrees/t-0002 4b825dc",
 		"/src/worktrees/t-0002 4b825dc pnpm-lock.yaml",

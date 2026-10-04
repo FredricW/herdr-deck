@@ -8,6 +8,30 @@ and versions follow [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+
+- A Commits tab in the drawer, between Files and Log: the thread branch's
+  commits since its base, newest first, each with its short sha, subject,
+  age and `+N −M` (a merge dim, with `⋔`), under a `● uncommitted · N
+  files` row that leads to Files when the worktree has uncommitted changes.
+  `↵` or a digit previews a commit as `git show` does (author, date, body
+  and a syntax-coloured diff, file by file); in the focused drawer `d`
+  opens it in the diff tool against its parent and `g` in the PR on GitHub.
+  `space`, `→` or `l` in the focused drawer (or a click on `▸`) expands a
+  commit to the files it changed, styled as on Files; `↵` on one previews
+  that file's change in that commit and `d` opens it there in the diff
+  tool. `←` or `h` collapses it.
+
+### Changed
+
+- The Files tab previews by default, as Commits does: `↵`, a digit
+  (`d 3` from the list) or a click on a file shows its diff in the deck
+  instead of opening the diff tool. The diff tool is now `d` in the
+  focused Files or Commits tab (the file or commit under the cursor, so
+  `d d` from the list opens the first file there), and `a` opens the
+  whole diff in it, as before. The total line's click still opens the
+  whole diff.
+
 ## [0.1.3] - 2026-10-03
 
 ### Added

@@ -3,7 +3,8 @@
 Static mockups for the next drawer, the detail view under the list in
 [design D](../d-list-detail.md). Nothing here is code. The user chose the
 direction on 2026-10-03: a **header card** on top, then **tabs**:
-**Overview · Files · Log**. The same day they settled the variants and the
+**Overview · Files · Log**, with **Commits** added between Files and Log
+later the same day (see [Commits](#commits)). The same day they settled the variants and the
 open questions; the [decisions](#decisions) are below, and
 [PLAN.md's UI section](../../PLAN.md#ui) describes the result for the build.
 
@@ -55,7 +56,8 @@ Made by the user on 2026-10-03.
   4. **Focus:** `tab` moves the focus into the drawer, and inside it `tab` /
      `shift+tab` switch tabs; `[`/`]` switch tabs from anywhere; a click in
      the drawer focuses it; `esc` returns to the list.
-  5. **Log** keeps to what herdr-projects records: no git commits.
+  5. **Log** keeps to what herdr-projects records: no git commits. The
+     branch's commits got a tab of their own, Commits, after this design.
   6. **Files** stay in path order, as git prints them.
 
 ## What moves where
@@ -103,9 +105,10 @@ Every line the drawer shows today, and where it goes:
   percent, the PR (`#2320 ✕ 2 failing`). Several threads on one task: the
   card shows the most pressing one, as the list does, and *Thread* lists
   them all.
-- **Tab bar.** ` Overview `, ` Files N `, ` Log N ` on their backgrounds,
-  one space apart. `Files N` counts changed files (`Files …` until git has
-  answered once), `Log N` counts events. A tab with nothing behind it (no
+- **Tab bar.** ` Overview `, ` Files N `, ` Commits N `, ` Log N ` on
+  their backgrounds, one space apart. `Files N` counts changed files
+  (`Files …` until git has answered once), `Commits N` the branch's
+  commits, `Log N` counts events. A tab with nothing behind it (no
   thread, a resolved thread's files) is dim, has no count and is skipped.
   At the right, dim, what is below the drawer's end: section names on
   Overview at 80 columns, else `↓ N more` lines.
@@ -153,25 +156,51 @@ switch tabs, `j`/`k` move the drawer cursor, `↵` acts on the item under it,
 and `esc` gives the focus back to the list. A click in the drawer gives it
 the focus too.
 
-| Key | Overview | Files | Log |
-|---|---|---|---|
-| `[` `]` | previous / next tab, from the list or the drawer | same | same |
-| `1`–`9` | open the numbered link | open the numbered file's diff | open the numbered link (PR events carry the PR's chip) |
-| `l` `f` `n` `g` `o` | first link of that kind, as today, on every tab (the chooser for several highlights the chips) | same | same |
-| `d` | focus Files (`d 3` still opens file 3; `d d` the whole diff) | `d` again or `a`: the whole diff | as on Overview |
-| `v` | — | the diff preview on or off (built after this design; see PLAN.md) | — |
-| `t` | — | list ↔ tree | — |
-| `↵` (list focus) | the thread's pane | same | same |
-| `↵` (drawer focus) | open the link under the cursor | open the file under the cursor, numbered or not | the event: a report shows it, a PR event opens the PR, the rest focus the pane |
-| `r` `e` `u` `z` `pgup` `pgdn` | as today | same | same |
+| Key | Overview | Files | Commits | Log |
+|---|---|---|---|---|
+| `[` `]` | previous / next tab, from the list or the drawer | same | same | same |
+| `1`–`9` | open the numbered link | preview the numbered file | preview the numbered commit | open the numbered link (PR events carry the PR's chip) |
+| `l` `f` `n` `g` `o` | first link of that kind, as today, on every tab (the chooser for several highlights the chips) | same | same; with the drawer focused, `g` opens the commit under the cursor on GitHub | same |
+| `d` | focus Files (`d 3` previews file 3; `d d` opens file 1 in the diff tool) | with the drawer focused, the file under the cursor in the diff tool | as on Overview; with the drawer focused, the commit in the diff tool | as on Overview |
+| `a` | — | the whole diff in the diff tool | the whole diff in the diff tool | — |
+| `v` | — | the diff preview on or off (built after this design; see PLAN.md) | the commit preview on or off | — |
+| `t` | — | list ↔ tree | — | — |
+| `space` `→` `l` / `←` `h` | — | — | with the drawer focused, expand the commit to its files / collapse it (`space` toggles; a click on `▸`/`▾` too); from the list as today | — |
+| `↵` (list focus) | the thread's pane | same | same | same |
+| `↵` (drawer focus) | open the link under the cursor | preview the file under the cursor, numbered or not | preview the commit, or a file's change in its commit; on the uncommitted row, show Files | the event: a report shows it, a PR event opens the PR, the rest focus the pane |
+| `r` `e` `u` `z` `pgup` `pgdn` | as today | same | same | same |
 
 `d` used to open a chooser over the Files section; with Files a tab of its
 own the chooser is the tab, so the old key sequences keep working.
 
 **Mouse.** A click on a tab switches to it; a click on a chip, file or
 event opens it, as a click on a drawer link does today; a click on the
-total line opens the whole diff; a click on the card does nothing (the row
+total line opens the whole diff in the diff tool (since the Commits tab, a file
+previews rather than opening the tool); a click on the card does nothing (the row
 is already selected). The wheel scrolls the tab under the pointer.
+
+## Commits
+
+Added on 2026-10-03, after this design: a Commits tab between Files and
+Log, in the same tab style, for the thread branch's commits since its
+merge-base, newest first.
+
+```text
+ Overview   Files 11   Commits 4   Log 7
+ ● uncommitted · 2 files                                                → Files
+▸1 ▾ c3a91f0 Show the overview cards above the users table        12m  +214 −12
+       M  apps/admin/src/pages/users/UsersOverviewPage.tsx             +166 −12
+       A  apps/admin/src/pages/users/overview.ts                            +48
+ 2 ▸ 8be2d41 Add the users columns                                 2h    +48 −0
+ 3 ▸ 51f0c9a ⋔ Merge origin/main into the users page               5h
+ 4 ▸ a07de3b Rename members to users                               1d     +1 −1
+```
+
+A commit expands to its files (`▾`), styled as on Files and indented
+under it. The sha, age and a merge commit's row are dim; `● ` is yellow, as an
+unhandled update; `+N` green, `−M` red. A commit previews in the diff
+preview's place, as `git show` shows it. README's *Commits* section and
+PLAN.md describe the details.
 
 ## Data the deck does not read yet
 

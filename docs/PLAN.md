@@ -168,12 +168,14 @@ lists what the user chose.
     of a task; at the right a ten-cell bar `▰▱` in the status colour, or,
     with no percent, the PR (`#2320` magenta, `✕ 2 failing` red or `✓`
     green). A task with several threads shows the most pressing one.
-  - **Tab bar**, one line: ` Overview `, ` Files N `, ` Log N ` as plain
+  - **Tab bar**, one line: ` Overview `, ` Files N `, ` Commits N `,
+    ` Log N ` as plain
     labels with one space of padding on each side, on background colours,
     one space apart, no rule or brackets. The active tab is bold dark
     text (256-colour 234, 16 on a light terminal) on blue; inactive tabs plain text on dark grey (256-colour 237,
     254 on a light terminal). `Files N` counts changed files (`Files …`
-    until git has answered once), `Log N` events. A tab with nothing
+    until git has answered once), `Commits N` the branch's commits,
+    `Log N` events. A tab with nothing
     behind it (no thread, a resolved thread's files) is dim, has no count
     and is skipped by keys and clicks. At the right end, dim, what is below
     the drawer's end: Overview's section names at 80 columns, else
@@ -238,12 +240,13 @@ lists what the user chose.
   `GIT_OPTIONAL_LOCKS=0`) when the selection moves to another thread and
   on every reload; answers are reused for 2 s. A missing worktree or base
   is a dim note.
-- **Diff preview.** `v` on the Files tab (focusing it) shows the diff of
-  the file under the drawer cursor in the list's place: the column-titles
+- **Diff preview.** The Files tab's default action (t-0044): `↵`, a digit
+  or a click on a file, or `v` for the file under the cursor, focuses the
+  tab and shows that file's diff in the list's place: the column-titles
   line becomes a header (the path, losing its start when long, `+N −M`,
   `untracked`, and at the right the lines shown, `1–11/19`), the list's
   lines the diff. The drawer keeps Files, so `j`/`k` or a click pick
-  another file (a click previews it rather than opening it); a new file
+  another file; a new file
   starts at its top. `diff.Reader.ReadPatch` runs `git diff --no-color
   --no-ext-diff --no-textconv -M <merge-base> -- [old] <file>` with the
   Files tab's 5 s timeout and optional locks off, keeps 2000 lines (and
@@ -265,6 +268,39 @@ lists what the user chose.
   drawer height on the thread it started on: `v`, `esc`, another tab, row
   or full view, or `z` ends it, and the list shows again with its cursor
   and scroll untouched.
+- **Commits tab** (t-0044). The thread branch's own commits:
+  `diff.Reader.ReadCommits` runs `git log --numstat <merge-base>..HEAD`
+  (100 at most, `rev-list --count` for the rest) in the worktree, against
+  the Files tab's merge-base, newest first. A row is the digit (dim `·`
+  after 9), the short sha dim, the subject, the age dim and `+N −M` green
+  and red, the counts right-aligned in one column; a merge commit is dim
+  with `⋔` and no counts; `+K more` ends a longer branch. With uncommitted
+  changes (`git status --porcelain -z --untracked-files=all`) a first row
+  `● uncommitted · N files  → Files` leads to the Files tab. The label
+  counts the commits. A resolved thread or one without a worktree shows a
+  dim note. The list is cached by HEAD and upstream sha (and for 2 s), so
+  a reload re-runs only `rev-parse` and `status` until the branch moves;
+  `merge-base HEAD @{upstream}` marks the commits the remote has. `↵` or a
+  digit previews a commit in the diff preview: a header with the short
+  sha, subject and counts, then author, date and body, then `git show
+  --diff-merges=first-parent` file by file under `── path ──` rules, each
+  coloured by its language (`ReadCommitPatch`, cached by sha). In the
+  focused drawer `d` opens the commit in the diff tool (`launch.CommitArgv`:
+  `{base}` = `sha^`, the sha inserted after a lone `{base}`, so `hunk diff
+  sha^ sha`) and `g` the commit inside the PR on GitHub
+  (`…/pull/N/commits/<sha>`, with tab reuse; an unpushed commit says so).
+  From the list, `d` and `g` keep their meaning. In the focused drawer,
+  `space`/`→`/`l` (or a click on the `▸` marker after the digit) expands a
+  commit to its files and `space`/`←`/`h` collapses it (also from one of
+  its files); several may be open. File rows are styled as on Files
+  (status letter, path, `+N −M` with `−`, list or tree by `diff_view`),
+  indented under the commit, unnumbered (the digits stay the commits').
+  `ReadCommitFiles` (`git show --format= --raw --numstat -z -M
+  --diff-merges=first-parent`, parsed as the Files tab's diff) runs off
+  the UI goroutine on the first expand and is cached by sha. `↵`/click on a
+  file previews `git show <sha> -- [old] <path>` (`ReadCommitFilePatch`),
+  `d` opens it at that commit (`CommitArgv` with files). The cursor keeps
+  its row (sha and path) when rows open, close or arrive above it.
 - **Log tab.** The thread's timeline, newest first, one line per event:
   age (dim, right-aligned), a glyph in its colour, the text, and at 80
   columns the clock time (dim, with the weekday before today). Only what
@@ -325,12 +361,13 @@ Keys:
   drawer. `tab` moves the focus into the drawer: the list's `▸` turns dim
   and a drawer cursor (`▸` and the selection background) appears; inside
   the drawer `tab`/`shift+tab` switch tabs, `j`/`k` move the drawer cursor,
-  `enter` acts on the item under it (Overview: opens the link; Files: opens
-  the file's diff, numbered or not; Log: a report event shows the report,
+  `enter` acts on the item under it (Overview: opens the link; Files:
+  previews the file, numbered or not; Commits: previews the commit; Log: a report event shows the report,
   a PR event opens the PR, other events focus the pane), and `esc` returns
   the focus to the list. A click in the drawer focuses it too.
-- `1`–`9` open the drawer's numbered links on Overview and Log, and the
-  numbered files' diffs on Files. `l` Linear, `f` Figma,
+- `1`–`9` open the drawer's numbered links on Overview and Log, and
+  preview the numbered file or commit on Files and Commits (without a
+  preview reader, a file opens in the diff tool). `l` Linear, `f` Figma,
   `n` Notion, `g` GitHub PR open the first link of that kind, on any tab. When there
   are several, the key highlights that kind's chips and waits: a digit opens
   one, `a` opens all of that kind, `d` opens a Figma link in the desktop
@@ -351,9 +388,13 @@ Keys:
   `s` settings and `w` What's new replace the whole drawer (today's title
   rule, no card or tabs); `esc` returns to the tab you were on.
 - `d`: focuses the drawer's Files tab (unhiding the drawer), so `d 3`
-  opens file 3 as before; on a focused Files tab, `d` again or `a` opens
-  the whole diff, and `v` turns the diff preview on and off (see Files
-  tab). `t` on Files switches list and tree. A click on a file opens it, on the total line the whole diff. The
+  previews file 3. In the focused Files or Commits tab, `d` opens the file
+  or commit under the cursor in the diff tool, so `d d` from the list
+  opens the first file there (t-0044: the preview became the default and
+  the tool an explicit key in both tabs). `a` on Files or Commits opens
+  the whole diff in the tool, `v` turns the preview on and off (see Files
+  tab), `t` on Files switches list and tree. A click on a file previews
+  it, on the total line opens the whole diff. The
   diff tool gets the merge-base commit as `{base}`. A rename passes both
   paths (a lone `{file}` argument becomes one per file) so git pairs them;
   an untracked file does not open, since git diff leaves it out.

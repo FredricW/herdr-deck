@@ -52,6 +52,24 @@ type Options struct {
 	// (v on the Files tab). It runs off the UI goroutine when the preview
 	// moves to another file and on every reload. Nil turns the preview off.
 	Patch func(ctx context.Context, t deck.Thread, mergeBase string, f deck.DiffFile) deck.Patch
+	// Commits reads the commits of a thread's branch since its base, for
+	// the Commits tab. It runs off the UI goroutine when the selection
+	// moves to another thread and on every reload. Nil turns the tab off.
+	Commits func(context.Context, deck.Thread) deck.Commits
+	// CommitPatch reads one commit for the preview (v or ↵ on the Commits
+	// tab). It runs off the UI goroutine. Nil turns that preview off.
+	CommitPatch func(ctx context.Context, t deck.Thread, sha string) deck.CommitPatch
+	// CommitFiles reads the files a commit changed, for an expanded
+	// commit on the Commits tab. It runs off the UI goroutine. Nil leaves
+	// commits unexpandable.
+	CommitFiles func(ctx context.Context, t deck.Thread, sha string) ([]deck.DiffFile, error)
+	// CommitFilePatch reads one file's change in a commit for the preview.
+	// It runs off the UI goroutine.
+	CommitFilePatch func(ctx context.Context, t deck.Thread, sha string, f deck.DiffFile) deck.Patch
+	// OpenCommit opens the diff tool for commit sha of the worktree at
+	// path, for some files (a rename's old and new path) or, with none,
+	// the whole commit. Tests replace it so no diff tool is ever run.
+	OpenCommit func(path, sha string, files []string) error
 	// DiffTree starts the Files section in the tree view (diff_view =
 	// "tree"); d t switches views for the session.
 	DiffTree bool
@@ -186,9 +204,20 @@ type Model struct {
 	diffing   bool                 // a Diff call is running
 	diffAgain bool                 // the selection moved while it ran
 
+	commitLists  map[string]deck.Commits // the last commits read, by diffKey
+	commitsSel   string                  // the diffKey last asked for
+	committing   bool                    // a Commits call is running
+	commitsAgain bool                    // the selection moved while it ran
+	// Expanded commits (by commitKey), their files once read, and the
+	// reads running.
+	expand         map[string]bool
+	commitFileSets map[string]commitFiles
+	filesReading   map[string]bool
+
 	// The diff preview (preview.go): on, the thread (diffKey) and file
-	// (patchKey) it shows, and its scroll.
+	// (patchKey) or commit (commitKey) it shows, and its scroll.
 	preview    bool
+	prevTab    tabKind
 	prevThread string
 	prevKey    string
 	prevOff    int
@@ -213,17 +242,21 @@ func New(snap deck.Snapshot, opt Options) Model {
 		opt.UpdateEvery = DefaultUpdateEvery
 	}
 	m := Model{
-		opt:      opt,
-		keys:     defaultKeys(),
-		folds:    map[string]bool{},
-		diffs:    map[string]deck.Diff{},
-		patches:  map[string]preview{},
-		choosing: noKind,
-		tree:     opt.DiffTree,
-		width:    defaultWidth,
-		height:   defaultHeight,
-		loaded:   opt.Load == nil,
-		loading:  opt.Load != nil, // Init starts the first load
+		opt:            opt,
+		keys:           defaultKeys(),
+		folds:          map[string]bool{},
+		diffs:          map[string]deck.Diff{},
+		commitLists:    map[string]deck.Commits{},
+		expand:         map[string]bool{},
+		commitFileSets: map[string]commitFiles{},
+		filesReading:   map[string]bool{},
+		patches:        map[string]preview{},
+		choosing:       noKind,
+		tree:           opt.DiffTree,
+		width:          defaultWidth,
+		height:         defaultHeight,
+		loaded:         opt.Load == nil,
+		loading:        opt.Load != nil, // Init starts the first load
 	}
 	if opt.Updated != "" {
 		m.notice = "Updated to v" + opt.Updated + " · " + m.keys.News.Keys()[0] + " what's new"
@@ -421,7 +454,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.loaded = true
 		m.SetSnapshot(deck.Snapshot(msg))
 		m.syncPreview()
-		diff := tea.Batch(m.readDiff(true), m.readPatch(true))
+		diff := tea.Batch(m.readDiff(true), m.readCommits(true), m.readPatch(true))
 		if m.pending {
 			m.pending = false
 			return m, tea.Batch(m.refresh(), diff)
@@ -435,6 +468,19 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.diffAgain = false
 			return m, tea.Batch(m.readDiff(true), m.readPatch(false))
 		}
+		return m, m.readPatch(false)
+	case commitsMsg:
+		m.committing = false
+		m.setCommits(msg.key, msg.commits)
+		m.syncPreview()
+		if m.commitsAgain {
+			m.commitsAgain = false
+			return m, tea.Batch(m.readCommits(true), m.readPatch(false))
+		}
+		return m, m.readPatch(false)
+	case commitFilesMsg:
+		m.setCommitFiles(msg)
+		m.syncPreview()
 		return m, m.readPatch(false)
 	case patchMsg:
 		m.patching = false
@@ -481,7 +527,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 // thread, and a patch read when the preview moved to another file.
 func (m Model) followDiff(cmd tea.Cmd) (tea.Model, tea.Cmd) {
 	m.syncPreview()
-	return m, tea.Batch(cmd, m.readDiff(false), m.readPatch(false))
+	return m, tea.Batch(cmd, m.readDiff(false), m.readCommits(false), m.readPatch(false))
 }
 
 // diffThread is the selected row's thread whose worktree the Files section
@@ -528,9 +574,9 @@ func (m *Model) readDiff(force bool) tea.Cmd {
 	return func() tea.Msg { return diffMsg{key: k, diff: read(context.Background(), t)} }
 }
 
-// diffKeyPressed focuses the drawer's Files tab, so a digit then opens
-// that file's diff and v previews the file under the cursor; on a focused
-// Files tab, d again opens the whole diff.
+// diffKeyPressed focuses the drawer's Files tab, so a digit then previews
+// that file and d (filesOnlyKey) opens the file under the cursor in the
+// diff tool.
 func (m *Model) diffKeyPressed() tea.Cmd {
 	if m.opt.Diff == nil {
 		m.status = "the Files tab is off"
@@ -545,13 +591,6 @@ func (m *Model) diffKeyPressed() tea.Cmd {
 		}
 		return nil
 	}
-	t, d, ok := m.diff()
-	if m.mode == modeRow && m.curTab() == tabFiles && m.dfocus {
-		if ok && len(d.Files) > 0 {
-			return m.openDiff(t, d, deck.DiffFile{})
-		}
-		return nil
-	}
 	if m.mode != modeRow || m.curTab() != tabFiles {
 		m.switchTab(tabFiles)
 	}
@@ -563,7 +602,28 @@ func (m *Model) diffKeyPressed() tea.Cmd {
 	return nil
 }
 
-// openFile opens the diff of the file at display index i.
+// previewFileAt shows the file at display index i in the preview, with
+// the Files tab focused and its cursor on that file. Without a preview
+// (Options.Patch nil) it opens the file in the diff tool instead.
+func (m *Model) previewFileAt(i int) tea.Cmd {
+	t, d, ok := m.diff()
+	if !ok || d.Note != "" || i < 0 || i >= len(d.Files) {
+		m.status = fmt.Sprintf("no file %d on this row", i+1)
+		return nil
+	}
+	m.dfocus = true
+	m.dcur = i // every file is a stop, in display order
+	m.moveDrawerCursor(0)
+	if m.opt.Patch == nil {
+		return m.openFile(t, d, i)
+	}
+	if !m.preview {
+		m.togglePreview()
+	}
+	return nil
+}
+
+// openFile opens the file at display index i in the diff tool.
 func (m *Model) openFile(t deck.Thread, d deck.Diff, i int) tea.Cmd {
 	if i < 0 || i >= len(d.Files) {
 		m.status = fmt.Sprintf("no file %d on this row", i+1)
@@ -578,8 +638,10 @@ func (m *Model) openFile(t deck.Thread, d deck.Diff, i int) tea.Cmd {
 }
 
 // filesOnlyKey handles the Files tab's own keys: t switches list and tree,
-// a opens the whole diff, v turns the preview on and off. done is false
-// for any other key.
+// a opens the whole diff in the diff tool, v turns the preview on and
+// off, and in the focused drawer d opens the file under the cursor in the
+// diff tool. done is false for any other key, so d from the list focuses
+// Files.
 func (m *Model) filesOnlyKey(msg tea.KeyPressMsg) (tea.Cmd, bool) {
 	if m.mode != modeRow || m.curTab() != tabFiles {
 		return nil, false
@@ -596,6 +658,14 @@ func (m *Model) filesOnlyKey(msg tea.KeyPressMsg) (tea.Cmd, bool) {
 		return nil, true
 	case "v":
 		m.togglePreview()
+		return nil, true
+	case "d":
+		if !m.dfocus {
+			return nil, false
+		}
+		if t, d, ok := m.diff(); ok && d.Note == "" && len(d.Files) > 0 {
+			return m.openFile(t, d, m.dcur), true
+		}
 		return nil, true
 	}
 	return nil, false
@@ -634,7 +704,11 @@ func (m *Model) moveDrawerCursor(delta int) {
 		m.scrollDrawer(delta)
 		return
 	}
-	m.dcur = clamp(m.dcur+delta, 0, len(l.drawer.stops)-1)
+	lo := 0
+	if _, cs, ok := m.commits(); ok && m.preview && m.curTab() == tabCommits && len(cs.List) > 0 {
+		lo = m.commitStop(cs, 0) // the preview stays on the commits
+	}
+	m.dcur = clamp(m.dcur+delta, lo, len(l.drawer.stops)-1)
 	line := l.drawer.stops[m.dcur].line
 	if line < m.drawerOff {
 		m.drawerOff = line
@@ -658,7 +732,7 @@ func (m *Model) act(a action) tea.Cmd {
 		case a.kind == actDiff:
 			return m.openDiff(t, d, deck.DiffFile{})
 		}
-		return m.openFile(t, d, a.n-1)
+		return m.previewFileAt(a.n - 1)
 	case actEvent:
 		switch kind, n := m.eventAction(a.n); kind {
 		case cmdReport:
@@ -672,6 +746,20 @@ func (m *Model) act(a action) tea.Cmd {
 		if r, ok := m.selected(); ok && m.tabEnabled(r, tabKind(a.n)) {
 			m.switchTab(tabKind(a.n))
 		}
+	case actCommit:
+		if a.n == 0 {
+			// The uncommitted row: those changes are the Files tab's.
+			if r, ok := m.selected(); ok && m.tabEnabled(r, tabFiles) {
+				m.switchTab(tabFiles)
+				m.dfocus = true
+			}
+			return nil
+		}
+		m.previewCommit(a.n - 1)
+	case actExpand:
+		return m.toggleExpand(a.n-1, -1)
+	case actCommitFile:
+		m.previewCommitFile(a.n-1, a.f)
 	}
 	return nil
 }
@@ -719,15 +807,19 @@ func (m Model) handleKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		}
 	}
 	if s := msg.String(); len(s) == 1 && s[0] >= '1' && s[0] <= '9' {
-		if m.mode == modeRow && m.curTab() == tabFiles {
-			if t, d, ok := m.diff(); ok {
-				return m, m.openFile(t, d, int(s[0]-'1'))
-			}
+		if m.mode == modeRow && m.curTab() == tabCommits {
+			m.previewCommit(int(s[0] - '1'))
 			return m, nil
+		}
+		if m.mode == modeRow && m.curTab() == tabFiles {
+			return m, m.previewFileAt(int(s[0] - '1'))
 		}
 		return m, m.openNumbered(int(s[0] - '1'))
 	}
 	if cmd, done := m.filesOnlyKey(msg); done {
+		return m, cmd
+	}
+	if cmd, done := m.commitsOnlyKey(msg); done {
 		return m, cmd
 	}
 	if m.previewKey(msg) {
@@ -1161,9 +1253,6 @@ func (m *Model) handleClick(mouse tea.Mouse) (tea.Model, tea.Cmd) {
 				if st.line == i && st.act == z.act {
 					m.dcur = k
 				}
-			}
-			if m.preview && z.act.kind == actFile {
-				return *m, nil // the click picks the file to preview
 			}
 			return *m, m.act(z.act)
 		}

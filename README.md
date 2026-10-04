@@ -12,7 +12,7 @@ worktree's dev servers, and refreshes as they change. As a herdr plugin it
 opens next to each coordinator by itself. See [docs/PLAN.md](docs/PLAN.md)
 for the plan and milestones.
 
-![The deck on sample data: Users page needs you and is pinned on top; the drawer below shows its card and Overview tab, then ] shows its Files and Log tabs; moving down the list keeps the tab, the review row shows its PR, links and dev servers, and the folded Backlog opens and shuts with space.](docs/demo/hero.gif)
+![The deck on sample data: Users page needs you and is pinned on top; the drawer below shows its card and Overview tab, then ] shows its Files, Commits and Log tabs; moving down the list keeps the tab, the review row shows its PR, links and dev servers, and the folded Backlog opens and shuts with space.](docs/demo/hero.gif)
 
 ## Install as a herdr plugin
 
@@ -470,12 +470,12 @@ pane (`z` makes it full height, or hides it). It starts with a card: the
 row's title, its status as a glyph and a word (`● needs you`, `◐ working`,
 `◇ review`, …) with the thread's percent, and a dim line with the thread
 id, its title, what it is doing and its pane, with a progress bar or the
-PR's checks at the right. Under the card are three tabs:
+PR's checks at the right. Under the card are four tabs:
 
 ```
  Users page                                   ● needs you  ~95%
  t-0002 · Members /admin/users · pane w1Z:p1         ▰▰▰▰▰▰▰▰▰▱
- Overview   Files 11   Log 7                     ↓ Dev · Thread
+ Overview   Files 11   Commits 4   Log 7         ↓ Dev · Thread
  ── Next ──
  → Approve phase 1 (ABC-1256 overview)
  ── Links ──
@@ -489,6 +489,7 @@ PR's checks at the right. Under the card are three tabs:
   *Dev* (dev servers and localhost links) and *Thread* (pane, branch,
   report, base, dev log).
 - **Files**: the thread's changed files as a diffstat (see Changed files).
+- **Commits**: the thread branch's own commits, newest first (see Commits).
 - **Log**: the thread's timeline, newest first, from what herdr-projects
   records: created and launched (the thread file), new reports, waiting on
   you, blocked on a prompt, PRs opened, updated, failing and merged,
@@ -499,7 +500,7 @@ The active tab is bold dark text on blue; the others sit on grey, and a tab
 with nothing behind it (no thread, a resolved thread's files) is dim and
 skipped. The tab stays as you move through the list. `[` and `]` switch
 tabs; `tab` moves the focus into the drawer, where `j`/`k` move a cursor
-over its chips, files or events, `↵` opens the one under it, `tab` and
+over its chips, files, commits or events, `↵` opens the one under it, `tab` and
 `shift+tab` switch tabs and `esc` returns to the list.
 
 Inbox items are news for the coordinator, not needs: a thread with
@@ -514,16 +515,20 @@ only threads waiting on you. The deck never marks an item handled.
 |---|---|
 | `j` / `k`, `↓` / `↑` | move; the drawer follows |
 | `space` | fold or unfold the list under the cursor (Backlog starts folded) |
-| `[` / `]` | previous / next drawer tab: Overview, Files, Log |
+| `[` / `]` | previous / next drawer tab: Overview, Files, Commits, Log |
 | `tab` | focus the drawer: `j`/`k` move its cursor, `↵` opens what is under it, `tab`/`shift+tab` switch tabs, `esc` returns to the list |
-| `1`–`9` | open the drawer's numbered link (Figma links in the desktop app with `figma_desktop = true`); on Files, the numbered file's diff |
+| `1`–`9` | open the drawer's numbered link (Figma links in the desktop app with `figma_desktop = true`); on Files and Commits, preview the numbered file or commit |
 | `l` `f` `n` `g` | open the row's Linear / Figma / Notion / PR link; with several, pick one with a digit, `a` for all, `d` for the Figma desktop app, the same letter for the first, `esc` to cancel |
 | `o` | open the row's first localhost link whose dev server is running |
 | `enter` | focus the thread's herdr pane |
 | `e` | open the thread's worktree in the editor (VS Code unless configured) |
 | `u` | start the thread's dev servers: the dev manifest's `up` command, detached (see Dev servers) |
-| `d` | focus the Files tab: a digit opens that file in the diff tool, `d` again (or `a`) the whole diff, `t` switches between list and folder tree (see Changed files) |
-| `v` | on the Files tab: preview the diff of the file under the cursor in the list's place; `v` or `esc` brings the list back (see Diff preview) |
+| `d` | focus the Files tab, so a digit previews that file; in the focused Files or Commits tab, `d` opens the file or commit under the cursor in the diff tool (`d d` from the list: the first file) |
+| `a` | on Files or Commits: open the whole diff in the diff tool |
+| `t` | on Files: switch between list and folder tree (see Changed files) |
+| `v` | on Files or Commits: turn the preview of the file or commit under the cursor on or off; `esc` brings the list back (see Diff preview) |
+| `g` on Commits | in the focused drawer, open the commit under the cursor in the PR on GitHub (see Commits) |
+| `space` `→` `l` / `←` `h` on Commits | in the focused drawer, expand the commit under the cursor to its files / collapse it (`space` toggles); from the list, `space` folds and `l` is Linear as before |
 | `J` / `K` | scroll the preview a line (`pgup` / `pgdn` a page) |
 | `r` | the thread's report, full height, rendered as Markdown |
 | `z` | drawer: normal, full height, hidden |
@@ -539,13 +544,12 @@ only threads waiting on you. The deck never marks an item handled.
 ![The drawer's numbered links for a thread with Linear, Figma, GitHub and localhost links: f asks which of three Figma links to open and 3 opens one; g opens the pull request, o the running dev server, and 1 the Linear issue.](docs/demo/links.gif)
 
 Mouse: click a row to select it, a list heading to fold it, a tab to show
-it, a chip to open its link, a changed file to open its diff (the total
-line for the whole diff), a Log event to act on it (a report shows it, a PR
+it, a chip to open its link, a changed file or a commit to preview it (the
+total line opens the whole diff in the diff tool), a Log event to act on it (a report shows it, a PR
 event opens the PR, the rest focus the pane), `! N` for the sources, the
 other-projects line for the project picker. A click in the drawer gives it
 the focus. The wheel moves the list or scrolls the tab under the pointer.
-While the diff preview shows, a click on a file previews it instead of
-opening it, and the wheel over the preview scrolls it.
+The wheel over the diff preview scrolls it.
 
 ## Other projects
 
@@ -639,18 +643,24 @@ It runs when the selection moves to another thread and on every reload
 reused for 2 s. A resolved thread's Files tab is dim, and a missing
 worktree or base shows a dim note instead.
 
-`d` opens the diff tool (`[diff]` in the config file, `hunk` by default)
-with `{base}` set to the merge-base commit, so it shows the same changes:
-a terminal program in a new herdr pane below the deck, in the worktree.
-A renamed file opens with its old and new path, so git pairs them. An
-untracked file does not open: `git diff` leaves it out until it is added,
-and the status line says so; the whole diff leaves it out too.
+`↵`, a digit or a click on a file shows its diff in the deck (see Diff
+preview). In the focused Files tab, `d` opens the file under the cursor in
+the diff tool (`[diff]` in the config file, `hunk` by default), and `a` (or
+a click on the total line) the whole diff, with `{base}` set to the
+merge-base commit, so it shows the same changes: a terminal program in a
+new herdr pane below the deck, in the worktree. From the list, `d 3`
+previews file 3 and `d d` opens the first file in the diff tool. A renamed
+file opens with its old and new path, so git pairs them. An untracked file
+does not open in the diff tool: `git diff` leaves it out until it is
+added, and the status line says so; the whole diff leaves it out too. The
+preview shows it all added.
 
 ### Diff preview
 
-`v` on the Files tab shows the diff of the file under the drawer's cursor
-where the task list is; the drawer below keeps the Files tab, so `j`/`k`
-(or a click) pick another file and the preview follows. It is the same
+`↵`, a digit or a click on a file (or `v` for the file under the drawer's
+cursor) shows its diff where the task list is; the drawer below keeps the
+Files tab, so `j`/`k` (or a click) pick another file and the preview
+follows. It is the same
 comparison as the tab: `git diff <merge-base> -- <file>`, uncommitted
 changes included, a rename with both paths; an untracked file shows all
 added, from its contents, and a binary file a one-line note.
@@ -677,10 +687,72 @@ answer is reused while the file's content is unchanged.
 
 `v` again, `esc`, another tab, another row or a full view (`z`, `r`, `?`)
 ends the preview and brings back the list with its cursor and scroll as
-they were. `↵` still opens the file in the diff tool, and `d` the whole
-diff.
+they were. While it shows, `d` opens the file in the diff tool and `a`
+the whole diff; the preview stays.
 
-![The Files tab and the diff preview on sample data: d focuses the Files tab of a thread that changed eight files, each with a coloured status letter, counts and a bar; v shows the first file, an untracked Markdown file, all added where the task list was; j moves to a TypeScript file whose diff shows syntax colours, red and green tinted lines and dim hunk headers, and J scrolls it; v brings the list back, and t switches the Files tab to the folder tree.](docs/demo/diff.gif)
+![The Files tab and the diff preview on sample data: d focuses the Files tab of a thread that changed eight files, each with a coloured status letter, counts and a bar; ↵ shows the first file, an untracked Markdown file, all added where the task list was; j moves to a TypeScript file whose diff shows syntax colours, red and green tinted lines and dim hunk headers, and J scrolls it; v brings the list back, and t switches the Files tab to the folder tree; ] shows the Commits tab, 1 previews the newest commit with its author, date and diff, j the next one with its body, and v brings the list back; l expands the newest commit to its files, ↵ previews one of them in that commit, and h collapses it.](docs/demo/diff.gif)
+
+## Commits
+
+The drawer's Commits tab lists the thread branch's own commits: `git log
+<merge-base>..HEAD` in its worktree, against the same merge-base as Files,
+newest first.
+
+```
+ ● uncommitted · 2 files                                                → Files
+ 1 ▾ c3a91f0 Show the overview cards above the users table        12m  +214 −12
+       M  apps/admin/src/pages/users/UsersOverviewPage.tsx             +166 −12
+       A  apps/admin/src/pages/users/overview.ts                            +48
+ 2 ▸ 8be2d41 Add the users columns                                 2h    +48 −0
+ 3 ▸ 51f0c9a ⋔ Merge origin/main into the users page               5h
+ 4 ▸ a07de3b Rename members to users                               1d     +1 −1
+```
+
+Each row has its number (1–9 take the digits), a disclosure marker, the
+short sha (dim), the subject, the commit's age and its `+N −M` in green and red. A merge commit
+is dim, marked `⋔`, and has no counts. When the worktree has changes not
+committed yet, a first row counts their files (untracked ones included);
+`↵` on it shows the Files tab. A branch of more than 100 commits ends with
+`+K more`; the tab's label counts them all. A resolved thread or one
+without a worktree shows a dim note instead.
+
+`↵` or a digit shows a commit in the diff preview, where the task list is:
+the short sha, subject and `+N −M` in its header, then the author, date
+and body, then the diff against its first parent (`git show
+--diff-merges=first-parent`), file by file under a `── path ──` rule, each
+file coloured by its language. `j`/`k` move to the next commit and the
+preview follows; `v` turns it on and off, and `esc`, another tab or row
+brings the list back, as on Files.
+
+**Expanding a commit.** In the focused drawer, `space`, `→` or `l` (or a
+click on its `▸`) lists the files a commit changed under it, as the Files
+tab shows them: the status letter coloured by kind, the path, `+N −M`
+(`+N` only for an added file, `−M` only for a deleted one), in the list or
+folder tree that `diff_view` (or `t` on Files) chose. `space` again, `←`
+or `h` (also from one of its files) or a click on `▾` collapses it.
+Several commits can be open at once. The digits stay the commits', and
+the cursor stays on its row when commits open, close or arrive above it.
+`↵` or a click on a file previews that file's change in that commit
+(`git show <sha> -- <file>`, a rename with both paths), and `d` opens it
+at that commit in the diff tool. The list is read (`git show --raw
+--numstat`) off the UI the first time a commit is expanded and kept by
+sha. From the list, `space` still folds and `l` is still Linear.
+
+As on Files, `a` opens the branch's whole diff in the diff tool. In the
+focused drawer, `d` opens the commit under the cursor in the diff
+tool: `{base}` is its parent (`sha^`) and the commit goes in right after
+`{base}`, so `hunk diff {base}` becomes `hunk diff sha^ sha` and the
+fallback `git diff --merge-base sha^ sha`. When the thread has a pull
+request, `g` opens the commit inside it on GitHub
+(`…/pull/N/commits/<sha>`), reusing a tab that shows it; a commit the
+branch's upstream does not have yet says so instead. From the list, `d`
+and `g` keep their usual meaning.
+
+The list is read off the UI with the Files tab's 5 s timeout and without
+optional locks, when the selection moves to another thread and on every
+reload. It is cached by HEAD and the upstream, so a reload only runs `git
+rev-parse` and `git status` until the branch moves. The deck never writes
+to the repository.
 
 ## Layout
 

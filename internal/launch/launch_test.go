@@ -71,6 +71,31 @@ func TestDiffArgv(t *testing.T) {
 	}
 }
 
+func TestCommitArgv(t *testing.T) {
+	cases := []struct {
+		argv, want []string
+	}{
+		{[]string{"hunk", "diff", "{base}", "--", "{file}"}, []string{"hunk", "diff", "abc^", "abc"}},
+		{[]string{"git", "-C", "{path}", "diff", "--merge-base", "{base}", "--", "{file}"}, []string{"git", "-C", "/w", "diff", "--merge-base", "abc^", "abc"}},
+		{[]string{"tool", "{file}", "--rev={base}"}, []string{"tool", "--rev=abc^"}},
+		{[]string{"tool", "--", "{file}", "{base}"}, []string{"tool", "abc^", "abc"}},
+	}
+	for _, c := range cases {
+		if got := CommitArgv(Command{Argv: c.argv}, "/w", "abc"); !reflect.DeepEqual(got, c.want) {
+			t.Errorf("CommitArgv(%q) = %q, want %q", c.argv, got, c.want)
+		}
+	}
+	// One file, a rename's two paths.
+	c := Command{Argv: []string{"hunk", "diff", "{base}", "--", "{file}"}}
+	if got, want := CommitArgv(c, "/w", "abc", "old.go", "new.go"), []string{"hunk", "diff", "abc^", "abc", "--", "old.go", "new.go"}; !reflect.DeepEqual(got, want) {
+		t.Errorf("CommitArgv with files = %q, want %q", got, want)
+	}
+	c = Command{Argv: []string{"tool", "{file}", "{base}"}}
+	if got, want := CommitArgv(c, "/w", "abc", "a.go", "b.go"), []string{"tool", "a.go", "b.go", "abc^", "abc"}; !reflect.DeepEqual(got, want) {
+		t.Errorf("CommitArgv with {file} first = %q, want %q", got, want)
+	}
+}
+
 func TestRunner(t *testing.T) {
 	var started, paned []string
 	var dir string

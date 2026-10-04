@@ -44,9 +44,23 @@ type Reader struct {
 	// Now is the clock for the cache; nil means time.Now.
 	Now func() time.Time
 
-	mu      sync.Mutex
-	cache   map[string]cached
-	patches map[string]deck.Patch // ReadPatch's answers, by file and content
+	mu            sync.Mutex
+	cache         map[string]cached
+	patches       map[string]deck.Patch // ReadPatch's answers, by file and content
+	commits       map[string]cachedCommits
+	logs          map[string]logCache         // commit lists, by worktree and base
+	commitPatches map[string]deck.CommitPatch // ReadCommitPatch's answers, by sha
+	commitFiles   map[string][]deck.DiffFile  // ReadCommitFiles' answers, by sha
+}
+
+type gitFunc func(ctx context.Context, dir string, args ...string) ([]byte, error)
+
+// git is the Git func, or the real git.
+func (r *Reader) git() gitFunc {
+	if r.Git != nil {
+		return r.Git
+	}
+	return execGit
 }
 
 type cached struct {
@@ -97,10 +111,7 @@ func (r *Reader) read(ctx context.Context, dir, base string) deck.Diff {
 	}
 	ctx, cancel := context.WithTimeout(ctx, Timeout)
 	defer cancel()
-	git := r.Git
-	if git == nil {
-		git = execGit
-	}
+	git := r.git()
 	out, err := git(ctx, dir, "merge-base", base, "HEAD")
 	if err != nil {
 		d.Note = fmt.Sprintf("cannot compare with %s: %v", base, err)
