@@ -1,28 +1,28 @@
  Admin rebuild                           ◐ 2  ◇ 1  ○ 1  ✉ 0
 ────────────────────────────────────────────────────────────
 ─ Settings · /home/ada/.config/herdr-deck/config.toml ──────
- Links and Linear
- ▸ linear_workspace        acme                      file
-     Linear workspace that bare IDs such as ABC-123 link
-     into
-   linear_status           true                      default
-   linear_api_key_command  none                      default
+ [ui] the list and how often it reloads
+ ▸ ui.refresh_interval     5s                        default
+     how often the deck reloads when no file change says
+     to; 1s to 10m
+   ui.folded_lists         Backlog, Resolved         default
 
- Editor and diff
-   editor.command          zed {path}                file
-   editor.terminal         false                     default
-   diff.command            hunk diff {base} -- {fi…  default
-   diff.terminal           true                      default
-   diff_view               list                      default
+ [projects] herdr-projects
+   projects.root           /home/ada/.herdr-projec…  default
 
- Updates
-   update_check            true                      default
-   auto_restart            true                      default
+ [linear] Linear links and status
+   linear.workspace        acme                      file
+   linear.status           true                      default
+   linear.api_key_command  none                      default
 
- Browser
-   reuse_browser_tabs      true                      default
-   figma_desktop           false                     default
+ [figma] Figma links
+   figma.desktop           false                     default
 
- List
+ [browser] web links
+   browser.reuse_tabs      true                      default
+
+ [updates] new versions of the deck
+   updates.check           true                      default
+   updates.auto_restart    true                      default
 ────────────────────────────────────────────────────────────
  ↵ edit  x remove  j k move  esc back  q quit         v9.9.9

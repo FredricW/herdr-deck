@@ -72,7 +72,7 @@ func (s Source) Read(ctx context.Context) deck.Snapshot {
 
 	if s.LinearWorkspace == "" {
 		if id := unlinkedLinearID(snap); id != "" {
-			snap.Missing = append(snap.Missing, "Linear: no workspace set, so "+id+" and other bare IDs cannot open; set linear_workspace in the config file, --linear-workspace or $"+deck.EnvLinearWorkspace)
+			snap.Missing = append(snap.Missing, "Linear: no workspace set, so "+id+" and other bare IDs cannot open; set linear.workspace in the config file, --linear-workspace or $"+deck.EnvLinearWorkspace)
 		}
 	}
 

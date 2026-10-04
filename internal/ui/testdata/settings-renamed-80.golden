@@ -2,15 +2,17 @@
 ────────────────────────────────────────────────────────────────────────────────
 ─ Settings · /home/ada/.config/herdr-deck/config.toml ──────────────────────────
  [ui] the list and how often it reloads
- ▸ ui.refresh_interval     5s                                            default
-     how often the deck reloads when no file change says to; 1s to 10m
+   ui.refresh_interval     5s                                            default
    ui.folded_lists         Backlog, Resolved                             default
 
  [projects] herdr-projects
    projects.root           /home/ada/.herdr-projects                     default
 
  [linear] Linear links and status
-   linear.workspace        acme                                          file
+ ▸ linear.workspace        acme                                          file
+     Linear workspace that bare IDs such as ABC-123 link into
+     the file calls it linear_workspace, its earlier name; saving moves it into
+     [linear]
    linear.status           true                                          default
    linear.api_key_command  none                                          default
 
@@ -22,7 +24,5 @@
 
  [updates] new versions of the deck
    updates.check           true                                          default
-   updates.auto_restart    true                                          default
-
 ────────────────────────────────────────────────────────────────────────────────
  ↵ edit  x remove  j k move  esc back  q quit                             v9.9.9

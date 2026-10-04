@@ -5,6 +5,7 @@ import (
 	"os"
 	"path/filepath"
 	"slices"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -31,6 +32,26 @@ func env(t *testing.T, vars map[string]string) (func(string) string, string) {
 		m[k] = v
 	}
 	return func(k string) string { return m[k] }, home
+}
+
+// fls are flags as given: pairs of a Spec.Key and its value, a string or
+// a *bool; "" and nil are not given.
+func fls(kv ...any) Flags {
+	var fl Flags
+	for i := 0; i < len(kv); i += 2 {
+		key := kv[i].(string)
+		switch v := kv[i+1].(type) {
+		case string:
+			if v != "" {
+				fl.Set(key, "", v)
+			}
+		case *bool:
+			if v != nil {
+				fl.Set(key, "", strconv.FormatBool(*v))
+			}
+		}
+	}
+	return fl
 }
 
 func write(t *testing.T, path, body string) {
@@ -114,9 +135,14 @@ func TestResolveReadsXDGFile(t *testing.T) {
 	xdg := t.TempDir()
 	getenv, _ := env(t, map[string]string{"XDG_CONFIG_HOME": xdg})
 	write(t, filepath.Join(xdg, "herdr-deck", "config.toml"), `
-linear_workspace = "acme"
+[linear]
+workspace = "acme"
+
+[ui]
 refresh_interval = "30s"
-projects_root = "~/work/projects"
+
+[projects]
+root = "~/work/projects"
 `)
 	s, err := Resolve(Flags{}, getenv, noHunk)
 	if err != nil {
@@ -135,9 +161,9 @@ projects_root = "~/work/projects"
 
 func TestResolvePrecedence(t *testing.T) {
 	const file = `
-linear_workspace = "from-file"
-refresh_interval = "20s"
-projects_root = "/file/root"
+linear.workspace = "from-file"
+ui.refresh_interval = "20s"
+projects.root = "/file/root"
 `
 	tests := []struct {
 		name  string
@@ -149,7 +175,7 @@ projects_root = "/file/root"
 			Settings{LinearWorkspace: "from-file", RefreshInterval: 20 * time.Second, ProjectsRoot: "/file/root"}},
 		{"env beats file", Flags{}, map[string]string{EnvLinearWorkspace: "from-env", EnvRefreshInterval: "15s", EnvProjectsRoot: "/env/root"},
 			Settings{LinearWorkspace: "from-env", RefreshInterval: 15 * time.Second, ProjectsRoot: "/env/root"}},
-		{"flag beats env", Flags{LinearWorkspace: "from-flag", RefreshInterval: "10s", ProjectsRoot: "/flag/root"},
+		{"flag beats env", fls(KeyLinearWorkspace, "from-flag", KeyRefreshInterval, "10s", KeyProjectsRoot, "/flag/root"),
 			map[string]string{EnvLinearWorkspace: "from-env", EnvRefreshInterval: "15s", EnvProjectsRoot: "/env/root"},
 			Settings{LinearWorkspace: "from-flag", RefreshInterval: 10 * time.Second, ProjectsRoot: "/flag/root"}},
 	}
@@ -176,13 +202,13 @@ projects_root = "/file/root"
 
 func TestResolveMalformedFile(t *testing.T) {
 	getenv, home := env(t, map[string]string{EnvLinearWorkspace: "from-env"})
-	write(t, filepath.Join(home, ".config", "herdr-deck", "config.toml"), "linear_workspace = \"acme\"\nrefresh_interval = \n")
+	write(t, filepath.Join(home, ".config", "herdr-deck", "config.toml"), "[linear]\nworkspace = \"acme\"\n[ui]\nrefresh_interval = \n")
 	s, err := Resolve(Flags{}, getenv, noHunk)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(s.Problems) != 1 || !strings.Contains(s.Problems[0], "config: ~/.config/herdr-deck/config.toml: line 2") || !strings.Contains(s.Problems[0], "ignored") {
-		t.Errorf("problems = %q, want one naming line 2", s.Problems)
+	if len(s.Problems) != 1 || !strings.Contains(s.Problems[0], "config: ~/.config/herdr-deck/config.toml: line 4") || !strings.Contains(s.Problems[0], "ignored") {
+		t.Errorf("problems = %q, want one naming line 4", s.Problems)
 	}
 	if s.LinearWorkspace != "from-env" || s.RefreshInterval != DefaultRefreshInterval {
 		t.Errorf("settings = %+v, want env and defaults", s)
@@ -192,10 +218,16 @@ func TestResolveMalformedFile(t *testing.T) {
 func TestResolveUnknownKeysAndBadValues(t *testing.T) {
 	getenv, home := env(t, nil)
 	write(t, filepath.Join(home, ".config", "herdr-deck", "config.toml"), `
-linear_workspace = "acme"
-linear_workpsace = "typo"
+[linear]
+workspace = "acme"
+workpsace = "typo"
+
+[ui]
 refresh_interval = "soon"
-projects_root = "relative/root"
+
+[projects]
+root = "relative/root"
+
 [update]
 hint = true
 `)
@@ -210,7 +242,7 @@ hint = true
 		t.Errorf("settings = %+v, want defaults for the bad values", s)
 	}
 	all := strings.Join(s.Problems, "\n")
-	for _, want := range []string{`unknown key "linear_workpsace"`, `unknown key "update"`, `refresh_interval: "soon" is not a duration`, `projects_root "relative/root" is not an absolute path`} {
+	for _, want := range []string{`unknown key "linear.workpsace"`, `unknown key "update"`, `ui.refresh_interval: "soon" is not a duration`, `projects.root: "relative/root" is not an absolute path`} {
 		if !strings.Contains(all, want) {
 			t.Errorf("problems lack %q:\n%s", want, all)
 		}
@@ -222,7 +254,7 @@ hint = true
 
 func TestResolveRefreshIntervalRange(t *testing.T) {
 	getenv, home := env(t, map[string]string{EnvRefreshInterval: "100ms"})
-	write(t, filepath.Join(home, ".config", "herdr-deck", "config.toml"), `refresh_interval = "2h"`)
+	write(t, filepath.Join(home, ".config", "herdr-deck", "config.toml"), "[ui]\nrefresh_interval = \"2h\"\n")
 	s, err := Resolve(Flags{}, getenv, noHunk)
 	if err != nil {
 		t.Fatal(err)
@@ -234,10 +266,10 @@ func TestResolveRefreshIntervalRange(t *testing.T) {
 		t.Errorf("problems = %q, want the env value then the file value", s.Problems)
 	}
 
-	if _, err := Resolve(Flags{RefreshInterval: "0s"}, getenv, noHunk); err == nil {
+	if _, err := Resolve(fls(KeyRefreshInterval, "0s"), getenv, noHunk); err == nil {
 		t.Error("a bad --refresh-interval must be an error")
 	}
-	if s, err := Resolve(Flags{RefreshInterval: "1m"}, getenv, noHunk); err != nil || s.RefreshInterval != time.Minute {
+	if s, err := Resolve(fls(KeyRefreshInterval, "1m"), getenv, noHunk); err != nil || s.RefreshInterval != time.Minute {
 		t.Errorf("--refresh-interval 1m = %v, %v", s.RefreshInterval, err)
 	}
 }
@@ -286,13 +318,13 @@ terminal = false
 	}{
 		{"file", Flags{}, nil, "nvim {path}", true, "difft-wrapper --base {base} {path}", false},
 		{"env command drops the file's terminal", Flags{},
-			map[string]string{EnvEditor: "zed {path}", EnvDiffTool: "lazygit"},
+			map[string]string{EnvEditorCommand: "zed {path}", EnvDiffCommand: "lazygit"},
 			"zed {path}", false, "lazygit", true},
 		{"env terminal with the file command", Flags{},
 			map[string]string{EnvEditorTerminal: "false"},
 			"nvim {path}", false, "difft-wrapper --base {base} {path}", false},
-		{"flag beats env", Flags{Editor: "cursor '{path}'", DiffTool: "tig", DiffTerminal: &yes},
-			map[string]string{EnvEditor: "zed {path}", EnvEditorTerminal: "true", EnvDiffTool: "lazygit"},
+		{"flag beats env", fls(KeyEditorCommand, "cursor '{path}'", KeyDiffCommand, "tig", KeyDiffTerminal, &yes),
+			map[string]string{EnvEditorCommand: "zed {path}", EnvEditorTerminal: "true", EnvDiffCommand: "lazygit"},
 			"cursor {path}", false, "tig", true},
 	}
 	for _, tt := range tests {
@@ -317,7 +349,7 @@ terminal = false
 }
 
 func TestResolveProgramBadValues(t *testing.T) {
-	getenv, home := env(t, map[string]string{EnvDiffTool: "hunk diff {branch}", EnvDiffTerminal: "maybe"})
+	getenv, home := env(t, map[string]string{EnvDiffCommand: "hunk diff {branch}", EnvDiffTerminal: "maybe"})
 	write(t, filepath.Join(home, ".config", "herdr-deck", "config.toml"), `
 [editor]
 command = "zed '{path}"
@@ -339,9 +371,9 @@ terminal = "yes"
 	all := strings.Join(s.Problems, "\n")
 	for _, want := range []string{
 		`unknown key "editor.comand"`,
-		`diff: `, // the table did not decode: terminal is not a bool
+		`diff.terminal: `, // not a bool
 		`$` + EnvDiffTerminal + `: "maybe" is not true or false`,
-		`$` + EnvDiffTool + `: unknown placeholder {branch}`,
+		`$` + EnvDiffCommand + `: unknown placeholder {branch}`,
 		`editor.command: unterminated ' quote`,
 	} {
 		if !strings.Contains(all, want) {
@@ -349,14 +381,14 @@ terminal = "yes"
 		}
 	}
 
-	if _, err := Resolve(Flags{Editor: "zed {file}"}, getenv, withHunk); err == nil || !strings.Contains(err.Error(), "--editor") {
-		t.Errorf("a bad --editor must be an error, got %v", err)
+	if _, err := Resolve(fls(KeyEditorCommand, "zed {file}"), getenv, withHunk); err == nil || !strings.Contains(err.Error(), "--editor-command") {
+		t.Errorf("a bad --editor-command must be an error, got %v", err)
 	}
 }
 
 func TestResolveRelativeProjectsRootFlag(t *testing.T) {
 	getenv, _ := env(t, nil)
-	s, err := Resolve(Flags{ProjectsRoot: "rel/projects"}, getenv, noHunk)
+	s, err := Resolve(fls(KeyProjectsRoot, "rel/projects"), getenv, noHunk)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -377,12 +409,12 @@ func TestResolveReuseTabs(t *testing.T) {
 		problems int
 	}{
 		{name: "default", want: true},
-		{name: "file", file: "reuse_browser_tabs = false\n", want: false},
-		{name: "env beats file", env: "true", file: "reuse_browser_tabs = false\n", want: true},
+		{name: "file", file: "[browser]\nreuse_tabs = false\n", want: false},
+		{name: "env beats file", env: "true", file: "[browser]\nreuse_tabs = false\n", want: true},
 		{name: "flag beats env", flag: &off, env: "true", want: false},
-		{name: "flag on", flag: &on, file: "reuse_browser_tabs = false\n", want: true},
-		{name: "bad env falls back to file", env: "maybe", file: "reuse_browser_tabs = false\n", want: false, problems: 1},
-		{name: "bad file value", file: "reuse_browser_tabs = \"no\"\n", want: true, problems: 1},
+		{name: "flag on", flag: &on, file: "[browser]\nreuse_tabs = false\n", want: true},
+		{name: "bad env falls back to file", env: "maybe", file: "[browser]\nreuse_tabs = false\n", want: false, problems: 1},
+		{name: "bad file value", file: "[browser]\nreuse_tabs = \"no\"\n", want: true, problems: 1},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -390,7 +422,7 @@ func TestResolveReuseTabs(t *testing.T) {
 			if tt.file != "" {
 				write(t, filepath.Join(home, ".config", "herdr-deck", "config.toml"), tt.file)
 			}
-			s, err := Resolve(Flags{ReuseTabs: tt.flag}, getenv, noHunk)
+			s, err := Resolve(fls(KeyReuseTabs, tt.flag), getenv, noHunk)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -412,12 +444,12 @@ func TestResolveSwitches(t *testing.T) {
 		problemHas string
 	}{
 		{"default on", nil, nil, "", true, ""},
-		{"file", nil, nil, "update_check = false\nauto_restart = false\n", false, ""},
-		{"env beats file", nil, map[string]string{EnvUpdateCheck: "true", EnvAutoRestart: "1"}, "update_check = false\nauto_restart = false\n", true, ""},
+		{"file", nil, nil, "[updates]\ncheck = false\nauto_restart = false\n", false, ""},
+		{"env beats file", nil, map[string]string{EnvUpdateCheck: "true", EnvAutoRestart: "1"}, "[updates]\ncheck = false\nauto_restart = false\n", true, ""},
 		{"flag beats env", &off, map[string]string{EnvUpdateCheck: "true", EnvAutoRestart: "true"}, "", false, ""},
-		{"flag on", &on, nil, "update_check = false\nauto_restart = false\n", true, ""},
-		{"bad env falls back to file", nil, map[string]string{EnvUpdateCheck: "maybe", EnvAutoRestart: "maybe"}, "update_check = false\nauto_restart = false\n", false, `"maybe" is not true or false`},
-		{"bad file value", nil, nil, "update_check = \"no\"\nauto_restart = 0\n", true, "update_check"},
+		{"flag on", &on, nil, "[updates]\ncheck = false\nauto_restart = false\n", true, ""},
+		{"bad env falls back to file", nil, map[string]string{EnvUpdateCheck: "maybe", EnvAutoRestart: "maybe"}, "[updates]\ncheck = false\nauto_restart = false\n", false, `"maybe" is not true or false`},
+		{"bad file value", nil, nil, "[updates]\ncheck = \"no\"\nauto_restart = 0\n", true, "updates.check"},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -425,7 +457,7 @@ func TestResolveSwitches(t *testing.T) {
 			if tt.file != "" {
 				write(t, filepath.Join(home, ".config", "herdr-deck", "config.toml"), tt.file)
 			}
-			s, err := Resolve(Flags{UpdateCheck: tt.flag, AutoRestart: tt.flag}, getenv, noHunk)
+			s, err := Resolve(fls(KeyUpdateCheck, tt.flag, KeyAutoRestart, tt.flag), getenv, noHunk)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -450,10 +482,10 @@ func TestResolveFigmaDesktop(t *testing.T) {
 		problems        int
 	}{
 		{"default off", "", "", false, 0},
-		{"file", "figma_desktop = true\n", "", true, 0},
-		{"env beats file", "figma_desktop = true\n", "false", false, 0},
-		{"bad env falls back to the file", "figma_desktop = true\n", "yes please", true, 1},
-		{"bad file value", "figma_desktop = \"yes\"\n", "", false, 1},
+		{"file", "figma.desktop = true\n", "", true, 0},
+		{"env beats file", "figma.desktop = true\n", "false", false, 0},
+		{"bad env falls back to the file", "figma.desktop = true\n", "yes please", true, 1},
+		{"bad file value", "figma.desktop = \"yes\"\n", "", false, 1},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -477,18 +509,18 @@ func TestResolveDiffView(t *testing.T) {
 		problems              int
 	}{
 		{"default list", "", "", "", DiffViewList, 0},
-		{"file", "diff_view = \"tree\"\n", "", "", DiffViewTree, 0},
-		{"env beats file", "diff_view = \"tree\"\n", "list", "", DiffViewList, 0},
+		{"file", "[diff]\nview = \"tree\"\n", "", "", DiffViewTree, 0},
+		{"env beats file", "[diff]\nview = \"tree\"\n", "list", "", DiffViewList, 0},
 		{"flag beats env", "", "list", "tree", DiffViewTree, 0},
-		{"bad env falls back to the file", "diff_view = \"tree\"\n", "grid", "", DiffViewTree, 1},
-		{"bad file value", "diff_view = \"folders\"\n", "", "", DiffViewList, 1},
-		{"wrong type", "diff_view = true\n", "", "", DiffViewList, 1},
+		{"bad env falls back to the file", "[diff]\nview = \"tree\"\n", "grid", "", DiffViewTree, 1},
+		{"bad file value", "[diff]\nview = \"folders\"\n", "", "", DiffViewList, 1},
+		{"wrong type", "[diff]\nview = true\n", "", "", DiffViewList, 1},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			getenv, home := env(t, map[string]string{EnvDiffView: tt.env})
 			write(t, filepath.Join(home, ".config", "herdr-deck", "config.toml"), tt.file)
-			s, err := Resolve(Flags{DiffView: tt.flag}, getenv, noHunk)
+			s, err := Resolve(fls(KeyDiffView, tt.flag), getenv, noHunk)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -498,7 +530,7 @@ func TestResolveDiffView(t *testing.T) {
 		})
 	}
 	getenv, _ := env(t, nil)
-	if _, err := Resolve(Flags{DiffView: "grid"}, getenv, noHunk); err == nil || err.Error() != `--diff-view: "grid" is not list or tree` {
+	if _, err := Resolve(fls(KeyDiffView, "grid"), getenv, noHunk); err == nil || err.Error() != `--diff-view: "grid" is not list or tree` {
 		t.Errorf("bad flag: %v", err)
 	}
 }
@@ -527,7 +559,7 @@ func TestResolveFoldedLists(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			getenv, home := env(t, map[string]string{EnvFoldedLists: tt.env})
 			write(t, filepath.Join(home, ".config", "herdr-deck", "config.toml"), tt.file)
-			s, err := Resolve(Flags{FoldedLists: tt.flag}, getenv, noHunk)
+			s, err := Resolve(fls(KeyFoldedLists, tt.flag), getenv, noHunk)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -553,7 +585,7 @@ func TestResolveFoldedLists(t *testing.T) {
 		}
 	}
 	getenv, _ := env(t, nil)
-	if _, err := Resolve(Flags{FoldedLists: ","}, getenv, noHunk); err == nil || err.Error() != "--ui-folded-lists: a list name is empty" {
+	if _, err := Resolve(fls(KeyFoldedLists, ","), getenv, noHunk); err == nil || err.Error() != "--ui-folded-lists: a list name is empty" {
 		t.Errorf("bad flag: %v", err)
 	}
 }
@@ -580,8 +612,9 @@ func TestResolveLinearStatus(t *testing.T) {
 	}
 
 	write(t, filepath.Join(home, ".config", "herdr-deck", "config.toml"), `
-linear_status = false
-linear_api_key_command = "op read 'op://Private/Linear API/credential'"
+[linear]
+status = false
+api_key_command = "op read 'op://Private/Linear API/credential'"
 `)
 	s, err = Resolve(Flags{}, getenv, noHunk)
 	if err != nil {
@@ -621,7 +654,8 @@ linear_api_key_command = "op read 'op://Private/Linear API/credential'"
 func TestResolveLinearKeyCommandNeverQuoted(t *testing.T) {
 	getenv, home := env(t, nil)
 	write(t, filepath.Join(home, ".config", "herdr-deck", "config.toml"), `
-linear_api_key_command = "lin_api_SECRETSECRET 'unterminated"
+[linear]
+api_key_command = "lin_api_SECRETSECRET 'unterminated"
 `)
 	s, err := Resolve(Flags{}, getenv, noHunk)
 	if err != nil {
@@ -630,7 +664,7 @@ linear_api_key_command = "lin_api_SECRETSECRET 'unterminated"
 	if s.LinearAPIKeyCommand != nil || len(s.Problems) != 1 {
 		t.Fatalf("command = %q, problems = %q", s.LinearAPIKeyCommand, s.Problems)
 	}
-	if strings.Contains(s.Problems[0], "SECRET") || !strings.Contains(s.Problems[0], "linear_api_key_command") {
+	if strings.Contains(s.Problems[0], "SECRET") || !strings.Contains(s.Problems[0], "linear.api_key_command") {
 		t.Errorf("problem = %q", s.Problems[0])
 	}
 }

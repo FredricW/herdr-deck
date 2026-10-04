@@ -30,6 +30,23 @@ and versions follow [Semantic Versioning](https://semver.org/).
 
 ### Changed
 
+- Settings now live in one table per area of the config file: `[ui]`
+  refresh_interval and folded_lists, `[projects]` root, `[linear]`
+  workspace, status and api_key_command, `[figma]` desktop, `[browser]`
+  reuse_tabs, `[updates]` check and auto_restart, `[editor]` and `[diff]`
+  (now with `view`). Each setting is named by its dotted path, such as
+  `linear.workspace`, on the settings page (grouped by table), in the `!`
+  view and in errors, and that name gives its flag and environment
+  variable: `--diff-command` and `$HERDR_DECK_DIFF_COMMAND`,
+  `--updates-auto-restart`, `--browser-reuse-tabs`, and so on. Every
+  setting now has a flag. Nothing breaks: the earlier keys
+  (`linear_workspace = "acme"` and the like), flags (`--diff-tool`,
+  `--editor`, …) and environment variables (`$HERDR_DECK_DIFF_TOOL`,
+  `$HERDR_DECK_EDITOR`, …) still work, and the `!` view notes each earlier
+  key in the file. To migrate, run `herdr-deck config migrate` to see the
+  change and `herdr-deck config migrate --write` to make it (the old file
+  is kept as `config.toml.bak`); saving a setting on the settings page
+  also moves it into its table, comments and all.
 - The Files tab previews by default, as Commits does: `↵`, a digit
   (`d 3` from the list) or a click on a file shows its diff in the deck
   instead of opening the diff tool. The diff tool is now `d` in the

@@ -36,9 +36,9 @@ on = "pane.agent_detected"
 command = ["bin/herdr-deck", "plugin", "agent-detected"]
 
 # Opens a link the way the deck does: a Ctrl+clicked Figma link (below) in
-# the Figma desktop app when figma_desktop is set in the deck's config, or
+# the Figma desktop app when figma.desktop is set in the deck's config, or
 # the selected text's first link or Linear ID, such as ABC-123, in the
-# configured linear_workspace. herdr only hands link handlers http(s) URLs,
+# configured linear.workspace. herdr only hands link handlers http(s) URLs,
 # so a bare ID needs a selection: double-click it, then run this action from
 # a key bound with [[keys.command]] type = "plugin_action",
 # command = "herdr-deck.open-link".

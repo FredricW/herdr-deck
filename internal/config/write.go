@@ -16,9 +16,11 @@ import (
 // Save sets key to value in the config file at path, or removes the key
 // when value is nil, so the next source decides. It changes only the lines
 // of that key: comments, key order and keys the deck does not know stay as
-// they are. The file and its folder are created when missing, and the new
-// file replaces the old in one rename. A symlinked file is written through
-// the link.
+// they are. A key the file still sets under its earlier flat name
+// (Spec.Old) moves into its table, with the comments right above and after
+// it. The file and its folder are created when missing, and the new file
+// replaces the old in one rename. A symlinked file is written through the
+// link.
 //
 // Save refuses a value Check rejects and a file that does not parse, and
 // it checks that the result reads back with only that key changed.
@@ -61,58 +63,199 @@ func Save(path, key string, value *string) error {
 		return fmt.Errorf("the config file does not parse (%s); fix it by hand first", parseErr(err))
 	}
 
-	text, err := patch(string(old), key, lit, value != nil)
+	text, err := saveText(string(old), sp, lit, value != nil)
 	if err != nil {
 		return err
 	}
 	if text == string(old) {
 		return nil
 	}
-	if err := verify(before, text, key, lit, value != nil); err != nil {
+	var v any
+	if value != nil {
+		var m map[string]any
+		if _, err := toml.Decode("V = "+lit, &m); err != nil {
+			return err
+		}
+		v = m["V"]
+	}
+	err = verify(before, text, key, func(want map[string]any) {
+		if sp.Old != "" {
+			delete(want, sp.Old)
+		}
+		if value != nil {
+			setIn(want, key, v)
+		} else {
+			deleteIn(want, key)
+		}
+	})
+	if err != nil {
 		return err
 	}
 	return writeAtomic(target, []byte(text))
 }
 
-// verify decodes the patched text and checks that key holds the new value
-// and nothing else changed.
-func verify(before map[string]any, text, key string, lit string, set bool) error {
+// saveText is s with sp's key set to the TOML literal lit, or removed when
+// set is false. The earlier flat key goes either way: moved into the table
+// with its comments, or just removed when the table sets the key too.
+func saveText(s string, sp Spec, lit string, set bool) (string, error) {
+	s, o, err := takeOld(s, sp)
+	if err != nil {
+		return "", err
+	}
+	return patch(s, sp.Key, lit, set, o.above, o.inline)
+}
+
+// oldLine is what takeOld took out of a file.
+type oldLine struct {
+	found, shadowed bool
+	lit             string // the value as written
+	above, inline   string // the comment lines above it and the comment after it
+}
+
+// takeOld removes sp's earlier flat key (Spec.Old) from s. When the table
+// does not set the key, the comment lines right above it and the comment
+// after its value come out with it, for patch to put back by the new key.
+func takeOld(s string, sp Spec) (string, oldLine, error) {
+	var o oldLine
+	if sp.Old == "" {
+		return s, o, nil
+	}
+	es, _, err := scan(s)
+	if err != nil {
+		return "", o, fmt.Errorf("cannot edit the config file (%v); edit it by hand", err)
+	}
+	table, name := splitKey(sp.Key)
+	var at *entry
+	for i, e := range es {
+		switch {
+		case e.table == "" && len(e.key) == 1 && e.key[0] == sp.Old:
+			at = &es[i]
+		case e.table == table && len(e.key) == 1 && e.key[0] == name,
+			e.table == "" && len(e.key) == 2 && e.key[0] == table && e.key[1] == name:
+			o.shadowed = true
+		}
+	}
+	if at == nil {
+		return s, o, nil
+	}
+	o.found, o.lit = true, s[at.vs:at.ve]
+	start := at.start
+	if !o.shadowed {
+		// Comments that open the file are about the file, not this key.
+		if start = commentsAbove(s, at.start); start == 0 {
+			start = at.start
+		}
+		o.above = s[start:at.start]
+		o.inline = strings.TrimRight(s[at.ve:at.end], "\r\n")
+	}
+	return s[:start] + s[at.end:], o, nil
+}
+
+// Migrate moves every setting s still sets under its earlier flat key into
+// its table, the way Save does, keeping the values as written. It returns
+// the new text and one line per key, such as "linear_workspace →
+// linear.workspace". It checks that the result reads back the same.
+func Migrate(s string) (string, []string, error) {
+	var before map[string]any
+	if _, err := toml.Decode(s, &before); err != nil {
+		return "", nil, fmt.Errorf("the config file does not parse (%s); fix it by hand first", parseErr(err))
+	}
+	text := s
+	var moved []string
+	type move struct {
+		sp       Spec
+		shadowed bool
+	}
+	var moves []move
+	for _, sp := range Specs {
+		t, o, err := takeOld(text, sp)
+		if err != nil {
+			return "", nil, err
+		}
+		if !o.found {
+			continue
+		}
+		if o.shadowed {
+			text = t
+			moved = append(moved, fmt.Sprintf("%s removed: %s is set, and wins", sp.Old, sp.Key))
+		} else {
+			if text, err = patch(t, sp.Key, o.lit, true, o.above, o.inline); err != nil {
+				return "", nil, err
+			}
+			moved = append(moved, sp.Old+" → "+sp.Key)
+		}
+		moves = append(moves, move{sp, o.shadowed})
+	}
+	if len(moves) == 0 {
+		return s, nil, nil
+	}
+	err := verify(before, text, "the file", func(want map[string]any) {
+		for _, m := range moves {
+			v := want[m.sp.Old]
+			delete(want, m.sp.Old)
+			if !m.shadowed {
+				setIn(want, m.sp.Key, v)
+			}
+		}
+	})
+	if err != nil {
+		return "", nil, err
+	}
+	return text, moved, nil
+}
+
+// verify decodes the patched text and checks that it reads as before with
+// edit applied, and nothing else changed. what names the change in errors.
+func verify(before map[string]any, text, what string, edit func(want map[string]any)) error {
 	var after map[string]any
 	if _, err := toml.Decode(text, &after); err != nil {
-		return fmt.Errorf("saving %s would break the file (%s); nothing was written", key, parseErr(err))
-	}
-	if before == nil {
-		before = map[string]any{}
+		return fmt.Errorf("saving %s would break the file (%s); nothing was written", what, parseErr(err))
 	}
 	want := cloneMap(before)
-	table, name := splitKey(key)
-	m := want
-	if table != "" {
-		sub, _ := m[table].(map[string]any)
-		sub = cloneMap(sub)
-		m[table] = sub
-		m = sub
-	}
-	if set {
-		var v map[string]any
-		if _, err := toml.Decode("V = "+lit, &v); err != nil {
-			return err
-		}
-		m[name] = v["V"]
-	} else {
-		delete(m, name)
-	}
+	edit(want)
 	// Removing a table's last key leaves an empty table behind; that
 	// reads the same.
-	if table != "" && len(m) == 0 {
-		if _, ok := after[table]; !ok {
-			delete(want, table)
+	for k, v := range want {
+		if sub, ok := v.(map[string]any); ok && len(sub) == 0 {
+			if _, ok := after[k]; !ok {
+				delete(want, k)
+			}
 		}
 	}
 	if !reflect.DeepEqual(want, after) {
-		return fmt.Errorf("saving %s would change more than that key; edit the file by hand", key)
+		return fmt.Errorf("saving %s would change more than that; edit the file by hand", what)
 	}
 	return nil
+}
+
+// setIn sets the dotted key table.name in m to v, copying the table so
+// the map it came from stays as it was.
+func setIn(m map[string]any, key string, v any) {
+	table, name := splitKey(key)
+	if table == "" {
+		m[name] = v
+		return
+	}
+	sub, _ := m[table].(map[string]any)
+	sub = cloneMap(sub)
+	sub[name] = v
+	m[table] = sub
+}
+
+// deleteIn removes the dotted key table.name from m, as setIn does.
+func deleteIn(m map[string]any, key string) {
+	table, name := splitKey(key)
+	if table == "" {
+		delete(m, name)
+		return
+	}
+	sub, ok := m[table].(map[string]any)
+	if !ok {
+		return
+	}
+	sub = cloneMap(sub)
+	delete(sub, name)
+	m[table] = sub
 }
 
 func cloneMap(m map[string]any) map[string]any {
@@ -417,8 +560,9 @@ func scanValue(s string, i int) (int, error) {
 }
 
 // patch returns s with key set to the TOML literal lit, or removed when set
-// is false.
-func patch(s, key, lit string, set bool) (string, error) {
+// is false. A new key's line gets the comment lines above and the comment
+// inline after its value, both usually "".
+func patch(s, key, lit string, set bool, above, inline string) (string, error) {
 	es, hs, err := scan(s)
 	if err != nil {
 		return "", fmt.Errorf("cannot edit the config file (%v); edit it by hand", err)
@@ -448,7 +592,7 @@ func patch(s, key, lit string, set bool) (string, error) {
 	}
 
 	// A new key goes after the last key of its table.
-	line := name + " = " + lit + nl
+	line := name + " = " + lit + inline + nl
 	if table == "" {
 		at := -1
 		for _, e := range es {
@@ -459,12 +603,12 @@ func patch(s, key, lit string, set bool) (string, error) {
 		if at < 0 && len(hs) > 0 {
 			// Before the first table and the comments right above it.
 			at = commentsAbove(s, hs[0].start)
-			return s[:at] + line + nl + s[at:], nil
+			return s[:at] + above + line + nl + s[at:], nil
 		}
 		if at < 0 {
 			at = len(s)
 		}
-		return insertLine(s, at, line, nl), nil
+		return insertLine(s, at, above+line, nl), nil
 	}
 	at := -1
 	for _, e := range es {
@@ -473,8 +617,9 @@ func patch(s, key, lit string, set bool) (string, error) {
 		}
 	}
 	if at >= 0 {
-		line = table + "." + line
+		line = above + table + "." + line
 	} else {
+		line = above + line
 		for _, h := range hs {
 			if h.name == table {
 				at = h.end

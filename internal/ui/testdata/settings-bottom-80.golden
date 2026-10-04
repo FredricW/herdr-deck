@@ -1,28 +1,28 @@
  Admin rebuild                                               ◐ 2  ◇ 1  ○ 1  ✉ 0
 ────────────────────────────────────────────────────────────────────────────────
 ─ Settings · /home/ada/.config/herdr-deck/config.toml ──────────────────────────
- Editor and diff
+   linear.status           true                                          default
+   linear.api_key_command  none                                          default
+
+ [figma] Figma links
+   figma.desktop           false                                         default
+
+ [browser] web links
+   browser.reuse_tabs      true                                          default
+
+ [updates] new versions of the deck
+   updates.check           true                                          default
+   updates.auto_restart    true                                          default
+
+ [editor] what e opens
    editor.command          zed {path}                                    file
    editor.terminal         false                                         default
+
+ [diff] what d opens, and the Files tab
    diff.command            hunk diff {base} -- {file}                    default
    diff.terminal           true                                          default
-   diff_view               list                                          default
-
- Updates
-   update_check            true                                          default
-   auto_restart            true                                          default
-
- Browser
-   reuse_browser_tabs      true                                          default
-   figma_desktop           false                                         default
-
- List
-   ui.folded_lists         Backlog, Resolved                             default
-
- Projects and refresh
-   refresh_interval        5s                                            default
- ▸ projects_root           /home/ada/.herdr-projects                     default
-     the herdr-projects root; ~/ is your home folder
-     a change applies when the deck restarts
+ ▸ diff.view               list                                          default
+     the Files section's view at start: list, or tree (files under their
+     folders); d t switches
 ────────────────────────────────────────────────────────────────────────────────
  ↵ edit  x remove  j k move  esc back  q quit                             v9.9.9
