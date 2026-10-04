@@ -1,6 +1,8 @@
-// Package linear reads the workflow state of the Linear issues a snapshot
-// links to, through Linear's GraphQL API, and lays it over the snapshot's
-// Linear links.
+// Package linear reads the Linear issues a snapshot links to (workflow
+// state, title, assignee, team and URL) through Linear's GraphQL API, and
+// lays them over the snapshot's Linear links. A link takes the URL Linear
+// gives, and IDs Linear has not answered for link into the workspace the
+// key belongs to, so linear.workspace is not needed with a key.
 //
 // Fetches run in the background, batched and cached, so a reload never
 // waits on the network: Apply shows what the cache holds and starts a fetch
@@ -196,6 +198,7 @@ type Reader struct {
 
 	mu       sync.Mutex
 	cache    map[string]entry
+	urlKey   string // the key's workspace, from organization { urlKey }
 	inflight bool
 	retryAt  time.Time
 	problem  string // why the last fetch failed, for Snapshot.Missing
@@ -232,6 +235,7 @@ func (r *Reader) Apply(snap *deck.Snapshot) {
 		snap.Notes = append(snap.Notes, "Linear status: off, no API key; set $"+EnvAPIKey+" or linear.api_key_command in the config file")
 		return
 	}
+	snap.LinearKey = true
 
 	r.mu.Lock()
 	defer r.mu.Unlock()
@@ -246,6 +250,12 @@ func (r *Reader) Apply(snap *deck.Snapshot) {
 		e, ok := r.cache[l.Label]
 		if ok {
 			l.Issue = e.issue
+		}
+		switch {
+		case l.Issue != nil && l.Issue.URL != "":
+			l.URL = l.Issue.URL
+		case l.URL == "" && r.urlKey != "":
+			l.URL = IssueURL(r.urlKey, l.Label)
 		}
 		if (!ok || now.Sub(e.at) >= ttl) && !seen[l.Label] {
 			seen[l.Label] = true
@@ -268,6 +278,11 @@ func (r *Reader) Apply(snap *deck.Snapshot) {
 			r.OnUpdate()
 		}
 	}()
+}
+
+// IssueURL is the page of issue id in the workspace with URL key urlKey.
+func IssueURL(urlKey, id string) string {
+	return "https://linear.app/" + urlKey + "/issue/" + id
 }
 
 // Wait waits for a background fetch to finish; tests use it.
@@ -344,7 +359,7 @@ func (r *Reader) fetch(ctx context.Context, ids []string) error {
 	}
 	for start := 0; start < len(ids); start += batchSize {
 		batch := ids[start:min(start+batchSize, len(ids))]
-		got, err := r.request(ctx, key, batch)
+		got, urlKey, err := r.request(ctx, key, batch)
 		if err != nil {
 			var fe *fetchError
 			if errors.As(err, &fe) {
@@ -365,6 +380,9 @@ func (r *Reader) fetch(ctx context.Context, ids []string) error {
 		for _, id := range batch {
 			r.cache[id] = entry{issue: got[id], at: now}
 		}
+		if urlKey != "" {
+			r.urlKey = urlKey
+		}
 		r.mu.Unlock()
 	}
 	return nil
@@ -373,10 +391,17 @@ func (r *Reader) fetch(ctx context.Context, ids []string) error {
 // farFuture keeps a failed key command from running again.
 var farFuture = time.Date(9999, 1, 1, 0, 0, 0, 0, time.UTC)
 
+// issueFields are the fields asked for each issue. With a batch of 50 the
+// request costs about 250 of Linear's complexity points (an object is 1, a
+// field 0.1, times the connection's first:), far below the 10,000 a query
+// may cost.
+const issueFields = "identifier title url state { name type } team { key name } assignee { displayName initials }"
+
 // query builds one request: per team key, an aliased issues() search for
-// its issue numbers, with keys and numbers passed as variables. issues()
-// answers an unknown ID with fewer nodes; issue(id:) would fail the whole
-// request, since it returns a non-null Issue!.
+// its issue numbers, with keys and numbers passed as variables, plus the
+// workspace's URL key. issues() answers an unknown ID with fewer nodes;
+// issue(id:) would fail the whole request, since it returns a non-null
+// Issue!.
 func query(ids []string) ([]byte, error) {
 	var teams []string
 	numbers := map[string][]int{}
@@ -396,28 +421,68 @@ func query(ids []string) ([]byte, error) {
 	for i, team := range teams {
 		k, n := "k"+strconv.Itoa(i), "n"+strconv.Itoa(i)
 		params = append(params, "$"+k+": String!", "$"+n+": [Float!]")
-		fields = append(fields, fmt.Sprintf("t%d: issues(first: %d, includeArchived: true, filter: { team: { key: { eq: $%s } }, number: { in: $%s } }) { nodes { identifier state { name type } } }",
-			i, len(numbers[team]), k, n))
+		fields = append(fields, fmt.Sprintf("t%d: issues(first: %d, includeArchived: true, filter: { team: { key: { eq: $%s } }, number: { in: $%s } }) { nodes { %s } }",
+			i, len(numbers[team]), k, n, issueFields))
 		vars[k] = team
 		vars[n] = numbers[team]
 	}
+	fields = append(fields, orgField)
 	q := "query DeckIssues(" + strings.Join(params, ", ") + ") { " + strings.Join(fields, " ") + " }"
 	return json.Marshal(map[string]any{"query": q, "variables": vars})
 }
 
+// orgField asks for the workspace's URL key, which links IDs Linear has
+// not answered for.
+const orgField = "organization { urlKey }"
+
 type gqlResponse struct {
-	Data   map[string]*gqlIssues `json:"data"`
-	Errors []gqlError            `json:"errors"`
+	// Data holds the aliased issue searches (t0, t1, …) and organization.
+	Data   map[string]json.RawMessage `json:"data"`
+	Errors []gqlError                 `json:"errors"`
 }
 
 type gqlIssues struct {
-	Nodes []struct {
-		Identifier string `json:"identifier"`
-		State      *struct {
-			Name string `json:"name"`
-			Type string `json:"type"`
-		} `json:"state"`
-	} `json:"nodes"`
+	Nodes []gqlIssue `json:"nodes"`
+}
+
+type gqlIssue struct {
+	Identifier string `json:"identifier"`
+	Title      string `json:"title"`
+	URL        string `json:"url"`
+	State      *struct {
+		Name string `json:"name"`
+		Type string `json:"type"`
+	} `json:"state"`
+	Team *struct {
+		Key  string `json:"key"`
+		Name string `json:"name"`
+	} `json:"team"`
+	Assignee *struct {
+		DisplayName string `json:"displayName"`
+		Initials    string `json:"initials"`
+	} `json:"assignee"`
+}
+
+type gqlOrganization struct {
+	URLKey string `json:"urlKey"`
+}
+
+// issue is n as the deck shows it, or nil without a state.
+func (n gqlIssue) issue() *deck.Issue {
+	if n.State == nil {
+		return nil
+	}
+	is := &deck.Issue{State: n.State.Name, StateType: n.State.Type, Title: strings.TrimSpace(n.Title), URL: n.URL}
+	if !strings.HasPrefix(is.URL, "https://") {
+		is.URL = "" // only ever open Linear's own https pages
+	}
+	if n.Team != nil {
+		is.Team = n.Team.Name
+	}
+	if n.Assignee != nil {
+		is.Assignee, is.AssigneeInitials = n.Assignee.DisplayName, n.Assignee.Initials
+	}
+	return is
 }
 
 type gqlError struct {
@@ -430,12 +495,83 @@ type gqlError struct {
 }
 
 // request asks for one batch. The map holds every ID asked for; an ID
-// Linear does not know maps to nil.
-func (r *Reader) request(ctx context.Context, key string, ids []string) (map[string]*deck.Issue, error) {
+// Linear does not know maps to nil. urlKey is the workspace's URL key.
+func (r *Reader) request(ctx context.Context, key string, ids []string) (issues map[string]*deck.Issue, urlKey string, err error) {
 	body, err := query(ids)
 	if err != nil {
-		return nil, err
+		return nil, "", err
 	}
+	data, err := r.post(ctx, key, body)
+	if err != nil {
+		return nil, "", err
+	}
+	byID := map[string]*deck.Issue{}
+	for name, raw := range data {
+		if name == "organization" {
+			var org gqlOrganization
+			if json.Unmarshal(raw, &org) == nil && validURLKey.MatchString(org.URLKey) {
+				urlKey = org.URLKey
+			}
+			continue
+		}
+		var res gqlIssues
+		if json.Unmarshal(raw, &res) != nil {
+			continue // null: an error about this team's search
+		}
+		for _, n := range res.Nodes {
+			if is := n.issue(); is != nil {
+				byID[n.Identifier] = is
+			}
+		}
+	}
+	out := map[string]*deck.Issue{}
+	for _, id := range ids {
+		out[id] = byID[id] // nil: Linear has no such issue
+	}
+	return out, urlKey, nil
+}
+
+// validURLKey is a workspace URL key that is safe to put in a URL path.
+var validURLKey = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9_-]*$`)
+
+// Workspace returns the URL key of the workspace the API key belongs to,
+// asking Linear when no fetch has told the Reader yet. The open-link
+// action uses it to link a bare ID without linear.workspace.
+func (r *Reader) Workspace(ctx context.Context) (string, error) {
+	r.mu.Lock()
+	known := r.urlKey
+	r.mu.Unlock()
+	if known != "" {
+		return known, nil
+	}
+	key, _, err := r.Key.Get(ctx)
+	if err != nil {
+		if errors.Is(err, errNoKey) {
+			return "", errors.New("no Linear API key")
+		}
+		return "", err
+	}
+	body, err := json.Marshal(map[string]any{"query": "query DeckWorkspace { " + orgField + " }"})
+	if err != nil {
+		return "", err
+	}
+	data, err := r.post(ctx, key, body)
+	if err != nil {
+		return "", errors.New(redact(err.Error(), key))
+	}
+	var org gqlOrganization
+	if json.Unmarshal(data["organization"], &org) != nil || !validURLKey.MatchString(org.URLKey) {
+		return "", errors.New("no workspace in Linear's answer")
+	}
+	r.mu.Lock()
+	r.urlKey = org.URLKey
+	r.mu.Unlock()
+	return org.URLKey, nil
+}
+
+// post sends one GraphQL request and returns its data. Errors are
+// *fetchError, saying whether the key was refused and when to retry.
+func (r *Reader) post(ctx context.Context, key string, body []byte) (map[string]json.RawMessage, error) {
 	endpoint := r.Endpoint
 	if endpoint == "" {
 		endpoint = Endpoint
@@ -494,22 +630,6 @@ func (r *Reader) request(ctx context.Context, key string, ids []string) (map[str
 		}
 		return nil, &fetchError{msg: "Linear answered HTTP " + strconv.Itoa(resp.StatusCode) + " without data"}
 	}
-
-	byID := map[string]*deck.Issue{}
-	for _, res := range gr.Data {
-		if res == nil {
-			continue
-		}
-		for _, n := range res.Nodes {
-			if n.State != nil {
-				byID[n.Identifier] = &deck.Issue{State: n.State.Name, StateType: n.State.Type}
-			}
-		}
-	}
-	out := map[string]*deck.Issue{}
-	for _, id := range ids {
-		out[id] = byID[id] // nil: Linear has no such issue
-	}
 	// A rate limit spent to the last request: wait for its reset.
 	if resp.Header.Get("X-RateLimit-Requests-Remaining") == "0" {
 		at := r.resetAt(resp.Header)
@@ -517,7 +637,7 @@ func (r *Reader) request(ctx context.Context, key string, ids []string) (map[str
 		r.retryAt = at
 		r.mu.Unlock()
 	}
-	return out, nil
+	return gr.Data, nil
 }
 
 // resetAt is when Linear's rate limit resets (X-RateLimit-Requests-Reset,

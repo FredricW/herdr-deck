@@ -9,6 +9,7 @@ import (
 
 	"github.com/FredricW/herdr-deck/internal/config"
 	"github.com/FredricW/herdr-deck/internal/deck"
+	"github.com/FredricW/herdr-deck/internal/source/linear"
 	"github.com/FredricW/herdr-deck/internal/source/tasks"
 )
 
@@ -17,6 +18,9 @@ type LinkSettings struct {
 	// LinearWorkspace is the slug bare Linear IDs link into; "" leaves
 	// them without a URL.
 	LinearWorkspace string
+	// LinearKeyWorkspace, when set, asks Linear which workspace the API key
+	// belongs to, for a bare ID while LinearWorkspace is empty.
+	LinearKeyWorkspace func() (string, error)
 	// FigmaDesktop opens Figma links in the desktop app.
 	FigmaDesktop bool
 }
@@ -78,7 +82,14 @@ func LinkURL(text string, s LinkSettings) (string, error) {
 	case !known:
 		return l.URL, nil // a site the deck does not know
 	case l.Kind == deck.LinkLinear && l.URL == "":
-		return "", fmt.Errorf("%s: no Linear workspace set; set linear.workspace in the deck's config file or $%s", l.Label, config.EnvLinearWorkspace)
+		if s.LinearKeyWorkspace != nil {
+			ws, err := s.LinearKeyWorkspace()
+			if err == nil {
+				return linear.IssueURL(ws, l.Label), nil
+			}
+			return "", fmt.Errorf("%s: no Linear workspace set, and asking Linear failed: %w", l.Label, err)
+		}
+		return "", fmt.Errorf("%s: no Linear workspace set; set linear.workspace in the deck's config file or $%s, or a Linear API key", l.Label, config.EnvLinearWorkspace)
 	}
 	if s.FigmaDesktop {
 		if d := l.DesktopURL(); d != "" {

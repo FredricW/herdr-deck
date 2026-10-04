@@ -1123,6 +1123,9 @@ func (m *Model) openDesktop(links []deck.Link, i int) tea.Cmd {
 func (m *Model) openURL(url, what string) tea.Cmd {
 	if url == "" {
 		m.status = what + ": " + noWorkspace
+		if m.snap.LinearKey {
+			m.status = what + ": no URL from Linear yet"
+		}
 		return nil
 	}
 	open := m.opt.OpenURL
