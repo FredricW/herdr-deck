@@ -8,52 +8,45 @@ and versions follow [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.1.4] - 2026-10-04
+
 ### Added
 
 - A Commits tab in the drawer, between Files and Log: the thread branch's
-  commits since its base, newest first, each with its short sha, subject,
-  age and `+N −M` (a merge dim, with `⋔`), under a `● uncommitted · N
-  files` row that leads to Files when the worktree has uncommitted changes.
-  `↵` or a digit previews a commit as `git show` does (author, date, body
-  and a syntax-coloured diff, file by file); in the focused drawer `d`
-  opens it in the diff tool against its parent and `g` in the PR on GitHub.
-  `space`, `→` or `l` in the focused drawer (or a click on `▸`) expands a
-  commit to the files it changed, styled as on Files; `↵` on one previews
-  that file's change in that commit and `d` opens it there in the diff
-  tool. `←` or `h` collapses it.
-- `folded_lists` under `[ui]` in the config file (and the settings page,
-  `--ui-folded-lists`, `$HERDR_DECK_UI_FOLDED_LISTS`) names the lists that start
-  folded, by heading in any case: `["Backlog", "Resolved"]` by default, `[]`
-  for none. A change on the settings page applies at once to the lists you
-  have not folded or unfolded by hand. A heading now matches whole, so a
-  list such as "Backlog later" no longer folds on its own.
+  commits since its base, newest first, with short sha, subject, age and
+  `+N −M`, under a `● uncommitted · N files` row that leads to Files.
+  `↵`, a digit or a click previews a commit as `git show` does, with a
+  syntax-coloured diff. `space`, `→` or `l` in the focused drawer (or a
+  click on `▸`) expands a commit to the files it changed, and `↵` on one
+  previews that file's change; `←` or `h` collapses it. `g` opens the
+  commit in the PR on GitHub.
+- `ui.folded_lists` in the config file (also on the settings page, as
+  `--ui-folded-lists` and `$HERDR_DECK_UI_FOLDED_LISTS`) names the lists
+  that start folded, by heading in any case: `["Backlog", "Resolved"]` by
+  default, `[]` for none.
 
 ### Changed
 
-- Settings now live in one table per area of the config file: `[ui]`
-  refresh_interval and folded_lists, `[projects]` root, `[linear]`
-  workspace, status and api_key_command, `[figma]` desktop, `[browser]`
-  reuse_tabs, `[updates]` check and auto_restart, `[editor]` and `[diff]`
-  (now with `view`). Each setting is named by its dotted path, such as
-  `linear.workspace`, on the settings page (grouped by table), in the `!`
-  view and in errors, and that name gives its flag and environment
-  variable: `--diff-command` and `$HERDR_DECK_DIFF_COMMAND`,
-  `--updates-auto-restart`, `--browser-reuse-tabs`, and so on. Every
-  setting now has a flag. Nothing breaks: the earlier keys
-  (`linear_workspace = "acme"` and the like), flags (`--diff-tool`,
-  `--editor`, …) and environment variables (`$HERDR_DECK_DIFF_TOOL`,
-  `$HERDR_DECK_EDITOR`, …) still work, and the `!` view notes each earlier
-  key in the file. To migrate, run `herdr-deck config migrate` to see the
-  change and `herdr-deck config migrate --write` to make it (the old file
-  is kept as `config.toml.bak`); saving a setting on the settings page
-  also moves it into its table, comments and all.
-- The Files tab previews by default, as Commits does: `↵`, a digit
-  (`d 3` from the list) or a click on a file shows its diff in the deck
-  instead of opening the diff tool. The diff tool is now `d` in the
-  focused Files or Commits tab (the file or commit under the cursor, so
-  `d d` from the list opens the first file there), and `a` opens the
-  whole diff in it, as before. The total line's click still opens the
-  whole diff.
+- The Files tab previews by default, as Commits does: `↵`, a digit or a
+  click shows a file's diff in the deck instead of opening the diff tool.
+  The diff tool is now `d` in the focused Files or Commits tab (the file
+  or commit under the cursor, so `d d` from the list opens the first file
+  there), and `a` opens the whole diff in it.
+- A list heading now has to match a folded list's name whole, so a list
+  such as "Backlog later" no longer starts folded.
+- Settings now live in one table per area of the config file (`[ui]`,
+  `[projects]`, `[linear]`, `[figma]`, `[browser]`, `[updates]`,
+  `[editor]`, `[diff]`), and each is named by its dotted path, such as
+  `linear.workspace`. That name gives its flag and environment variable
+  (`--diff-command`, `$HERDR_DECK_DIFF_COMMAND`), and every setting now
+  has a flag. The earlier keys, flags (`--diff-tool`, `--editor`, …) and
+  environment variables still work, and the `!` view notes each earlier
+  key in the file. Run `herdr-deck config migrate` to see the move and
+  `herdr-deck config migrate --write` to make it (the old file is kept as
+  `config.toml.bak`); saving on the settings page also moves a setting
+  into its table, comments and all.
+- A stray argument, such as a mistyped command, is now an error instead
+  of being ignored.
 
 ## [0.1.3] - 2026-10-03
 
