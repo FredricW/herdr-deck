@@ -12,7 +12,7 @@ import (
 )
 
 // noWorkspace says why a bare Linear ID has no link.
-const noWorkspace = "no Linear workspace: set linear_workspace in the config file, --linear-workspace or $" + deck.EnvLinearWorkspace
+const noWorkspace = "no Linear workspace: set linear.workspace in the config file, --linear-workspace or $" + deck.EnvLinearWorkspace
 
 // overview is the Overview tab: titled sections in a fixed order, Next,
 // PR, Note, Links, Dev and Thread, the empty ones left out. A blank line

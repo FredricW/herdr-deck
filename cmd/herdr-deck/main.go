@@ -57,48 +57,31 @@ func run(args []string) error {
 			return runPlugin(args[1:])
 		case "update":
 			return runUpdate(args[1:])
+		case "config":
+			return runConfig(args[1:], os.Getenv, os.Stdout)
 		}
 	}
 	fs := flag.NewFlagSet("herdr-deck", flag.ContinueOnError)
 	var fl config.Flags
 	fs.StringVar(&fl.Config, "config", "", "config file (default: $"+config.EnvPath+", else $XDG_CONFIG_HOME/herdr-deck/config.toml or ~/.config/herdr-deck/config.toml)")
 	slugFlag := fs.String("project", "", "project slug (default: $"+project.EnvProject+", else the project folder containing the working directory)")
-	fs.StringVar(&fl.ProjectsRoot, "projects-root", "", "herdr-projects root (default: $"+config.EnvProjectsRoot+", else projects_root in the config file, else ~/.herdr-projects)")
-	fs.StringVar(&fl.LinearWorkspace, "linear-workspace", "", "Linear workspace slug that bare issue IDs link into (default: $"+config.EnvLinearWorkspace+", else linear_workspace in the config file)")
-	fs.StringVar(&fl.RefreshInterval, "refresh-interval", "", "reload interval, "+config.MinRefreshInterval.String()+" to "+config.MaxRefreshInterval.String()+" (default: $"+config.EnvRefreshInterval+", else refresh_interval in the config file, else "+config.DefaultRefreshInterval.String()+")")
-	fs.StringVar(&fl.Editor, "editor", "", "command that opens a worktree, {path} is the folder (default: $"+config.EnvEditor+", else [editor] command in the config file, else \""+config.DefaultEditor+"\")")
-	editorTerm := fs.Bool("editor-terminal", false, "the editor is a terminal program: open it in a new herdr pane (default: $"+config.EnvEditorTerminal+", else [editor] terminal)")
-	fs.StringVar(&fl.DiffTool, "diff-tool", "", "command that shows a worktree's diff: {path}, {base}, optional {file} (default: $"+config.EnvDiffTool+", else [diff] command, else hunk or git diff)")
-	fs.StringVar(&fl.FoldedLists, "ui-folded-lists", "", "list headings that start folded, comma-separated, any case; "+config.NoLists+" folds none (default: $"+config.EnvFoldedLists+", else [ui] folded_lists in the config file, else \""+config.ListText(config.DefaultFoldedLists)+"\")")
-	fs.StringVar(&fl.DiffView, "diff-view", "", "the Files section's view at start, list or tree (default: $"+config.EnvDiffView+", else diff_view in the config file, else list)")
-	diffTerm := fs.Bool("diff-terminal", false, "the diff tool is a terminal program (default: $"+config.EnvDiffTerminal+", else [diff] terminal)")
-	reuseTabs := fs.Bool("reuse-browser-tabs", true, "open a web link in a browser tab that already shows it, on macOS (default: $"+config.EnvReuseTabs+", else reuse_browser_tabs in the config file, else true)")
-	updateCheck := fs.Bool("update-check", true, "check for a newer deck and show it in the header (default: $"+config.EnvUpdateCheck+", else update_check in the config file, else true)")
-	autoRestart := fs.Bool("auto-restart", true, "restart the deck in place when its binary is replaced (default: $"+config.EnvAutoRestart+", else auto_restart in the config file, else true)")
 	demo := fs.Bool("fake", false, "show built-in sample data instead of the project")
 	showVersion := fs.Bool("version", false, "print the version and commit, then exit")
+	hidden := fl.Register(fs)
+	fs.Usage = func() {
+		fmt.Fprintln(fs.Output(), "Usage: herdr-deck [flags]\n       herdr-deck config migrate [--write]\n       herdr-deck update [--check]\n\nEvery setting's flag is --<table>-<key>, for the config file's [table] key.")
+		config.PrintDefaults(fs, hidden)
+	}
 	if err := fs.Parse(args); err != nil {
 		return err
+	}
+	if fs.NArg() > 0 {
+		return fmt.Errorf("unexpected argument %q; the commands are config migrate, update and plugin", fs.Arg(0))
 	}
 	if *showVersion {
 		fmt.Println(versionString())
 		return nil
 	}
-	// A bool flag only counts when it was given.
-	fs.Visit(func(f *flag.Flag) {
-		switch f.Name {
-		case "editor-terminal":
-			fl.EditorTerminal = editorTerm
-		case "diff-terminal":
-			fl.DiffTerminal = diffTerm
-		case "reuse-browser-tabs":
-			fl.ReuseTabs = reuseTabs
-		case "update-check":
-			fl.UpdateCheck = updateCheck
-		case "auto-restart":
-			fl.AutoRestart = autoRestart
-		}
-	})
 	cfg, err := config.Resolve(fl, os.Getenv, exec.LookPath)
 	if err != nil {
 		return err
@@ -154,6 +137,7 @@ func run(args []string) error {
 		}
 		snap := fake.Snapshot(slug, time.Now())
 		snap.Missing = append(snap.Missing, cfg.Problems...)
+		snap.Notes = append(snap.Notes, cfg.Notes...)
 		snap.Projects = fake.Projects(snap, time.Now())
 		// Loading the same sample again reads its diff, as a live deck's
 		// first load does.
@@ -173,7 +157,7 @@ func run(args []string) error {
 	}
 
 	if cfg.ProjectsRoot == "" {
-		return errors.New("no projects root: set --projects-root, $" + config.EnvProjectsRoot + " or projects_root in the config file")
+		return errors.New("no projects root: set --projects-root, $" + config.EnvProjectsRoot + " or " + config.KeyProjectsRoot + " in the config file")
 	}
 	root := cfg.ProjectsRoot
 	cwd, _ := os.Getwd()
@@ -215,6 +199,7 @@ func run(args []string) error {
 		snap := src.Read(ctx)
 		// Config problems show in the Sources view with the sources' own.
 		snap.Missing = append(slices.Clone(c.Problems), snap.Missing...)
+		snap.Notes = append(slices.Clone(c.Notes), snap.Notes...)
 		return snap
 	}
 	opt.FocusPane = func(id string) error { return client.Focus(context.Background(), id) }
@@ -345,6 +330,60 @@ func updateHint(cacheDir string) func(context.Context) ui.Update {
 	}
 }
 
+// runConfig is `herdr-deck config migrate [--config <file>] [--write]`.
+func runConfig(args []string, getenv func(string) string, out io.Writer) error {
+	if len(args) == 0 || args[0] != "migrate" {
+		return errors.New("config: the one command is `herdr-deck config migrate`")
+	}
+	fs := flag.NewFlagSet("herdr-deck config migrate", flag.ContinueOnError)
+	fs.Usage = func() {
+		fmt.Fprintln(fs.Output(), "Usage: herdr-deck config migrate [--config <file>] [--write]")
+		fmt.Fprintln(fs.Output(), "\nMoves the settings the config file still sets under their earlier flat names,\nsuch as linear_workspace, into their tables, such as [linear] workspace.\nIt prints the change; --write makes it, keeping the old file as <file>.bak.")
+		fs.PrintDefaults()
+	}
+	path := fs.String("config", "", "config file (default: $"+config.EnvPath+", else $XDG_CONFIG_HOME/herdr-deck/config.toml or ~/.config/herdr-deck/config.toml)")
+	write := fs.Bool("write", false, "rewrite the file instead of only showing the change")
+	if err := fs.Parse(args[1:]); err != nil {
+		return err
+	}
+	if fs.NArg() > 0 {
+		return fmt.Errorf("config migrate: unexpected argument %q", fs.Arg(0))
+	}
+	p, _ := config.Path(*path, getenv)
+	m, err := config.MigrateFile(p, *write)
+	if err != nil {
+		return fmt.Errorf("config migrate: %s: %w", p, err)
+	}
+	switch {
+	case m.Before == "" && len(m.Moved) == 0:
+		fmt.Fprintf(out, "%s: no config file, so nothing to migrate.\n", p)
+		return nil
+	case len(m.Moved) == 0:
+		fmt.Fprintf(out, "%s: every setting is already in its table; nothing to migrate.\n", p)
+		return nil
+	}
+	verb := "Would move"
+	if *write {
+		verb = "Moved"
+	}
+	fmt.Fprintf(out, "%s %d setting(s) in %s:\n", verb, len(m.Moved), p)
+	for _, l := range m.Moved {
+		fmt.Fprintln(out, "  "+l)
+	}
+	fmt.Fprintln(out)
+	fmt.Fprint(out, config.UnifiedDiff(m.Before, m.After, p, p+" (migrated)"))
+	if *write {
+		fmt.Fprintf(out, "\nThe old file is kept as %s.\n", m.Backup)
+	} else {
+		cmd := "herdr-deck config migrate --write"
+		if *path != "" {
+			cmd = "herdr-deck config migrate --config " + launch.ShellLine([]string{*path}) + " --write"
+		}
+		fmt.Fprintln(out, "\nNothing was written: run `"+cmd+"` to apply it, keeping the old file as .bak.")
+	}
+	return nil
+}
+
 // runUpdate is `herdr-deck update [--check]`.
 func runUpdate(args []string) error {
 	fs := flag.NewFlagSet("herdr-deck update", flag.ContinueOnError)
@@ -396,7 +435,7 @@ func runPlugin(args []string) error {
 		fmt.Fprintln(os.Stderr, "herdr-deck:", p)
 	}
 	if cfg.ProjectsRoot == "" {
-		return errors.New("no projects root: set $" + config.EnvProjectsRoot + " or projects_root in the config file")
+		return errors.New("no projects root: set $" + config.EnvProjectsRoot + " or " + config.KeyProjectsRoot + " in the config file")
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 	defer cancel()

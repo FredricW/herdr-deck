@@ -271,7 +271,7 @@ func TestRefusedKeyRerunsCommand(t *testing.T) {
 	if runs != 1 {
 		t.Errorf("the key command ran %d times, want 1", runs)
 	}
-	if len(s.Missing) != 1 || !strings.Contains(s.Missing[0], "refused the API key from linear_api_key_command (op)") {
+	if len(s.Missing) != 1 || !strings.Contains(s.Missing[0], "refused the API key from linear.api_key_command (op)") {
 		t.Errorf("Missing = %q", s.Missing)
 	}
 	noLeak(t, s)
@@ -443,7 +443,7 @@ func TestKeyCommandFailure(t *testing.T) {
 	c := newClock()
 	r := newTestReader(f, c, k)
 	s := apply(r)
-	if len(s.Missing) != 1 || !strings.Contains(s.Missing[0], "linear_api_key_command failed") || !strings.Contains(s.Missing[0], "restart") {
+	if len(s.Missing) != 1 || !strings.Contains(s.Missing[0], "linear.api_key_command failed") || !strings.Contains(s.Missing[0], "restart") {
 		t.Errorf("Missing = %q", s.Missing)
 	}
 	noLeak(t, s)

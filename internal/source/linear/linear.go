@@ -104,7 +104,7 @@ func (k *Key) Get(ctx context.Context) (key, source string, err error) {
 		return k.key, k.source, k.err
 	}
 	k.ran, k.stale = true, false
-	k.source = "linear_api_key_command (" + k.Command[0] + ")"
+	k.source = "linear.api_key_command (" + k.Command[0] + ")"
 	k.key, k.err = k.runCommand(ctx)
 	return k.key, k.source, k.err
 }
@@ -133,12 +133,12 @@ func (k *Key) runCommand(ctx context.Context) (string, error) {
 	if err != nil {
 		// Never echo the output: it may hold the key.
 		if ctx.Err() != nil {
-			return "", fmt.Errorf("linear_api_key_command timed out after %v", timeout)
+			return "", fmt.Errorf("linear.api_key_command timed out after %v", timeout)
 		}
-		return "", fmt.Errorf("linear_api_key_command failed: %s", redact(err.Error(), key))
+		return "", fmt.Errorf("linear.api_key_command failed: %s", redact(err.Error(), key))
 	}
 	if key == "" {
-		return "", errors.New("linear_api_key_command printed nothing")
+		return "", errors.New("linear.api_key_command printed nothing")
 	}
 	return key, nil
 }
@@ -229,7 +229,7 @@ func (r *Reader) Apply(snap *deck.Snapshot) {
 		return
 	}
 	if r.Key == nil || !r.Key.Configured() {
-		snap.Notes = append(snap.Notes, "Linear status: off, no API key; set $"+EnvAPIKey+" or linear_api_key_command in the config file")
+		snap.Notes = append(snap.Notes, "Linear status: off, no API key; set $"+EnvAPIKey+" or linear.api_key_command in the config file")
 		return
 	}
 
@@ -337,7 +337,7 @@ func (r *Reader) fetch(ctx context.Context, ids []string) error {
 	key, source, err := r.Key.Get(ctx)
 	if err != nil {
 		if errors.Is(err, errNoKey) {
-			return &fetchError{msg: "no API key; set $" + EnvAPIKey + " or linear_api_key_command in the config file"}
+			return &fetchError{msg: "no API key; set $" + EnvAPIKey + " or linear.api_key_command in the config file"}
 		}
 		// The command does not run again by itself: say how to retry.
 		return &fetchError{msg: err.Error() + "; restart the deck to try again", retryAt: farFuture}

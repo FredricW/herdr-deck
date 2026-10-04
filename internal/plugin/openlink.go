@@ -78,7 +78,7 @@ func LinkURL(text string, s LinkSettings) (string, error) {
 	case !known:
 		return l.URL, nil // a site the deck does not know
 	case l.Kind == deck.LinkLinear && l.URL == "":
-		return "", fmt.Errorf("%s: no Linear workspace set; set linear_workspace in the deck's config file or $%s", l.Label, config.EnvLinearWorkspace)
+		return "", fmt.Errorf("%s: no Linear workspace set; set linear.workspace in the deck's config file or $%s", l.Label, config.EnvLinearWorkspace)
 	}
 	if s.FigmaDesktop {
 		if d := l.DesktopURL(); d != "" {

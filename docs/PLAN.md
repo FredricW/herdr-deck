@@ -233,7 +233,7 @@ lists what the user chose.
   file. Files stay in path order. `t` switches between this list and the
   folder tree (`internal/ui/filetree.go`): folders first, single-folder
   chains joined (`src/pages/users/`), folder names and their summed counts
-  faint and without a bar; files numbered in display order. `diff_view`
+  faint and without a bar; files numbered in display order. `diff.view`
   (list or tree, default list) sets the view at start; the toggle never
   writes the file. Every file is listed and the tab scrolls; files 1–9 take
   the digits, the rest show a dim `·` and open by click or the drawer
@@ -294,7 +294,7 @@ lists what the user chose.
   `space`/`→`/`l` (or a click on the `▸` marker after the digit) expands a
   commit to its files and `space`/`←`/`h` collapses it (also from one of
   its files); several may be open. File rows are styled as on Files
-  (status letter, path, `+N −M` with `−`, list or tree by `diff_view`),
+  (status letter, path, `+N −M` with `−`, list or tree by `diff.view`),
   indented under the commit, unnumbered (the digits stay the commits').
   `ReadCommitFiles` (`git show --format= --raw --numstat -z -M
   --diff-merges=first-parent`, parsed as the Files tab's diff) runs off
@@ -373,7 +373,7 @@ Keys:
   are several, the key highlights that kind's chips and waits: a digit opens
   one, `a` opens all of that kind, `d` opens a Figma link in the desktop
   app, the same letter again opens the first, and `esc` cancels. With
-  `figma_desktop` set (milestone 8) every Figma link the deck opens, by
+  `figma.desktop` set (milestone 8) every Figma link the deck opens, by
   key, digit or click, opens in the desktop app. `o` opens
   the first localhost link whose dev server is running, without a chooser
   (milestone 6): links to servers that are down open only by their digit.
@@ -472,7 +472,7 @@ live under that home, apart from the user's own herdr):
   share it evenly.
 - `[[link_handlers]] id="figma"` sends Ctrl+clicked Figma URLs to the
   `open-link` action (`herdr-deck plugin open-link`), which opens the
-  `figma://` rewrite when `figma_desktop` is set, else the URL, as the deck
+  `figma://` rewrite when `figma.desktop` is set, else the URL, as the deck
   itself does. Verified in
   milestone 8 on herdr 0.9.3: a link handler only ever sees a URL. herdr
   turns text into a link only for `http://`/`https://` (`url_byte_range` in
@@ -498,10 +498,29 @@ from the flag, else the environment variable, else the file, else the
 default (`internal/config`). Only the settings page writes the file, and
 never a secret.
 
-- Keys: `linear_workspace`, `refresh_interval` (Go duration, 1s–10m, default
-  5s), `projects_root`, `reuse_browser_tabs` (default true), `diff_view`
-  (list or tree, default list), `[editor]` and `[diff]`. The README has the full
-  table and an example.
+- One TOML table per area (user, 2026-10-04): `[ui]` refresh_interval (Go
+  duration, 1s–10m, default 5s), folded_lists; `[projects]` root;
+  `[linear]` workspace, status, api_key_command; `[figma]` desktop;
+  `[browser]` reuse_tabs (default true); `[updates]` check, auto_restart;
+  `[editor]` command, terminal; `[diff]` command, terminal, view (list or
+  tree, default list). The dotted path (`linear.workspace`) is the one name
+  in docs, the settings page, notes and errors (`Spec.Key`). Flags are
+  `--<table>-<key>` and env vars `HERDR_DECK_<TABLE>_<KEY>`; only
+  `projects.root` keeps herdr-projects' `HERDR_PROJECTS_ROOT`, and
+  `LINEAR_API_KEY` stays as it is. Every setting has a flag, registered
+  from `config.Specs` (`Flags.Register`). The README's settings table is
+  generated from the Specs by a test (`-update` rewrites it).
+- Earlier names stay as aliases (`Spec.Old`, `FlagAliases`, `EnvAliases`):
+  the flat file keys (`linear_workspace`, …, `diff_view`), the old flags
+  (`--diff-tool`, `--editor`, `--refresh-interval`, …, hidden from help)
+  and env vars (`HERDR_DECK_DIFF_TOOL`, `HERDR_DECK_EDITOR`, …). A current
+  name always wins over an earlier one; in the file the table's value wins
+  and the other is ignored. Each flat key in the file gives a dim note in
+  the `!` view (`Settings.Notes`), and a bad value is reported under the
+  name the file uses. Saving a setting on the settings page moves its
+  flat key into the table with the comments above and after it (not the
+  file's opening comment). `herdr-deck config migrate` moves them all: a
+  dry run prints a diff, `--write` writes it and keeps `<file>.bak`.
 - `[editor]` and `[diff]` are a command plus `terminal`. Commands are split
   into argv like a POSIX shell but never run through one. Placeholders:
   `{path}` (both; appended to the editor when absent), `{base}` and `{file}`
@@ -523,7 +542,7 @@ never a secret.
 - Plugin mode: the hooks resolve the projects root from the same file and
   pass `$HERDR_DECK_CONFIG` on to decks they open when it is set; the deck
   finds the default path itself.
-- `linear_status` (default true) and `linear_api_key_command`: see
+- `linear.status` (default true) and `linear.api_key_command`: see
   "Linear issue status" below.
 - `ui.folded_lists` (`[ui] folded_lists`, flag `--ui-folded-lists`, env
   `$HERDR_DECK_UI_FOLDED_LISTS`; default `["Backlog", "Resolved"]`): the list headings
@@ -535,22 +554,19 @@ never a secret.
   (`KindList`; saved as a TOML array). A change applies at once to the
   lists the user has not folded or unfolded by hand this session; manual
   folds stay. Whole-heading matching replaced the earlier hard-coded
-  "heading contains backlog" rule. Naming: settings are moving to one TOML
-  table per area, the dotted path being the canonical name
-  (`ui.refresh_interval`, `linear.workspace`, `diff.view`, …); this is the
-  first key in `[ui]`, and a follow-up renames the existing keys.
-  `config.Load` decodes such tables one key at a time (`decodeTable`), so a
-  bad value or unknown key in one is skipped on its own.
-- `update_check` (the header's update hint) and `auto_restart` (re-exec
+  "heading contains backlog" rule.
+- `config.Load` decodes every table one key at a time (`decodeTable`), so
+  a bad value or unknown key in one is skipped on its own.
+- `updates.check` (the header's update hint) and `updates.auto_restart` (re-exec
   when the binary is replaced), both on by default. New keys are new
   optional fields, so an older deck only reports a newer file's keys as
   unknown.
 - Settings page (`s`, `internal/ui/settings.go`): a full-height drawer view
-  listing `config.Specs` in groups (Links and Linear, Editor and diff,
-  Updates, Browser, List, Projects and refresh), each with its effective value
+  listing `config.Specs` by table (`config.Tables`), under their dotted
+  names, each with its effective value
   and source (`Settings.Values`, recorded by `Resolve` as it settles each
   setting). `↵` toggles a boolean, cycles a choice (`KindChoice`, its values in
-  `Spec.Choices`, such as `diff_view`) or edits a value in place (a list
+  `Spec.Choices`, such as `diff.view`) or edits a value in place (a list
   as comma-separated names), checked by
   `config.Check` as you type; `x` removes the key from the file. A save goes through `config.Save`: it patches only
   that key's line (comments, order and unknown keys stay; a new key goes
@@ -565,8 +581,8 @@ never a secret.
   links, the editor and the diff tool, the Linear workspace and reader
   (rebuilt when the key command changes), the update check and
   auto-restart read each time.
-  Only `projects_root` needs a restart, and the status line says so.
-  `linear_api_key_command` is shown and edited as a command; the key it
+  Only `projects.root` needs a restart, and the status line says so.
+  `linear.api_key_command` is shown and edited as a command; the key it
   prints is never run, shown or written.
 
 ## Updates
@@ -671,7 +687,7 @@ completed and canceled dim, the ID too. The list's LINKS column keeps its
   401/403 or `AUTHENTICATION_ERROR`), until the reset time after a rate
   limit (HTTP 429 or `RATELIMITED`, `X-RateLimit-Requests-Reset`). Without
   a key the Sources view has a note, not a missing source.
-- Key: `$LINEAR_API_KEY`, else `linear_api_key_command` from the config
+- Key: `$LINEAR_API_KEY`, else `linear.api_key_command` from the config
   file (user's decision, 2026-10-03), split like the editor command and run
   without a shell, with a 30 s timeout, at most once per deck start; a
   refused key lets it run again. A failed command is not retried until the

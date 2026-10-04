@@ -1,28 +1,28 @@
  Admin rebuild                                               ◐ 2  ◇ 1  ○ 1  ✉ 0
 ────────────────────────────────────────────────────────────────────────────────
 ─ Settings · /home/ada/.config/herdr-deck/config.toml ──────────────────────────
- Links and Linear
-   linear_workspace        acme                                          file
-   linear_status           true                                          default
-   linear_api_key_command  none                                          default
+ [projects] herdr-projects
+   projects.root           /home/ada/.herdr-projects                     default
 
- Editor and diff
+ [linear] Linear links and status
+   linear.workspace        acme                                          file
+   linear.status           true                                          default
+   linear.api_key_command  none                                          default
+
+ [figma] Figma links
+   figma.desktop           false                                         default
+
+ [browser] web links
+   browser.reuse_tabs      true                                          default
+
+ [updates] new versions of the deck
+   updates.check           true                                          default
+   updates.auto_restart    true                                          default
+
+ [editor] what e opens
  ▸ editor.command          zed {x}                                       file
      what e opens a worktree with; {path} is the folder
      ✕ unknown placeholder {x}; use {path}
      ↵ saves · esc cancels · empty removes it from the file
-   editor.terminal         false                                         default
-   diff.command            hunk diff {base} -- {file}                    default
-   diff.terminal           true                                          default
-   diff_view               list                                          default
-
- Updates
-   update_check            true                                          default
-   auto_restart            true                                          default
-
- Browser
-   reuse_browser_tabs      true                                          default
-   figma_desktop           false                                         default
-
 ────────────────────────────────────────────────────────────────────────────────
  ↵ save  esc cancel  empty removes it                                     v9.9.9

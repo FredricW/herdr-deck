@@ -238,10 +238,12 @@ func (m *Model) settingsSaved(msg settingsSavedMsg) tea.Cmd {
 	what := "saved " + msg.key + " = " + valueText(v, sp)
 	if msg.removed {
 		what = "removed " + msg.key + " from the file; now " + valueText(v, sp)
+	} else if msg.before.Old != "" && !msg.before.Shadowed {
+		what += ", moved from " + msg.before.Old
 	}
 	switch {
-	case sp.Override(v.Source) != "":
-		m.status = what + "; " + sp.Override(v.Source) + " still wins"
+	case sp.Override(v) != "":
+		m.status = what + "; " + sp.Override(v) + " still wins"
 	case sp.Restart && v.Text != msg.before.Text:
 		m.status = what + "; restart the deck to use it"
 	default:
@@ -307,14 +309,18 @@ func (m Model) settingsDrawer(width int) *drawer {
 	const keyW = 22
 	srcW := 7
 	valW := max(width-1-2-keyW-2-2-srcW, 8)
-	group := ""
+	titles := map[string]string{}
+	for _, t := range config.Tables {
+		titles[t.Name] = t.Title
+	}
+	table := ""
 	for i, sp := range config.Specs {
-		if sp.Group != group {
-			if group != "" {
+		if t := sp.Table(); t != table {
+			if table != "" {
 				d.line("")
 			}
-			group = sp.Group
-			d.line(" " + dim.Render(group))
+			table = t
+			d.line(fit(" "+bold.Render("["+t+"]")+" "+dim.Render(titles[t]), width))
 		}
 		v := m.set.cfg.Values[sp.Key]
 		sel := i == m.set.cursor
@@ -361,11 +367,17 @@ func (m Model) settingNotes(d *drawer, sp config.Spec, v config.Value) {
 		}
 	}
 	note(sp.Help, dim)
-	if o := sp.Override(v.Source); o != "" {
+	if o := sp.Override(v); o != "" {
 		note("set by "+o+", which wins over the file; a saved value applies once it is gone", warnStyle)
 	}
 	if v.Note != "" {
 		note(v.Note, warnStyle)
+	}
+	switch {
+	case v.Shadowed:
+		note("the file also sets the earlier "+v.Old+", which is ignored; saving removes it", dim)
+	case v.Old != "":
+		note("the file calls it "+v.Old+", its earlier name; saving moves it into ["+sp.Table()+"]", dim)
 	}
 	if sp.Restart {
 		note("a change applies when the deck restarts", dim)

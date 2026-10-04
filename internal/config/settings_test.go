@@ -2,34 +2,38 @@ package config
 
 import (
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
 func TestResolveValuesAndSources(t *testing.T) {
 	getenv, home := env(t, map[string]string{
-		EnvEditor:          "nvim {path}",
+		EnvEditorCommand:   "nvim {path}",
 		EnvEditorTerminal:  "true",
 		EnvRefreshInterval: "soon", // bad: the file's value is used
 		EnvLinearAPIKey:    "lin_api_never_shown",
 	})
 	write(t, filepath.Join(home, ".config", "herdr-deck", "config.toml"), `
-linear_workspace = "acme"
-refresh_interval = "30s"
-linear_api_key_command = "op read op://Vault/Linear/key"
-figma_desktop = true
-diff_view = "tree"
+[linear]
+workspace = "acme"
+api_key_command = "op read op://Vault/Linear/key"
+
+[figma]
+desktop = true
 
 [editor]
 command = "zed {path}"
 
 [diff]
 terminal = false
+view = "tree"
 
 [ui]
+refresh_interval = "30s"
 folded_lists = ["In progress", " backlog ", "Backlog"]
 `)
 	no := false
-	s, err := Resolve(Flags{UpdateCheck: &no, DiffTool: "git diff {base}"}, getenv, noHunk)
+	s, err := Resolve(fls(KeyUpdateCheck, &no, KeyDiffCommand, "git diff {base}"), getenv, noHunk)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -65,7 +69,7 @@ folded_lists = ["In progress", " backlog ", "Backlog"]
 		}
 	}
 	if v := s.Values[KeyUpdateCheck]; v.InFile {
-		t.Errorf("update_check is not in the file, got %q", v.File)
+		t.Errorf("updates.check is not in the file, got %q", v.File)
 	}
 	if len(s.Values) != len(Specs) {
 		t.Errorf("%d values for %d specs", len(s.Values), len(Specs))
@@ -92,7 +96,7 @@ func TestResolveDefaultSources(t *testing.T) {
 		t.Errorf("diff.command = %q, want %q", got, DefaultDiffTool)
 	}
 	if got := s.Values[KeyLinearWorkspace].Text; got != "" {
-		t.Errorf("linear_workspace = %q, want none", got)
+		t.Errorf("linear.workspace = %q, want none", got)
 	}
 }
 
@@ -103,8 +107,45 @@ func TestSpecs(t *testing.T) {
 			t.Errorf("%s twice", sp.Key)
 		}
 		seen[sp.Key] = true
-		if sp.Group == "" || sp.Help == "" {
-			t.Errorf("%s has no group or help", sp.Key)
+		if sp.Help == "" || sp.Default == "" {
+			t.Errorf("%s has no help or default", sp.Key)
+		}
+	}
+	tables := map[string]bool{}
+	for _, tb := range Tables {
+		tables[tb.Name] = true
+	}
+	// Every name is derived from the dotted key, and no two settings share
+	// one, old or new.
+	names := map[string]string{}
+	claim := func(sp Spec, name string) {
+		if other, ok := names[name]; ok {
+			t.Errorf("%s and %s both use %s", other, sp.Key, name)
+		}
+		names[name] = sp.Key
+	}
+	for _, sp := range Specs {
+		if !tables[sp.Table()] {
+			t.Errorf("%s: table %q is not in Tables", sp.Key, sp.Table())
+		}
+		snake := strings.ReplaceAll(sp.Key, ".", "_")
+		if want := "--" + strings.ReplaceAll(snake, "_", "-"); sp.Flag != want {
+			t.Errorf("%s: flag %s, want %s", sp.Key, sp.Flag, want)
+		}
+		wantEnv := "HERDR_DECK_" + strings.ToUpper(snake)
+		if sp.Key == KeyProjectsRoot {
+			wantEnv = "HERDR_PROJECTS_ROOT" // herdr-projects' own
+		}
+		if sp.Env != wantEnv {
+			t.Errorf("%s: env %s, want %s", sp.Key, sp.Env, wantEnv)
+		}
+		for _, n := range append(append([]string{sp.Flag, sp.Env, sp.Old}, sp.FlagAliases...), sp.EnvAliases...) {
+			if n != "" {
+				claim(sp, n)
+			}
+		}
+		if sp.Old != "" && strings.Contains(sp.Old, ".") {
+			t.Errorf("%s: old key %s is not a flat key", sp.Key, sp.Old)
 		}
 	}
 	for _, sp := range Specs {
@@ -113,10 +154,10 @@ func TestSpecs(t *testing.T) {
 		}
 	}
 	if err := Check(KeyDiffView, "tree"); err != nil {
-		t.Errorf("Check(diff_view, tree) = %v", err)
+		t.Errorf("Check(diff.view, tree) = %v", err)
 	}
 	if err := Check(KeyDiffView, "grid"); err == nil || err.Error() != `"grid" is not list or tree` {
-		t.Errorf("Check(diff_view, grid) = %v", err)
+		t.Errorf("Check(diff.view, grid) = %v", err)
 	}
 	for text, want := range map[string]string{
 		"Backlog, Done": "",
@@ -129,10 +170,22 @@ func TestSpecs(t *testing.T) {
 			got = err.Error()
 		}
 		if got != want {
-			t.Errorf("Check(folded_lists, %q) = %q, want %q", text, got, want)
+			t.Errorf("Check(ui.folded_lists, %q) = %q, want %q", text, got, want)
 		}
 	}
-	if sp, _ := SpecFor(KeyEditorCommand); sp.Override(FromFlag) != "--editor" || sp.Override(FromEnv) != "$"+EnvEditor || sp.Override(FromFile) != "" {
-		t.Errorf("Override = %q, %q", sp.Override(FromFlag), sp.Override(FromEnv))
+	sp, _ := SpecFor(KeyEditorCommand)
+	for _, tt := range []struct {
+		v    Value
+		want string
+	}{
+		{Value{Source: FromFlag}, "--editor-command"},
+		{Value{Source: FromFlag, Via: "--editor"}, "--editor"},
+		{Value{Source: FromEnv}, "$" + EnvEditorCommand},
+		{Value{Source: FromEnv, Via: "HERDR_DECK_EDITOR"}, "$HERDR_DECK_EDITOR"},
+		{Value{Source: FromFile}, ""},
+	} {
+		if got := sp.Override(tt.v); got != tt.want {
+			t.Errorf("Override(%+v) = %q, want %q", tt.v, got, tt.want)
+		}
 	}
 }

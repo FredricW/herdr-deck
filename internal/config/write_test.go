@@ -13,11 +13,13 @@ func ptr(s string) *string { return &s }
 // sample is a hand-written file with comments, an unknown key and an
 // unknown table, which every save must keep.
 const sample = `# herdr-deck settings
-
-# Bare IDs link here.
-linear_workspace = "acme"   # the team's workspace
 future_key = 3
 
+[linear]
+# Bare IDs link here.
+workspace = "acme"   # the team's workspace
+
+[ui]
 # Reload often.
 refresh_interval = "5s"
 
@@ -40,8 +42,8 @@ func TestSaveKeepsCommentsAndUnknownKeys(t *testing.T) {
 			strings.Replace(sample, `"acme"`, `"globex"`, 1)},
 		{"replace in a table", KeyEditorCommand, ptr("nvim {path}"),
 			strings.Replace(sample, `"zed {path}"`, `"nvim {path}"`, 1)},
-		{"new top-level key after the last one", KeyFigmaDesktop, ptr("true"),
-			strings.Replace(sample, "refresh_interval = \"5s\"\n", "refresh_interval = \"5s\"\nfigma_desktop = true\n", 1)},
+		{"new key after the last one of its table", KeyFoldedLists, ptr("Later"),
+			strings.Replace(sample, "refresh_interval = \"5s\"\n", "refresh_interval = \"5s\"\nfolded_lists = [\"Later\"]\n", 1)},
 		{"new key in an existing table", KeyEditorTerminal, ptr("T"),
 			strings.Replace(sample, "command = \"zed {path}\"\n", "command = \"zed {path}\"\nterminal = true\n", 1)},
 		{"new table at the end", KeyDiffCommand, ptr(`git diff "{base}"`),
@@ -70,6 +72,74 @@ func TestSaveKeepsCommentsAndUnknownKeys(t *testing.T) {
 	}
 }
 
+// oldSample is sample with the settings under their earlier flat keys.
+const oldSample = `# herdr-deck settings
+
+# Bare IDs link here.
+linear_workspace = "acme"   # the team's workspace
+future_key = 3
+
+# Reload often.
+refresh_interval = "5s"
+update_check = false
+
+[editor]
+# Zed, not VS Code.
+command = "zed {path}"
+`
+
+// Saving a key the file sets under its earlier name moves it into its
+// table, with its comments; removing it removes both forms.
+func TestSaveMovesOldKeys(t *testing.T) {
+	tests := []struct {
+		name, file, key string
+		value           *string
+		want            string
+	}{
+		{"moved with its comments", oldSample, KeyLinearWorkspace, ptr("globex"), `# herdr-deck settings
+
+future_key = 3
+
+# Reload often.
+refresh_interval = "5s"
+update_check = false
+
+[editor]
+# Zed, not VS Code.
+command = "zed {path}"
+
+[linear]
+# Bare IDs link here.
+workspace = "globex"   # the team's workspace
+`},
+		{"same value still moves", "update_check = false\n[updates]\nauto_restart = true\n", KeyUpdateCheck, ptr("false"),
+			"[updates]\nauto_restart = true\ncheck = false\n"},
+		{"switch toggled", "refresh_interval = \"5s\"\nupdate_check = false\n", KeyUpdateCheck, ptr("true"),
+			"refresh_interval = \"5s\"\n\n[updates]\ncheck = true\n"},
+		{"removed", oldSample, KeyRefreshInterval, nil,
+			strings.Replace(oldSample, "# Reload often.\nrefresh_interval = \"5s\"\n", "", 1)},
+		{"both set: the old line goes, the table's value changes", "# old\nlinear_workspace = \"a\"\n\n[linear]\nworkspace = \"b\"\n", KeyLinearWorkspace, ptr("c"),
+			"# old\n\n[linear]\nworkspace = \"c\"\n"},
+		{"both set and removed", "linear_workspace = \"a\"\n\n[linear]\nworkspace = \"b\"\n", KeyLinearWorkspace, nil,
+			"\n[linear]\n"},
+		{"the file's opening comment stays", "# My deck.\nlinear_workspace = \"a\"\n", KeyLinearWorkspace, ptr("b"),
+			"# My deck.\n\n[linear]\nworkspace = \"b\"\n"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			path := filepath.Join(t.TempDir(), "config.toml")
+			write(t, path, tt.file)
+			if err := Save(path, tt.key, tt.value); err != nil {
+				t.Fatal(err)
+			}
+			got, _ := os.ReadFile(path)
+			if string(got) != tt.want {
+				t.Errorf("file =\n%s\nwant\n%s", got, tt.want)
+			}
+		})
+	}
+}
+
 func TestSaveCreatesFileAndFolder(t *testing.T) {
 	getenv, home := env(t, map[string]string{})
 	path, _ := Path("", getenv)
@@ -83,7 +153,7 @@ func TestSaveCreatesFileAndFolder(t *testing.T) {
 		t.Fatal(err)
 	}
 	got, _ := os.ReadFile(path)
-	want := "linear_workspace = \"acme\"\n\n[editor]\ncommand = \"zed {path}\"\n"
+	want := "[editor]\ncommand = \"zed {path}\"\n\n[linear]\nworkspace = \"acme\"\n"
 	if string(got) != want {
 		t.Errorf("file =\n%q\nwant\n%q", got, want)
 	}
@@ -109,7 +179,7 @@ func TestSaveCreatesFileAndFolder(t *testing.T) {
 func TestSaveKeepsModeAndWritesThroughSymlink(t *testing.T) {
 	dir := t.TempDir()
 	real := filepath.Join(dir, "dotfiles", "deck.toml")
-	write(t, real, "update_check = true\n")
+	write(t, real, "[updates]\ncheck = true\n")
 	if err := os.Chmod(real, 0o600); err != nil {
 		t.Fatal(err)
 	}
@@ -127,7 +197,7 @@ func TestSaveKeepsModeAndWritesThroughSymlink(t *testing.T) {
 		t.Error("the symlink was replaced by a file")
 	}
 	got, _ := os.ReadFile(real)
-	if string(got) != "update_check = false\n" {
+	if string(got) != "[updates]\ncheck = false\n" {
 		t.Errorf("file = %q", got)
 	}
 	if st, _ := os.Stat(real); st.Mode().Perm() != 0o600 {
@@ -141,26 +211,26 @@ func TestSaveLayouts(t *testing.T) {
 		value           *string
 		want            string
 	}{
-		{"top-level key goes above the first table and its comments", "# Editor\n[editor]\ncommand = \"vi\"\n", KeyUpdateCheck, ptr("false"),
-			"update_check = false\n\n# Editor\n[editor]\ncommand = \"vi\"\n"},
 		{"dotted keys stay dotted", "editor.command = \"vi\"\n", KeyEditorTerminal, ptr("true"),
 			"editor.command = \"vi\"\neditor.terminal = true\n"},
 		{"dotted prefix added once", "editor.command = \"vi\"\neditor.extra = 1\n", KeyEditorTerminal, ptr("true"),
 			"editor.command = \"vi\"\neditor.extra = 1\neditor.terminal = true\n"},
 		{"dotted key replaced", "editor.command = \"vi\"\n", KeyEditorCommand, ptr("nvim"),
 			"editor.command = \"nvim\"\n"},
-		{"CRLF kept", "update_check = true\r\n", KeyAutoRestart, ptr("false"),
-			"update_check = true\r\nauto_restart = false\r\n"},
-		{"no final newline", "update_check = true", KeyAutoRestart, ptr("false"),
-			"update_check = true\nauto_restart = false\n"},
-		{"multi-line string replaced whole", "linear_api_key_command = \"\"\"\nop read x\"\"\"\nupdate_check = true\n", KeyLinearAPIKeyCommand, ptr("op read op://Vault/Item/key"),
-			"linear_api_key_command = \"op read op://Vault/Item/key\"\nupdate_check = true\n"},
+		{"CRLF kept", "[updates]\r\ncheck = true\r\n", KeyAutoRestart, ptr("false"),
+			"[updates]\r\ncheck = true\r\nauto_restart = false\r\n"},
+		{"new table after CRLF", "x = 1\r\n", KeyAutoRestart, ptr("false"),
+			"x = 1\r\n\r\n[updates]\r\nauto_restart = false\r\n"},
+		{"no final newline", "[updates]\ncheck = true", KeyAutoRestart, ptr("false"),
+			"[updates]\ncheck = true\nauto_restart = false\n"},
+		{"multi-line string replaced whole", "[linear]\napi_key_command = \"\"\"\nop read x\"\"\"\nstatus = true\n", KeyLinearAPIKeyCommand, ptr("op read op://Vault/Item/key"),
+			"[linear]\napi_key_command = \"op read op://Vault/Item/key\"\nstatus = true\n"},
 		{"array before is skipped", "list = [\n  \"a\", # [x]\n  \"b\",\n]\n[editor]\n", KeyEditorCommand, ptr("vi"),
 			"list = [\n  \"a\", # [x]\n  \"b\",\n]\n[editor]\ncommand = \"vi\"\n"},
-		{"quoted key matched", "\"linear_workspace\" = 'acme'\n", KeyLinearWorkspace, ptr("globex"),
-			"\"linear_workspace\" = \"globex\"\n"},
+		{"quoted key matched", "[\"linear\"]\n\"workspace\" = 'acme'\n", KeyLinearWorkspace, ptr("globex"),
+			"[\"linear\"]\n\"workspace\" = \"globex\"\n"},
 		{"key in an array of tables is not ours", "[[editor]]\ncommand = \"vi\"\n", KeyUpdateCheck, ptr("true"),
-			"update_check = true\n\n[[editor]]\ncommand = \"vi\"\n"},
+			"[[editor]]\ncommand = \"vi\"\n\n[updates]\ncheck = true\n"},
 		{"list written as an array", "", KeyFoldedLists, ptr(" Backlog ,Done, backlog"),
 			"[ui]\nfolded_lists = [\"Backlog\", \"Done\"]\n"},
 		{"none is an empty array", "[ui]\nfolded_lists = [\n  \"Backlog\",\n]\nother = true\n", KeyFoldedLists, ptr("none"),
@@ -201,6 +271,7 @@ func TestSaveRefuses(t *testing.T) {
 		{"unknown key", "", "colour", ptr("red"), "unknown setting"},
 		{"broken file", "editor = [\n", KeyUpdateCheck, ptr("true"), "does not parse"},
 		{"inline table", "editor = { command = \"vi\" }\n", KeyEditorTerminal, ptr("true"), "edit editor.terminal by hand"},
+		{"an array of tables where the table goes", "[[updates]]\ncheck = false\n", KeyUpdateCheck, ptr("true"), "would break the file"},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

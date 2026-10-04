@@ -1,6 +1,19 @@
  Admin rebuild                           ◐ 2  ◇ 1  ○ 1  ✉ 0
 ────────────────────────────────────────────────────────────
 ─ Settings · /home/ada/.config/herdr-deck/config.toml ──────
+ [ui] the list and how often it reloads
+   ui.refresh_interval     5s                        default
+   ui.folded_lists         Backlog, Resolved         default
+
+ [projects] herdr-projects
+   projects.root           /home/ada/.herdr-projec…  default
+
+ [linear] Linear links and status
+ ▸ linear.workspace        acme                      file
+     Linear workspace that bare IDs such as ABC-123 link
+     into
+     the file calls it linear_workspace, its earlier name;
+     saving moves it into [linear]
    linear.status           true                      default
    linear.api_key_command  none                      default
 
@@ -11,18 +24,5 @@
    browser.reuse_tabs      true                      default
 
  [updates] new versions of the deck
-   updates.check           true                      default
-   updates.auto_restart    true                      default
-
- [editor] what e opens
-   editor.command          zed {path}                file
-   editor.terminal         false                     default
-
- [diff] what d opens, and the Files tab
-   diff.command            hunk diff {base} -- {fi…  default
-   diff.terminal           true                      default
- ▸ diff.view               list                      default
-     the Files section's view at start: list, or tree
-     (files under their folders); d t switches
 ────────────────────────────────────────────────────────────
  ↵ edit  x remove  j k move  esc back  q quit         v9.9.9

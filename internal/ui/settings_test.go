@@ -88,7 +88,9 @@ func goldenSettings(t *testing.T, name string, m Model) {
 }
 
 func TestSettingsGolden(t *testing.T) {
-	no := false
+	var noCheck config.Flags
+	noCheck.Set(config.KeyUpdateCheck, "", "false")
+	to := func(key string) []tea.Msg { return keys(strings.Repeat("j", indexOf(key))) }
 	cases := []struct {
 		name string
 		vars map[string]string
@@ -96,9 +98,11 @@ func TestSettingsGolden(t *testing.T) {
 		keys []tea.Msg
 	}{
 		{name: "settings"},
-		{name: "settings-override", vars: map[string]string{config.EnvEditor: "nvim {path}", config.EnvLinearAPIKey: "lin_api_secret"},
-			fl: config.Flags{UpdateCheck: &no}, keys: keys("jjj")},
-		{name: "settings-edit", keys: append(keys("jjj"), tea.KeyPressMsg{Code: tea.KeyEnter}, tea.KeyPressMsg{Code: tea.KeyBackspace}, tea.KeyPressMsg{Code: tea.KeyBackspace}, tea.KeyPressMsg{Code: tea.KeyBackspace}, tea.KeyPressMsg{Code: tea.KeyBackspace}, tea.KeyPressMsg{Code: tea.KeyBackspace}, tea.KeyPressMsg{Code: tea.KeyBackspace}, tea.KeyPressMsg{Code: '{', Text: "{"}, tea.KeyPressMsg{Code: 'x', Text: "x"}, tea.KeyPressMsg{Code: '}', Text: "}"})},
+		// An earlier env name shows as it is.
+		{name: "settings-override", vars: map[string]string{"HERDR_DECK_EDITOR": "nvim {path}", config.EnvLinearAPIKey: "lin_api_secret"},
+			fl: noCheck, keys: to(config.KeyEditorCommand)},
+		{name: "settings-renamed", keys: to(config.KeyLinearWorkspace)},
+		{name: "settings-edit", keys: append(to(config.KeyEditorCommand), tea.KeyPressMsg{Code: tea.KeyEnter}, tea.KeyPressMsg{Code: tea.KeyBackspace}, tea.KeyPressMsg{Code: tea.KeyBackspace}, tea.KeyPressMsg{Code: tea.KeyBackspace}, tea.KeyPressMsg{Code: tea.KeyBackspace}, tea.KeyPressMsg{Code: tea.KeyBackspace}, tea.KeyPressMsg{Code: tea.KeyBackspace}, tea.KeyPressMsg{Code: '{', Text: "{"}, tea.KeyPressMsg{Code: 'x', Text: "x"}, tea.KeyPressMsg{Code: '}', Text: "}"})},
 		{name: "settings-bottom", keys: keys("jjjjjjjjjjjjjjjj")},
 	}
 	for _, c := range cases {
@@ -121,24 +125,22 @@ func TestSettingsToggleAndEditKeepFile(t *testing.T) {
 	e := newSettingsEnv(t, settingsFile, nil)
 	m := settingsModel(t, e, config.Flags{}, 80, 28)
 
-	// linear_status (row 2) is a switch: ↵ writes false.
-	m, _ = press(m, keys("j")...)
+	// linear.status is a switch: ↵ writes false into a new [linear].
+	m = moveTo(t, m, config.KeyLinearStatus)
 	m, _ = press(m, tea.KeyPressMsg{Code: tea.KeyEnter})
-	want := strings.Replace(settingsFile, "future_key = 1\n", "future_key = 1\nlinear_status = false\n", 1)
+	want := settingsFile + "\n[linear]\nstatus = false\n"
 	if got := e.file(t); got != want {
 		t.Fatalf("file after toggle:\n%s\nwant\n%s", got, want)
 	}
-	if !strings.Contains(m.Status(), "saved linear_status = false") {
+	if m.Status() != "saved linear.status = false" {
 		t.Errorf("status = %q", m.Status())
 	}
 	if len(e.applied) != 1 || e.applied[0].LinearStatus {
 		t.Errorf("applied = %+v", e.applied)
 	}
 
-	// refresh_interval: edit to 30s; the deck's tick follows at once.
-	for m.set.cursor != indexOf(config.KeyRefreshInterval) {
-		m, _ = press(m, keys("j")...)
-	}
+	// ui.refresh_interval: edit to 30s; the deck's tick follows at once.
+	m = moveTo(t, m, config.KeyRefreshInterval)
 	m, _ = press(m, tea.KeyPressMsg{Code: tea.KeyEnter})
 	if !m.set.editing || m.set.input.Value() != "5s" {
 		t.Fatalf("editing %v, value %q", m.set.editing, m.set.input.Value())
@@ -158,17 +160,39 @@ func TestSettingsToggleAndEditKeepFile(t *testing.T) {
 	if strings.Contains(e.file(t), "refresh_interval") || m.opt.Tick != config.DefaultRefreshInterval {
 		t.Errorf("x: tick %v, file:\n%s", m.opt.Tick, e.file(t))
 	}
-	if !strings.Contains(m.Status(), "removed refresh_interval from the file; now 5s") {
+	if !strings.Contains(m.Status(), "removed ui.refresh_interval from the file; now 5s") {
 		t.Errorf("status = %q", m.Status())
+	}
+}
+
+// Saving a setting the file holds under its earlier name moves it into
+// its table, comment and all, and says so.
+func TestSettingsSaveMovesOldKey(t *testing.T) {
+	e := newSettingsEnv(t, settingsFile, nil)
+	m := settingsModel(t, e, config.Flags{}, 80, 28)
+	m = moveTo(t, m, config.KeyLinearWorkspace)
+	if !strings.Contains(screen(m), "the file calls it linear_workspace") {
+		t.Errorf("no rename note under the row:\n%s", screen(m))
+	}
+	m, _ = press(m, tea.KeyPressMsg{Code: tea.KeyEnter})
+	m.set.input.SetValue("globex")
+	m, _ = press(m, tea.KeyPressMsg{Code: tea.KeyEnter})
+	want := "# My deck.\nfuture_key = 1\n\n[editor]\ncommand = \"zed {path}\"\n\n[linear]\nworkspace = \"globex\"   # the team\n"
+	if got := e.file(t); got != want {
+		t.Errorf("file =\n%s\nwant\n%s", got, want)
+	}
+	if m.Status() != "saved linear.workspace = globex, moved from linear_workspace" {
+		t.Errorf("status = %q", m.Status())
+	}
+	if v := m.set.cfg.Values[config.KeyLinearWorkspace]; v.Old != "" || len(m.set.cfg.Notes) != 0 {
+		t.Errorf("after the move: %+v, notes %q", v, m.set.cfg.Notes)
 	}
 }
 
 func TestSettingsInvalidValueIsNotSaved(t *testing.T) {
 	e := newSettingsEnv(t, settingsFile, nil)
 	m := settingsModel(t, e, config.Flags{}, 80, 28)
-	for m.set.cursor != indexOf(config.KeyRefreshInterval) {
-		m, _ = press(m, keys("j")...)
-	}
+	m = moveTo(t, m, config.KeyRefreshInterval)
 	m, _ = press(m, tea.KeyPressMsg{Code: tea.KeyEnter}, tea.KeyPressMsg{Code: tea.KeyBackspace}, tea.KeyPressMsg{Code: tea.KeyBackspace})
 	m, _ = press(m, keys("1h")...)
 	m, _ = press(m, tea.KeyPressMsg{Code: tea.KeyEnter})
@@ -192,12 +216,10 @@ func TestSettingsInvalidValueIsNotSaved(t *testing.T) {
 func TestSettingsOverrideStillWins(t *testing.T) {
 	e := newSettingsEnv(t, "", map[string]string{config.EnvReuseTabs: "false"})
 	m := settingsModel(t, e, config.Flags{}, 80, 28)
-	for m.set.cursor != indexOf(config.KeyReuseTabs) {
-		m, _ = press(m, keys("j")...)
-	}
+	m = moveTo(t, m, config.KeyReuseTabs)
 	m, _ = press(m, tea.KeyPressMsg{Code: tea.KeyEnter})
 	// The effective value is false (env), so the toggle writes true.
-	if got := e.file(t); got != "reuse_browser_tabs = true\n" {
+	if got := e.file(t); got != "[browser]\nreuse_tabs = true\n" {
 		t.Errorf("file = %q", got)
 	}
 	if !strings.Contains(m.Status(), "$"+config.EnvReuseTabs+" still wins") {
@@ -208,25 +230,21 @@ func TestSettingsOverrideStillWins(t *testing.T) {
 // The toggle flips the file's value, not the overriding env var's, so it
 // can go both ways while the override stays.
 func TestSettingsToggleUnderOverrideFlipsFileValue(t *testing.T) {
-	e := newSettingsEnv(t, "update_check = true\n", map[string]string{config.EnvUpdateCheck: "true"})
+	e := newSettingsEnv(t, "[updates]\ncheck = true\n", map[string]string{config.EnvUpdateCheck: "true"})
 	m := settingsModel(t, e, config.Flags{}, 80, 28)
-	for m.set.cursor != indexOf(config.KeyUpdateCheck) {
-		m, _ = press(m, keys("j")...)
-	}
+	m = moveTo(t, m, config.KeyUpdateCheck)
 	m, _ = press(m, tea.KeyPressMsg{Code: tea.KeyEnter})
-	if got := e.file(t); got != "update_check = false\n" {
+	if got := e.file(t); got != "[updates]\ncheck = false\n" {
 		t.Fatalf("first toggle: file = %q", got)
 	}
-	m, _ = press(m, tea.KeyPressMsg{Code: tea.KeyEnter})
-	if got := e.file(t); got != "update_check = true\n" {
+	_, _ = press(m, tea.KeyPressMsg{Code: tea.KeyEnter})
+	if got := e.file(t); got != "[updates]\ncheck = true\n" {
 		t.Errorf("second toggle: file = %q", got)
 	}
 	// Editing starts from the file's value too.
-	e = newSettingsEnv(t, "[editor]\ncommand = \"zed {path}\"\n", map[string]string{config.EnvEditor: "nvim {path}"})
+	e = newSettingsEnv(t, "[editor]\ncommand = \"zed {path}\"\n", map[string]string{config.EnvEditorCommand: "nvim {path}"})
 	m = settingsModel(t, e, config.Flags{}, 80, 28)
-	for m.set.cursor != indexOf(config.KeyEditorCommand) {
-		m, _ = press(m, keys("j")...)
-	}
+	m = moveTo(t, m, config.KeyEditorCommand)
 	m, _ = press(m, tea.KeyPressMsg{Code: tea.KeyEnter})
 	if got := m.set.input.Value(); got != "zed {path}" {
 		t.Errorf("edit starts from %q, want the file's value", got)
@@ -238,7 +256,7 @@ func TestSettingsToggleUnderOverrideFlipsFileValue(t *testing.T) {
 func TestSettingsOneSaveAtATime(t *testing.T) {
 	e := newSettingsEnv(t, "", nil)
 	m := settingsModel(t, e, config.Flags{}, 80, 28)
-	m, _ = press(m, keys("j")...) // linear_status
+	m = moveTo(t, m, config.KeyLinearStatus)
 	next, cmd := m.Update(tea.KeyPressMsg{Code: tea.KeyEnter})
 	m = next.(Model)
 	if cmd == nil || !m.set.saving {
@@ -250,7 +268,7 @@ func TestSettingsOneSaveAtATime(t *testing.T) {
 		t.Error("a second save started while the first ran")
 	}
 	m = run(m, cmd)
-	if m.set.saving || e.file(t) != "linear_status = false\n" {
+	if m.set.saving || e.file(t) != "[linear]\nstatus = false\n" {
 		t.Errorf("saving %v, file %q", m.set.saving, e.file(t))
 	}
 }
@@ -258,9 +276,7 @@ func TestSettingsOneSaveAtATime(t *testing.T) {
 func TestSettingsRestartNeeded(t *testing.T) {
 	e := newSettingsEnv(t, "", nil)
 	m := settingsModel(t, e, config.Flags{}, 80, 28)
-	for m.set.cursor != indexOf(config.KeyProjectsRoot) {
-		m, _ = press(m, keys("j")...)
-	}
+	m = moveTo(t, m, config.KeyProjectsRoot)
 	m, _ = press(m, tea.KeyPressMsg{Code: tea.KeyEnter})
 	m.set.input.SetValue("/srv/projects")
 	m, _ = press(m, tea.KeyPressMsg{Code: tea.KeyEnter})
@@ -275,19 +291,17 @@ func TestSettingsUpdateCheckOff(t *testing.T) {
 	// Through Update, not press: the hourly tick it returns would block.
 	next, _ := m.Update(updateMsg{Available: "v1.2.0"})
 	m, _ = press(next.(Model), keys("s")...)
-	for m.set.cursor != indexOf(config.KeyUpdateCheck) {
-		m, _ = press(m, keys("j")...)
-	}
+	m = moveTo(t, m, config.KeyUpdateCheck)
 	m, _ = press(m, tea.KeyPressMsg{Code: tea.KeyEnter})
 	if m.update.Available != "" || strings.Contains(screen(m), "↑ v1.2.0") {
-		t.Errorf("hint stays after update_check = false: %+v", m.update)
+		t.Errorf("hint stays after updates.check = false: %+v", m.update)
 	}
 }
 
 func TestSettingsClickSelects(t *testing.T) {
 	e := newSettingsEnv(t, "", nil)
 	m := settingsModel(t, e, config.Flags{}, 80, 28)
-	x, y := find(t, m, "update_check")
+	x, y := find(t, m, "updates.check")
 	m, _ = press(m, click(x, y))
 	if m.set.cursor != indexOf(config.KeyUpdateCheck) {
 		t.Errorf("cursor = %d", m.set.cursor)
@@ -306,6 +320,23 @@ func TestSettingsOff(t *testing.T) {
 	}
 }
 
+// moveTo moves the settings page's cursor to key with j or k.
+func moveTo(t *testing.T, m Model, key string) Model {
+	t.Helper()
+	want := indexOf(key)
+	for i := 0; m.set.cursor != want && i < len(config.Specs); i++ {
+		k := "j"
+		if m.set.cursor > want {
+			k = "k"
+		}
+		m, _ = press(m, keys(k)...)
+	}
+	if m.set.cursor != want {
+		t.Fatalf("cursor %d, want %s at %d", m.set.cursor, key, want)
+	}
+	return m
+}
+
 func indexOf(key string) int {
 	for i, sp := range config.Specs {
 		if sp.Key == key {
@@ -315,23 +346,21 @@ func indexOf(key string) int {
 	return -1
 }
 
-// ↵ cycles diff_view through its values, and the saved view applies at
+// ↵ cycles diff.view through its values, and the saved view applies at
 // once; d t alone never writes the file.
 func TestSettingsCyclesDiffView(t *testing.T) {
 	e := newSettingsEnv(t, "", nil)
 	m := settingsModel(t, e, config.Flags{}, 80, 28)
-	for m.set.cursor != indexOf(config.KeyDiffView) {
-		m, _ = press(m, keys("j")...)
-	}
+	m = moveTo(t, m, config.KeyDiffView)
 	m, _ = press(m, tea.KeyPressMsg{Code: tea.KeyEnter})
-	if got := e.file(t); got != "diff_view = \"tree\"\n" || !m.tree {
+	if got := e.file(t); got != "[diff]\nview = \"tree\"\n" || !m.tree {
 		t.Fatalf("first press: tree %v, file %q", m.tree, got)
 	}
-	if m.Status() != "saved diff_view = tree" {
+	if m.Status() != "saved diff.view = tree" {
 		t.Errorf("status = %q", m.Status())
 	}
 	m, _ = press(m, tea.KeyPressMsg{Code: tea.KeyEnter})
-	if got := e.file(t); got != "diff_view = \"list\"\n" || m.tree {
+	if got := e.file(t); got != "[diff]\nview = \"list\"\n" || m.tree {
 		t.Errorf("second press: tree %v, file %q", m.tree, got)
 	}
 }
@@ -348,9 +377,7 @@ func TestSettingsEditsFoldedLists(t *testing.T) {
 		t.Fatalf("space did not unfold Backlog:\n%s", screen(m))
 	}
 	m, _ = press(m, keys("s")...)
-	for m.set.cursor != indexOf(config.KeyFoldedLists) {
-		m, _ = press(m, keys("j")...)
-	}
+	m = moveTo(t, m, config.KeyFoldedLists)
 	m, _ = press(m, tea.KeyPressMsg{Code: tea.KeyEnter})
 	if got := m.set.input.Value(); got != "Backlog, Resolved" {
 		t.Fatalf("edit starts from %q", got)
@@ -393,9 +420,7 @@ func TestSettingsFoldedListsHandEdit(t *testing.T) {
 	for _, file := range []string{"[ui]\nfolded_lists = [\"Ideas, later\"]\n", "[ui]\nfolded_lists = [\"None\"]\n"} {
 		e := newSettingsEnv(t, file, nil)
 		m := settingsModel(t, e, config.Flags{}, 80, 28)
-		for m.set.cursor != indexOf(config.KeyFoldedLists) {
-			m, _ = press(m, keys("j")...)
-		}
+		m = moveTo(t, m, config.KeyFoldedLists)
 		m, _ = press(m, tea.KeyPressMsg{Code: tea.KeyEnter})
 		if m.set.editing || !strings.HasSuffix(m.Status(), "edit the file") || e.file(t) != file {
 			t.Errorf("%q: editing %v, status %q, file %q", file, m.set.editing, m.Status(), e.file(t))

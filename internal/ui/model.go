@@ -75,7 +75,7 @@ type Options struct {
 	// case (ui.folded_lists). Nil is config.DefaultFoldedLists; an empty,
 	// non-nil list folds none.
 	FoldedLists []string
-	// DiffTree starts the Files section in the tree view (diff_view =
+	// DiffTree starts the Files section in the tree view (diff.view =
 	// "tree"); d t switches views for the session.
 	DiffTree bool
 	// StartDev runs the dev manifest's `up` command for a thread's

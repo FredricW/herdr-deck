@@ -69,11 +69,11 @@ What the plugin does (`herdr-plugin.toml`):
   and reload with `herdr server reload-config`. Pick any free key.
 - **Figma links and Linear IDs in any pane** (`herdr-deck.open-link`).
   Ctrl+click a Figma link anywhere in herdr (Ctrl on macOS too) and it opens
-  in the Figma desktop app when `figma_desktop = true` is set in the deck's
+  in the Figma desktop app when `figma.desktop = true` is set in the deck's
   config file, else in the browser. herdr only makes http(s) URLs clickable,
   so a bare Linear ID such as `ABC-123` works through a selection instead:
   double-click the ID, then press a key bound to the action, and it opens in
-  your `linear_workspace` by the same rules the deck links it. The first
+  your `linear.workspace` by the same rules the deck links it. The first
   link or ID in a longer selection opens. Without a workspace nothing opens
   and a herdr notification says why.
 
@@ -198,7 +198,7 @@ The project slug comes from, in order:
 The slug is per pane, so it has no config-file key.
 
 Bare Linear IDs such as `ABC-123` link into the Linear workspace you set
-(`linear_workspace`, below). There is no default: without one, the IDs still
+(`linear.workspace`, below). There is no default: without one, the IDs still
 show, but the drawer and the `!` sources view say a workspace must be set,
 and opening one says so too. Full Linear URLs always open.
 
@@ -216,7 +216,7 @@ view says why.
 The key comes from, in order:
 
 1. `$LINEAR_API_KEY`;
-2. `linear_api_key_command` in the config file: a command that prints the
+2. `linear.api_key_command` in the config file: a command that prints the
    key, such as 1Password's `op read`.
 
 Create a personal API key in Linear under *Settings → Account → Security &
@@ -230,7 +230,8 @@ or keep it in 1Password and let the deck read it:
 
 ```toml
 # ~/.config/herdr-deck/config.toml
-linear_api_key_command = "op read op://Private/Linear/credential"
+[linear]
+api_key_command = "op read op://Private/Linear/credential"
 ```
 
 Decks the herdr plugin opens do not see your shell's environment, so the
@@ -240,11 +241,11 @@ is stopped after 30 seconds. The deck keeps the key in memory only: it
 never writes it to the config file, logs, the sources view or disk. Put
 the key itself in neither the config file nor the command line.
 
-`linear_status = false` (or `HERDR_DECK_LINEAR_STATUS=false`) turns the
+`status = false` in `[linear]` (or `HERDR_DECK_LINEAR_STATUS=false`) turns the
 statuses off, and the deck then never calls Linear.
 
 The deck reloads when a file in the project folder (or its `threads/`,
-`inbox/` or `.state/`) changes, and every `refresh_interval` (5 seconds by
+`inbox/` or `.state/`) changes, and every `ui.refresh_interval` (5 seconds by
 default). It never writes there.
 
 ## Configuration
@@ -255,39 +256,53 @@ The deck reads `$XDG_CONFIG_HOME/herdr-deck/config.toml`, else
 the same file, so settings there reach them even though they do not see your
 shell's environment.
 
+The file has one table per area. Each setting's name is its dotted path,
+such as `linear.workspace` for `workspace` in `[linear]`: the settings
+page, the `!` sources view and errors use it, and it gives the setting's
+flag, `--linear-workspace`, and environment variable,
+`HERDR_DECK_LINEAR_WORKSPACE`. Only `projects.root` keeps herdr-projects'
+own `HERDR_PROJECTS_ROOT`. `[linear] workspace = "acme"` and
+`linear.workspace = "acme"` at the top are the same key in TOML.
+
 Each setting comes from, in order: the command-line flag, the environment
 variable, the config file, the built-in default.
 
 ```toml
 # ~/.config/herdr-deck/config.toml
 
-# Linear workspace that bare IDs such as ABC-123 link into.
-linear_workspace = "acme"
-
-# Open Figma links in the Figma desktop app: the deck's keys and clicks,
-# and Ctrl+clicked Figma links anywhere in herdr. false opens the browser.
-figma_desktop = false
-
-# Show each Linear issue's state next to its ID (needs an API key).
-linear_status = true
-
-# A command that prints the Linear API key; $LINEAR_API_KEY wins over it.
-# Run without a shell. Never put the key itself in this file.
-linear_api_key_command = "op read op://Private/Linear/credential"
-
+[ui]
 # How often the deck reloads when no file change says to; 1s to 10m.
 refresh_interval = "5s"
+# The lists that start folded, by heading, in any case: TASKS.md's lists
+# and the deck's own groups (Resolved, Other threads). [] folds none.
+folded_lists = ["Backlog", "Resolved"]
 
+[projects]
 # The herdr-projects root; ~ is your home folder.
-projects_root = "~/.herdr-projects"
+root = "~/.herdr-projects"
 
+[linear]
+# Linear workspace that bare IDs such as ABC-123 link into.
+workspace = "acme"
+# Show each Linear issue's state next to its ID (needs an API key).
+status = true
+# A command that prints the Linear API key; $LINEAR_API_KEY wins over it.
+# Run without a shell. Never put the key itself in this file.
+api_key_command = "op read op://Private/Linear/credential"
+
+[figma]
+# Open Figma links in the Figma desktop app: the deck's keys and clicks,
+# and Ctrl+clicked Figma links anywhere in herdr. false opens the browser.
+desktop = false
+
+[browser]
 # Open a web link in a browser tab that already shows it (macOS); see
 # "Browser tabs" below.
-reuse_browser_tabs = true
+reuse_tabs = true
 
+[updates]
 # Show "↑ <version>" in the header when a newer deck exists.
-update_check = true
-
+check = true
 # Restart running decks in place when their binary is replaced, e.g. by
 # `herdr-deck update`.
 auto_restart = true
@@ -308,41 +323,38 @@ terminal = false          # e.g. command = "nvim {path}" with terminal = true
 [diff]
 command = "hunk diff {base} -- {file}"
 terminal = true
-
-# The lists that start folded, by heading, in any case: TASKS.md's lists
-# and the deck's own groups (Resolved, Other threads). [] folds none.
-[ui]
-folded_lists = ["Backlog", "Resolved"]
+# The Files tab's starting view: "list", or "tree" for the changed files
+# under their folders. `d t` switches views for the session without saving.
+view = "list"
 ```
 
-The Files section's starting view is a top-level key, so it goes above any
-table (`d t` switches views for the session without saving):
+The table below is generated from the deck's own list of settings
+(`go test ./internal/config -run TestREADMESettingsTable -update` rewrites
+it).
 
-```toml
-diff_view = "list"   # or "tree": the changed files under their folders
-```
-
-| Setting | Flag | Environment variable | Default |
-|---|---|---|---|
-| `linear_workspace` | `--linear-workspace` | `HERDR_DECK_LINEAR_WORKSPACE` | none |
-| `figma_desktop` | none | `HERDR_DECK_FIGMA_DESKTOP` | `false` |
-| `linear_status` | none | `HERDR_DECK_LINEAR_STATUS` | `true` |
-| `linear_api_key_command` | none | (`LINEAR_API_KEY` holds the key itself and wins) | none |
-| `refresh_interval` | `--refresh-interval` | `HERDR_DECK_REFRESH_INTERVAL` | `5s` |
-| `projects_root` | `--projects-root` | `HERDR_PROJECTS_ROOT` | `~/.herdr-projects` |
-| `reuse_browser_tabs` | `--reuse-browser-tabs` | `HERDR_DECK_REUSE_BROWSER_TABS` | `true` |
-| `update_check` | `--update-check` | `HERDR_DECK_UPDATE_CHECK` | `true` |
-| `auto_restart` | `--auto-restart` | `HERDR_DECK_AUTO_RESTART` | `true` |
-| `[editor] command` | `--editor` | `HERDR_DECK_EDITOR` | `code {path}` |
-| `[editor] terminal` | `--editor-terminal` | `HERDR_DECK_EDITOR_TERMINAL` | `false` |
-| `[diff] command` | `--diff-tool` | `HERDR_DECK_DIFF_TOOL` | `hunk diff {base} -- {file}`, or `git -C {path} diff --merge-base {base} -- {file}` without hunk |
-| `[diff] terminal` | `--diff-terminal` | `HERDR_DECK_DIFF_TERMINAL` | `true` |
-| `diff_view` | `--diff-view` | `HERDR_DECK_DIFF_VIEW` | `list` |
-| `[ui] folded_lists` | `--ui-folded-lists` | `HERDR_DECK_UI_FOLDED_LISTS` | `["Backlog", "Resolved"]` |
+<!-- settings table: generated, do not edit -->
+| Setting | Flag | Environment variable | Default | Earlier names |
+|---|---|---|---|---|
+| `ui.refresh_interval` | `--ui-refresh-interval` | `HERDR_DECK_UI_REFRESH_INTERVAL` | `5s` | `refresh_interval`, `--refresh-interval`, `HERDR_DECK_REFRESH_INTERVAL` |
+| `ui.folded_lists` | `--ui-folded-lists` | `HERDR_DECK_UI_FOLDED_LISTS` | `["Backlog", "Resolved"]` |  |
+| `projects.root` | `--projects-root` | `HERDR_PROJECTS_ROOT` | `~/.herdr-projects` | `projects_root` |
+| `linear.workspace` | `--linear-workspace` | `HERDR_DECK_LINEAR_WORKSPACE` | none | `linear_workspace` |
+| `linear.status` | `--linear-status` | `HERDR_DECK_LINEAR_STATUS` | `true` | `linear_status` |
+| `linear.api_key_command` | `--linear-api-key-command` | `HERDR_DECK_LINEAR_API_KEY_COMMAND` (`LINEAR_API_KEY` holds the key itself and wins) | none | `linear_api_key_command` |
+| `figma.desktop` | `--figma-desktop` | `HERDR_DECK_FIGMA_DESKTOP` | `false` | `figma_desktop` |
+| `browser.reuse_tabs` | `--browser-reuse-tabs` | `HERDR_DECK_BROWSER_REUSE_TABS` | `true` | `reuse_browser_tabs`, `--reuse-browser-tabs`, `HERDR_DECK_REUSE_BROWSER_TABS` |
+| `updates.check` | `--updates-check` | `HERDR_DECK_UPDATES_CHECK` | `true` | `update_check`, `--update-check`, `HERDR_DECK_UPDATE_CHECK` |
+| `updates.auto_restart` | `--updates-auto-restart` | `HERDR_DECK_UPDATES_AUTO_RESTART` | `true` | `auto_restart`, `--auto-restart`, `HERDR_DECK_AUTO_RESTART` |
+| `editor.command` | `--editor-command` | `HERDR_DECK_EDITOR_COMMAND` | `code {path}` | `--editor`, `HERDR_DECK_EDITOR` |
+| `editor.terminal` | `--editor-terminal` | `HERDR_DECK_EDITOR_TERMINAL` | `false` |  |
+| `diff.command` | `--diff-command` | `HERDR_DECK_DIFF_COMMAND` | `hunk diff {base} -- {file}` with hunk installed, else `git -C {path} diff --merge-base {base} -- {file}` | `--diff-tool`, `HERDR_DECK_DIFF_TOOL` |
+| `diff.terminal` | `--diff-terminal` | `HERDR_DECK_DIFF_TERMINAL` | `true` |  |
+| `diff.view` | `--diff-view` | `HERDR_DECK_DIFF_VIEW` | `list` | `diff_view` |
+<!-- end of settings table -->
 
 A command and its `terminal` option go together: the source that gives the
-command also decides `terminal` (or one above it does), so `--editor "zed
-{path}"` does not open in a pane because the file says `terminal = true` for
+command also decides `terminal` (or one above it does), so
+`--editor-command "zed {path}"` does not open in a pane because the file says `terminal = true` for
 nvim. Without a `terminal` value, the editor is a desktop app and the diff
 tool a terminal program. A terminal program needs herdr; outside herdr, `e`
 and `d` say so in the status line.
@@ -358,8 +370,8 @@ The deck does not read `$VISUAL` or `$EDITOR`. To use yours, put it in the
 file, e.g. `command = "nvim {path}"` with `terminal = true`.
 
 Press `s` for the settings page: every setting with its effective value and
-where it comes from (flag, env, file or default), grouped as above. `↵`
-toggles a switch, cycles a choice such as `diff_view`, or edits a value in
+where it comes from (flag, env, file or default), grouped by table. `↵`
+toggles a switch, cycles a choice such as `diff.view`, or edits a value in
 place (checked as you type; `esc` cancels, an empty value removes it;
 `ui.folded_lists` is edited as comma-separated names, `none` for none), and
 `x` removes a setting from the file
@@ -368,19 +380,52 @@ creating it and its folder when missing. Only the changed line is touched:
 comments, key order and keys the deck does not know stay. A setting a flag
 or environment variable sets can still be saved, but the page says the
 override keeps winning. The running deck applies a change straight away,
-except `projects_root`, which needs a restart (the status line says so). A
+except `projects.root`, which needs a restart (the status line says so). A
 new `ui.folded_lists` refolds the lists you have not folded or unfolded by
 hand; the ones you have stay as they are.
-`linear_api_key_command` is edited as a command; the deck never runs it
+`linear.api_key_command` is edited as a command; the deck never runs it
 there or shows the key it prints.
 
-![The settings page: each setting grouped with its value and source; linear_status flips to false on enter, and linear_workspace is edited in place from acme to globex, each saved to the config file at once.](docs/demo/settings.gif)
+![The settings page: each setting grouped with its value and source; linear.status flips to false on enter, and linear.workspace is edited in place from acme to globex, each saved to the config file at once.](docs/demo/settings.gif)
 
 The deck writes this file only from the settings page and never writes
 secrets to it. A missing file is fine. A file that does not parse, an unknown key or a bad value
 never stops the deck: the `!` sources view lists the problem (the plugin
 commands print it to herdr's plugin log), and that setting falls back to
 the next source. A bad flag value is an error.
+
+### Earlier setting names
+
+Before tables, most settings were flat keys at the top of the file, and
+some flags and environment variables had other names. They all still work:
+
+- An earlier key in the file, such as `linear_workspace = "acme"`, reads as
+  `linear.workspace`, and the `!` sources view notes the rename. When the
+  file sets both, the table's value wins and the note says so.
+- Saving a setting on the settings page moves it into its table, taking
+  the comments right above it and after its value along.
+- `herdr-deck config migrate` moves them all at once. It prints the
+  change as a diff and writes nothing; `--write` makes it, keeping the old
+  file as `config.toml.bak`. `--config <path>` names another file.
+
+  ```console
+  $ herdr-deck config migrate
+  Would move 1 setting(s) in /home/ada/.config/herdr-deck/config.toml:
+    linear_workspace → linear.workspace
+
+  --- /home/ada/.config/herdr-deck/config.toml
+  +++ /home/ada/.config/herdr-deck/config.toml (migrated)
+  @@ -1 +1,2 @@
+  -linear_workspace = "acme"
+  +[linear]
+  +workspace = "acme"
+
+  Nothing was written: run `herdr-deck config migrate --write` to apply it, keeping the old file as .bak.
+  ```
+- Earlier flags (`--diff-tool`, `--editor`, …) and environment variables
+  (`HERDR_DECK_DIFF_TOOL`, `HERDR_DECK_EDITOR`, …) are listed in the table
+  above. `herdr-deck --help` leaves the earlier flags out, and a current
+  name wins over an earlier one.
 
 ## Browser tabs
 
@@ -390,8 +435,8 @@ opens a new tab when there is none. It does this for the default browser
 when that is Chrome, Chromium, Brave, Edge, Vivaldi, Arc or Safari, through
 AppleScript (`osascript`). Any other browser (Firefox, for one), a browser
 that is not running, or Linux opens a new tab with `open` or `xdg-open`.
-Turn it off with `reuse_browser_tabs = false` (or the flag or variable
-above).
+Turn it off with `reuse_tabs = false` in `[browser]` (or the flag or
+variable above).
 
 The same page means:
 
@@ -533,7 +578,7 @@ only threads waiting on you. The deck never marks an item handled.
 | `space` | fold or unfold the list under the cursor (Backlog and Resolved start folded; see `[ui] folded_lists`) |
 | `[` / `]` | previous / next drawer tab: Overview, Files, Commits, Log |
 | `tab` | focus the drawer: `j`/`k` move its cursor, `↵` opens what is under it, `tab`/`shift+tab` switch tabs, `esc` returns to the list |
-| `1`–`9` | open the drawer's numbered link (Figma links in the desktop app with `figma_desktop = true`); on Files and Commits, preview the numbered file or commit |
+| `1`–`9` | open the drawer's numbered link (Figma links in the desktop app with `figma.desktop = true`); on Files and Commits, preview the numbered file or commit |
 | `l` `f` `n` `g` | open the row's Linear / Figma / Notion / PR link; with several, pick one with a digit, `a` for all, `d` for the Figma desktop app, the same letter for the first, `esc` to cancel |
 | `o` | open the row's first localhost link whose dev server is running |
 | `enter` | focus the thread's herdr pane |
@@ -640,7 +685,7 @@ or the drawer cursor:
  5 ?     notes.md                                           +1  ▇▁▁▁▁▁▁▁
 ```
 
-The deck starts in the list; `diff_view = "tree"` in the config file (or
+The deck starts in the list; `diff.view = "tree"` in the config file (or
 the settings page, `--diff-view`, `$HERDR_DECK_DIFF_VIEW`) starts it in the
 tree. `t` does not write the file.
 
@@ -744,7 +789,7 @@ brings the list back, as on Files.
 click on its `▸`) lists the files a commit changed under it, as the Files
 tab shows them: the status letter coloured by kind, the path, `+N −M`
 (`+N` only for an added file, `−M` only for a deleted one), in the list or
-folder tree that `diff_view` (or `t` on Files) chose. `space` again, `←`
+folder tree that `diff.view` (or `t` on Files) chose. `space` again, `←`
 or `h` (also from one of its files) or a click on `▾` collapses it.
 Several commits can be open at once. The digits stay the commits', and
 the cursor stays on its row when commits open, close or arrive above it.
