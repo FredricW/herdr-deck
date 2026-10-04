@@ -586,7 +586,8 @@ carries on.
 
 `.herdr-deck/dev.json` is being replaced by a shared, tool-neutral
 `.config/dev.json` ([the spec](docs/dev-manifest.md), schemas in
-`schema/v1/`); the deck does not read it yet. The agent skill in
+`schema/v1/`); the deck does not read it yet. herdr-deck's own manifest is
+[`.config/dev.json`](.config/dev.json). The agent skill in
 [`skills/dev-manifest`](skills/dev-manifest/SKILL.md) writes one for a repo,
 or for a folder of repos: it reads their task runners, scripts, compose
 files and framework settings without running anything, migrates a legacy

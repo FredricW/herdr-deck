@@ -7,8 +7,8 @@ import (
 	"testing"
 )
 
-// TestFixtures checks the manifests the skill wrote for its fixture repos:
-// valid, and nothing they point at is missing.
+// TestFixtures checks the manifests the skill wrote for its fixture repos,
+// and herdr-deck's own: valid, and nothing they point at is missing.
 func TestFixtures(t *testing.T) {
 	files, err := filepath.Glob("../testdata/*/.config/dev.json")
 	if err != nil {
@@ -17,6 +17,7 @@ func TestFixtures(t *testing.T) {
 	if len(files) < 3 {
 		t.Fatalf("found %d fixture manifests, want at least 3", len(files))
 	}
+	files = append(files, "../../../.config/dev.json")
 	for _, f := range files {
 		res := Validate(f, repoOf(f))
 		for _, e := range res.Errors {
