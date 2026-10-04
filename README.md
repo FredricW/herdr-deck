@@ -255,6 +255,50 @@ the key itself in neither the config file nor the command line.
 `status = false` in `[linear]` (or `HERDR_DECK_LINEAR_STATUS=false`) turns the
 statuses off, and the deck then never calls Linear.
 
+### GitHub pull requests
+
+When `gh` is installed and logged in (`gh auth login`), the deck reads each
+open thread PR from GitHub itself, through `gh api graphql`, and its *PR*
+section says why the PR is not merging yet:
+
+```
+ ── PR ──
+ [5 #2320] open · review required · 2 comments (sam, alex)
+ ✕ 1 failing: [lint]  ◌ 1 running: test (macos-latest) 6m  ✓ 2 passed
+ ✕ blocked: checks failing, checks running, review required (sam)
+ ── Review ──  2 unresolved · 1 outdated
+ src/pages/users/index.ts:41  sam
+   Should this be paginated? The list can get long.
+```
+
+- The checks line lists failing checks as chips, then running, queued and
+  passed ones. The line under it explains the merge state: behind the base
+  branch, conflicts, a draft, checks or reviews still missing, changes
+  requested, or ready to merge, and whether auto-merge is on.
+- `c`, or `↵` or a click on a failing check's chip, shows that check's log
+  in the drawer, full height: the failing step's last lines, colour codes
+  and timestamps removed. `c` again shows the next failed check, `↵` opens
+  the job on GitHub. A check that is not a GitHub Actions job has no log
+  the deck can read, so its page opens instead. Logs are read only when you
+  ask, kept in memory (never on disk) and not read again for the same job.
+- *Review* lists the PR's unresolved review threads, outdated ones last:
+  file and line, author, replies, and the first comment rendered as
+  Markdown. `↵` or a click opens the thread on GitHub.
+
+The deck never sees a token: `gh` holds it. Reads run in the background,
+one GraphQL request per host for all of a project's open PRs, and are
+cached: the PR the drawer shows is read again after 45 seconds, other open
+PRs after 3 minutes, and resolved threads or merged and closed PRs not at
+all. After an error the deck waits a minute (longer after each further
+one, up to 10), and after a rate limit until it resets; it also pauses
+when fewer than 100 GraphQL points are left, since herdr-projects and your
+own `gh` share the budget. herdr-projects' ticker reads the same PRs every
+couple of minutes: whichever looked last wins, and `checked` (at full
+height) says when. Without `gh`, or logged out, the PR section shows the
+ticker's data as before and the `!` view says why. `enabled = false` in
+`[github]` (or `HERDR_DECK_GITHUB_ENABLED=false`) turns the deck's own
+reads off. The deck only reads GitHub; it never writes.
+
 The deck reloads when a file in the project folder (or its `threads/`,
 `inbox/` or `.state/`) changes, and every `ui.refresh_interval` (5 seconds by
 default). It never writes there.
@@ -353,6 +397,7 @@ it).
 | `linear.workspace` | `--linear-workspace` | `HERDR_DECK_LINEAR_WORKSPACE` | none | `linear_workspace` |
 | `linear.status` | `--linear-status` | `HERDR_DECK_LINEAR_STATUS` | `true` | `linear_status` |
 | `linear.api_key_command` | `--linear-api-key-command` | `HERDR_DECK_LINEAR_API_KEY_COMMAND` (`LINEAR_API_KEY` holds the key itself and wins) | none | `linear_api_key_command` |
+| `github.enabled` | `--github-enabled` | `HERDR_DECK_GITHUB_ENABLED` | `true` |  |
 | `figma.desktop` | `--figma-desktop` | `HERDR_DECK_FIGMA_DESKTOP` | `false` | `figma_desktop` |
 | `browser.reuse_tabs` | `--browser-reuse-tabs` | `HERDR_DECK_BROWSER_REUSE_TABS` | `true` | `reuse_browser_tabs`, `--reuse-browser-tabs`, `HERDR_DECK_REUSE_BROWSER_TABS` |
 | `updates.check` | `--updates-check` | `HERDR_DECK_UPDATES_CHECK` | `true` | `update_check`, `--update-check`, `HERDR_DECK_UPDATE_CHECK` |
@@ -578,7 +623,8 @@ PR's checks at the right. Under the card are four tabs:
 
 - **Overview**: titled sections, the empty ones left out: *Next* (the
   report's `## Next`), *PR* (state, review, comments and who made them,
-  failing checks), *Note* (the task's notes), *Links* (Linear, Figma, Notion
+  checks and why it is not merging), *Review* (unresolved review threads;
+  see GitHub pull requests), *Note* (the task's notes), *Links* (Linear, Figma, Notion
   and GitHub links as numbered chips, with each Linear issue's state),
   *Dev* (dev servers and localhost links) and *Thread* (pane, branch,
   report, base, dev log).
@@ -626,6 +672,7 @@ only threads waiting on you. The deck never marks an item handled.
 | `J` / `K` | scroll the preview a line (`pgup` / `pgdn` a page) |
 | `S` (or `\|`) | while the preview shows: switch between the unified and the split (old \| new) layout for the session (see Diff preview) |
 | `r` | the thread's report, full height, rendered as Markdown |
+| `c` | the PR's failed check: its failing step's log, full height; `c` again the next one, `↵` opens the job on GitHub (see GitHub pull requests) |
 | `z` | drawer: normal, full height, hidden |
 | `pgup` / `pgdn` | scroll the drawer, or the diff preview while it shows |
 | `!` | sources the deck could not read |

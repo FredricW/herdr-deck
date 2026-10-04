@@ -41,6 +41,7 @@ const (
 	EnvLinearWorkspace     = deck.EnvLinearWorkspace
 	EnvLinearStatus        = "HERDR_DECK_LINEAR_STATUS"
 	EnvLinearAPIKeyCommand = "HERDR_DECK_LINEAR_API_KEY_COMMAND"
+	EnvGitHubEnabled       = "HERDR_DECK_GITHUB_ENABLED"
 	EnvFigmaDesktop        = "HERDR_DECK_FIGMA_DESKTOP"
 	EnvReuseTabs           = "HERDR_DECK_BROWSER_REUSE_TABS"
 	EnvUpdateCheck         = "HERDR_DECK_UPDATES_CHECK"
@@ -116,6 +117,7 @@ type File struct {
 	UI       *UI       `toml:"ui"`
 	Projects *Projects `toml:"projects"`
 	Linear   *Linear   `toml:"linear"`
+	GitHub   *GitHub   `toml:"github"`
 	Figma    *Figma    `toml:"figma"`
 	Browser  *Browser  `toml:"browser"`
 	Updates  *Updates  `toml:"updates"`
@@ -149,6 +151,12 @@ type Linear struct {
 	// APIKeyCommand prints the Linear API key, e.g. `op read …`. The key
 	// itself never goes in this file.
 	APIKeyCommand *string `toml:"api_key_command"`
+}
+
+// GitHub is the [github] table.
+type GitHub struct {
+	// Enabled turns the deck's own PR reads through gh on or off.
+	Enabled *bool `toml:"enabled"`
 }
 
 // Figma is the [figma] table.
@@ -330,6 +338,7 @@ func (f *File) decoders(md toml.MetaData) map[string]func(toml.Primitive) error 
 		KeyLinearWorkspace:     into(md, &f.Linear, func(t *Linear) **string { return &t.Workspace }),
 		KeyLinearStatus:        into(md, &f.Linear, func(t *Linear) **bool { return &t.Status }),
 		KeyLinearAPIKeyCommand: into(md, &f.Linear, func(t *Linear) **string { return &t.APIKeyCommand }),
+		KeyGitHubEnabled:       into(md, &f.GitHub, func(t *GitHub) **bool { return &t.Enabled }),
 		KeyFigmaDesktop:        into(md, &f.Figma, func(t *Figma) **bool { return &t.Desktop }),
 		KeyReuseTabs:           into(md, &f.Browser, func(t *Browser) **bool { return &t.ReuseTabs }),
 		KeyUpdateCheck:         into(md, &f.Updates, func(t *Updates) **bool { return &t.Check }),
@@ -449,6 +458,9 @@ type Settings struct {
 	AutoRestart bool
 	// LinearStatus shows each Linear issue's status next to its ID.
 	LinearStatus bool
+	// GitHubEnabled has the deck read thread PRs from GitHub through gh
+	// (internal/source/github), beyond herdr-projects' ticker.
+	GitHubEnabled bool
 	// FoldedLists are the headings of the lists that start folded, matched
 	// without regard to case. It is never nil; empty folds none.
 	FoldedLists []string
@@ -602,6 +614,14 @@ func Resolve(fl Flags, getenv func(string) string, lookPath func(string) (string
 		s.Values[KeyLinearAPIKeyCommand] = v
 	}
 
+	if s.GitHubEnabled, err = resolveBool(r, KeyGitHubEnabled, func(f File) *bool {
+		if f.GitHub == nil {
+			return nil
+		}
+		return f.GitHub.Enabled
+	}, true); err != nil {
+		return s, err
+	}
 	if s.FigmaDesktop, err = resolveBool(r, KeyFigmaDesktop, func(f File) *bool {
 		if f.Figma == nil {
 			return nil

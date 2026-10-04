@@ -1,0 +1,28 @@
+ Admin rebuild                           ◐ 2  ◇ 1  ○ 1  ✉ 0
+────────────────────────────────────────────────────────────
+    WORK                        STATUS           LINKS  DEV
+  In progress
+  ◐ Users page                  Building overv…  L4
+  ◐ Templates page              Writing tests    L F    ●●●
+ ▸◇ Document select for summa…  #2320 approved   L F3   ●○
+
+  On hold until Monday 2026-10-05
+  ○ Subscriptions list          idle             L N    ~○
+
+  + Backlog (3)
+
+
+────────────────────────────────────────────────────────────
+ Document select for summary                       ◇ review
+ t-0004                                             #2320 ✓
+ Overview   Files   Commits   Log 6                ↓ 6 more
+ ── PR ──
+ [5 #2320] open · approved · auto-merge on · 2c
+ ✓ all 2 checks passed
+ ⚠ behind main: update the branch before it can merge;
+ auto-merge merges it once that is done
+ ── Links ──
+ [1 ABC-1191] [2 Figma 598-48083] [3 1138-88367]
+ [4 635-76529]
+────────────────────────────────────────────────────────────
+ 1-9 link  o open  ↵ pane  [ ] tab  z drawer  ? help  v9.9.9

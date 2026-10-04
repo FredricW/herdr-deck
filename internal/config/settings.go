@@ -87,6 +87,9 @@ func (f File) values() map[string]string {
 		boolean(KeyLinearStatus, t.Status)
 		str(KeyLinearAPIKeyCommand, t.APIKeyCommand)
 	}
+	if t := f.GitHub; t != nil {
+		boolean(KeyGitHubEnabled, t.Enabled)
+	}
 	if t := f.Figma; t != nil {
 		boolean(KeyFigmaDesktop, t.Desktop)
 	}
@@ -132,6 +135,7 @@ const (
 	KeyLinearWorkspace     = "linear.workspace"
 	KeyLinearStatus        = "linear.status"
 	KeyLinearAPIKeyCommand = "linear.api_key_command"
+	KeyGitHubEnabled       = "github.enabled"
 	KeyFigmaDesktop        = "figma.desktop"
 	KeyReuseTabs           = "browser.reuse_tabs"
 	KeyUpdateCheck         = "updates.check"
@@ -185,6 +189,7 @@ var Tables = []struct{ Name, Title string }{
 	{"ui", "the list and how often it reloads"},
 	{"projects", "herdr-projects"},
 	{"linear", "Linear links and status"},
+	{"github", "pull requests"},
 	{"figma", "Figma links"},
 	{"browser", "web links"},
 	{"updates", "new versions of the deck"},
@@ -213,6 +218,9 @@ var Specs = []Spec{
 	{Key: KeyLinearAPIKeyCommand, Kind: KindCommand, Flag: "--linear-api-key-command", Env: EnvLinearAPIKeyCommand, Old: "linear_api_key_command",
 		Default: "none",
 		Help:    "a command that prints the Linear API key, such as op read …; never the key itself. $" + EnvLinearAPIKey + " wins over it"},
+	{Key: KeyGitHubEnabled, Kind: KindBool, Flag: "--github-enabled", Env: EnvGitHubEnabled,
+		Default: "true",
+		Help:    "read thread PRs from GitHub through gh: why a PR is not merging, failing check logs, review threads"},
 	{Key: KeyFigmaDesktop, Kind: KindBool, Flag: "--figma-desktop", Env: EnvFigmaDesktop, Old: "figma_desktop",
 		Default: "false",
 		Help:    "open Figma links in the Figma desktop app instead of the browser"},

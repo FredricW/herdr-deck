@@ -264,8 +264,83 @@ type PullRequest struct {
 	FailingChecks []string
 	Comments      int
 	Commenters    []string // the logins that commented
-	// CheckedAt is when herdr-projects last asked GitHub about PRs.
+	// CheckedAt is when herdr-projects last asked GitHub about PRs, or,
+	// once the deck's own read is newer (Live), when the deck did.
 	CheckedAt time.Time
+
+	// Live is set when the deck read the PR from GitHub itself
+	// (internal/source/github); the fields below are zero without it.
+	Live bool
+	// Draft is a draft PR; Base its base branch, e.g. "main".
+	Draft bool
+	Base  string
+	// MergeState is GitHub's mergeStateStatus: BEHIND, BLOCKED, CLEAN,
+	// DIRTY, HAS_HOOKS, UNKNOWN or UNSTABLE; Mergeable is MERGEABLE,
+	// CONFLICTING or UNKNOWN while GitHub still works it out.
+	MergeState string
+	Mergeable  string
+	// AutoMerge is set when auto-merge is on.
+	AutoMerge bool
+	// ReviewRequests are the reviewers asked and not yet answered: logins
+	// and team names.
+	ReviewRequests []string
+	// Checks are the head commit's checks, one per name.
+	Checks []Check
+	// Threads are the PR's unresolved review threads, the outdated ones
+	// last.
+	Threads []ReviewThread
+}
+
+// CheckState is how far a check got.
+type CheckState int
+
+const (
+	CheckQueued  CheckState = iota // waiting, queued or expected
+	CheckRunning                   // in progress, or a pending status
+	CheckPassed                    // success or neutral
+	CheckFailed                    // failure, error, timed out, cancelled, …
+	CheckSkipped                   // skipped or stale
+)
+
+// Check is one check of a PR's head commit: a GitHub Actions job, another
+// app's check run or a commit status.
+type Check struct {
+	Name  string
+	State CheckState
+	// URL is the check's page (the job's, for Actions).
+	URL string
+	// JobID is the Actions job behind the check, from its URL; 0 when the
+	// check is not an Actions job and so has no log the deck can read.
+	JobID     int64
+	Started   time.Time
+	Completed time.Time
+}
+
+// ReviewThread is one unresolved review thread of a PR.
+type ReviewThread struct {
+	Path string
+	// Line is the line in the PR's head the thread is on; 0 when it is
+	// on the whole file or the line is gone.
+	Line     int
+	Outdated bool
+	// Author, Body and URL are the first comment's; Replies counts the
+	// comments after it.
+	Author  string
+	Body    string
+	URL     string
+	At      time.Time
+	Replies int
+}
+
+// CheckLog is the tail of a failed Actions job's log: the failing step's
+// last lines.
+type CheckLog struct {
+	// Step is the failing step as its log names it, e.g. "go test ./...";
+	// "" when the log does not say.
+	Step  string
+	Lines []string
+	// More is how many earlier lines of the step were left out.
+	More int
 }
 
 // DevServer is one named port of a thread's worktree.

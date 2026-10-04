@@ -25,6 +25,7 @@ const (
 	modeReport                     // the selected thread's report
 	modeSettings                   // the settings page
 	modeNews                       // What's new: the changelog
+	modeCheck                      // a failed check's log tail
 )
 
 // tabKind is one of the drawer's tabs.
@@ -63,6 +64,8 @@ const (
 	actCommit             // preview commit n (1-based); 0 is the uncommitted row
 	actExpand             // expand or collapse commit n (1-based)
 	actCommitFile         // preview file f (0-based, in display order) of commit n
+	actCheck              // show the log of the PR's check n
+	actThread             // open the PR's review thread n on GitHub
 )
 
 type action struct {
@@ -457,6 +460,7 @@ var helpLines = [][2]string{
 	{"J K", "scroll the preview a line; pgup pgdn a page, the wheel over it three lines"},
 	{"S", "switch the preview between unified and split (old on the left, new on the right); diff.layout picks the start; a pane under 100 columns shows unified"},
 	{"r", "the thread's report, full height"},
+	{"c", "a failed check's log, full height (or click its chip); c again the next"},
 	{"z", "drawer: normal, full height, hidden"},
 	{"pgup pgdn", "scroll the drawer, or the preview while it shows"},
 	{"!", "sources: what could not be read"},

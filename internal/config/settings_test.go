@@ -52,6 +52,7 @@ folded_lists = ["In progress", " backlog ", "Backlog"]
 		KeyUpdateCheck:     {Text: "false", Source: FromFlag},
 		KeyAutoRestart:     {Text: "true", Source: FromDefault},
 		KeyReuseTabs:       {Text: "true", Source: FromDefault},
+		KeyGitHubEnabled:   {Text: "true", Source: FromDefault},
 		KeyFigmaDesktop:    {Text: "true", Source: FromFile},
 		KeyRefreshInterval: {Text: "30s", Source: FromFile},
 		KeyProjectsRoot:    {Text: filepath.Join(home, ".herdr-projects"), Source: FromDefault},

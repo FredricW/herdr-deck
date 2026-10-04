@@ -1,0 +1,28 @@
+ Admin rebuild                           ◐ 2  ◇ 1  ○ 1  ✉ 0
+────────────────────────────────────────────────────────────
+ Document select for summary                       ◇ review
+ t-0004                                           #2320 ✕ 1
+ lint · ✕ failed 4m ago · step "golangci-lint run ./..." · …
+ level=info msg="[runner] linters took 4.2s"
+ internal/users/page.go:88:2: ineffectual assignment to rows
+ (ineffassign)
+     rows = filter(rows)
+     ^
+ internal/users/table.go:12:6: type `userRow` is unused
+ (unused)
+ 2 issues:
+ * ineffassign: 1
+ * unused: 1
+ Error: issues found
+ Error: Process completed with exit code 1.
+
+ ↵ opens the job on GitHub · c the next failed check
+
+
+
+
+
+
+
+────────────────────────────────────────────────────────────
+ esc back  pgup pgdn scroll  ↵ on GitHub  c next  q quit

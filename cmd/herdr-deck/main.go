@@ -29,6 +29,7 @@ import (
 	"github.com/FredricW/herdr-deck/internal/source/dev"
 	"github.com/FredricW/herdr-deck/internal/source/diff"
 	"github.com/FredricW/herdr-deck/internal/source/fake"
+	"github.com/FredricW/herdr-deck/internal/source/github"
 	"github.com/FredricW/herdr-deck/internal/source/herdr"
 	"github.com/FredricW/herdr-deck/internal/source/linear"
 	"github.com/FredricW/herdr-deck/internal/source/live"
@@ -137,6 +138,8 @@ func run(args []string) error {
 			slug = "admin-rebuild"
 		}
 		snap := fake.Snapshot(slug, time.Now())
+		fake.GitHub(&snap, time.Now())
+		opt.CheckLog = fake.CheckLog
 		snap.Missing = append(snap.Missing, cfg.Problems...)
 		snap.Notes = append(snap.Notes, cfg.Notes...)
 		snap.Projects = fake.Projects(snap, time.Now())
@@ -185,8 +188,13 @@ func run(args []string) error {
 	// Loads run one at a time, so this is the only place src changes:
 	// it takes the latest settings before each read.
 	var lin *linear.Reader
+	gh := &github.Reader{OnUpdate: refresh}
 	opt.Load = func(ctx context.Context) deck.Snapshot {
 		c := cur.Load()
+		src.GitHub = nil
+		if c.GitHubEnabled {
+			src.GitHub = gh
+		}
 		src.LinearWorkspace = c.LinearWorkspace
 		src.Linear = nil
 		if c.LinearStatus {
@@ -204,6 +212,12 @@ func run(args []string) error {
 		return snap
 	}
 	opt.FocusPane = func(id string) error { return client.Focus(context.Background(), id) }
+	opt.FocusPR = func(url string) {
+		if cur.Load().GitHubEnabled {
+			gh.Focus(url)
+		}
+	}
+	opt.CheckLog = gh.Log
 	opt.OpenProject = func(slug string) error {
 		return projects.New(root, slug).Open(context.Background())
 	}
