@@ -44,6 +44,9 @@ type Value struct {
 	// a flag or env var may hide it.
 	File   string
 	InFile bool
+	// HandEdit says the file's value cannot be edited as text without
+	// changing it, such as a list name with a comma; edit the file.
+	HandEdit bool
 }
 
 // fileValues are the values the file sets, as text, by key.

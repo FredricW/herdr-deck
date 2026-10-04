@@ -537,6 +537,21 @@ func TestResolveFoldedLists(t *testing.T) {
 			}
 		})
 	}
+	for file, hand := range map[string]bool{
+		"[ui]\nfolded_lists = [\"Ideas, later\"]\n":    true,
+		"[ui]\nfolded_lists = [\"none\"]\n":            true,
+		"[ui]\nfolded_lists = [\"none\", \"Later\"]\n": false,
+	} {
+		getenv, home := env(t, nil)
+		write(t, filepath.Join(home, ".config", "herdr-deck", "config.toml"), file)
+		s, err := Resolve(Flags{}, getenv, noHunk)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if got := s.Values[KeyFoldedLists].HandEdit; got != hand {
+			t.Errorf("%q: HandEdit = %v, want %v", file, got, hand)
+		}
+	}
 	getenv, _ := env(t, nil)
 	if _, err := Resolve(Flags{FoldedLists: ","}, getenv, noHunk); err == nil || err.Error() != "--ui-folded-lists: a list name is empty" {
 		t.Errorf("bad flag: %v", err)

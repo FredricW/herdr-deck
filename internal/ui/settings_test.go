@@ -386,3 +386,19 @@ func TestSettingsEditsFoldedLists(t *testing.T) {
 		t.Errorf("none should unfold In progress:\n%s", s)
 	}
 }
+
+// A list name the comma-separated text cannot hold is never rewritten from
+// the page.
+func TestSettingsFoldedListsHandEdit(t *testing.T) {
+	for _, file := range []string{"[ui]\nfolded_lists = [\"Ideas, later\"]\n", "[ui]\nfolded_lists = [\"None\"]\n"} {
+		e := newSettingsEnv(t, file, nil)
+		m := settingsModel(t, e, config.Flags{}, 80, 28)
+		for m.set.cursor != indexOf(config.KeyFoldedLists) {
+			m, _ = press(m, keys("j")...)
+		}
+		m, _ = press(m, tea.KeyPressMsg{Code: tea.KeyEnter})
+		if m.set.editing || !strings.HasSuffix(m.Status(), "edit the file") || e.file(t) != file {
+			t.Errorf("%q: editing %v, status %q, file %q", file, m.set.editing, m.Status(), e.file(t))
+		}
+	}
+}

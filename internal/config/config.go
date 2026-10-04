@@ -528,6 +528,11 @@ func Resolve(fl Flags, getenv func(string) string, lookPath func(string) (string
 		v.File, v.InFile = text, true
 		s.Values[k] = v
 	}
+	if f.UI != nil && f.UI.FoldedLists != nil && !listFitsText(*f.UI.FoldedLists) {
+		v := s.Values[KeyFoldedLists]
+		v.HandEdit = true
+		s.Values[KeyFoldedLists] = v
+	}
 	// The Sources view is narrow: show the file as ~/… where it fits.
 	if home := homeDir(getenv); home != "" && strings.HasPrefix(s.Path, home+string(filepath.Separator)) {
 		short := "~" + strings.TrimPrefix(s.Path, home)
@@ -733,6 +738,17 @@ func cleanList(names []string) ([]string, error) {
 		}
 	}
 	return out, nil
+}
+
+// listFitsText says whether ParseList(ListText(l)) gives l back: no name
+// holds a comma or is NoLists.
+func listFitsText(l []string) bool {
+	for _, n := range l {
+		if strings.Contains(n, ",") || (len(l) == 1 && strings.EqualFold(strings.TrimSpace(n), NoLists)) {
+			return false
+		}
+	}
+	return true
 }
 
 // ListText is a list as ParseList reads it.

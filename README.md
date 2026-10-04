@@ -349,7 +349,9 @@ and `d` say so in the status line.
 
 `--ui-folded-lists` and `$HERDR_DECK_UI_FOLDED_LISTS` take comma-separated
 headings, such as `"Backlog, Later"`, or `none` to fold nothing. A heading
-matches whole, so `Backlog` does not fold `Backlog later`. `space` still
+matches whole, so `Backlog` does not fold `Backlog later`. A heading with
+a comma, or a lone one named `none`, can only be set in the file; the
+settings page says so instead of editing it. `space` still
 folds or unfolds any list for the session.
 
 The deck does not read `$VISUAL` or `$EDITOR`. To use yours, put it in the

@@ -186,6 +186,10 @@ func (m *Model) editSetting() tea.Cmd {
 		}
 		return m.saveSetting(sp.Key, &next)
 	}
+	if v.InFile && v.HandEdit {
+		m.status = sp.Key + " holds a name the page cannot write back (a comma, or " + config.NoLists + "); edit the file"
+		return nil
+	}
 	in := textinput.New()
 	in.Prompt = ""
 	in.CharLimit = 1024
