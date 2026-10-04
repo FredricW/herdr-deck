@@ -138,3 +138,39 @@ func TestDangling(t *testing.T) {
 		t.Errorf("got %d warnings, want 5:\n%s", len(res.Warnings), got)
 	}
 }
+
+func TestNotDangling(t *testing.T) {
+	root := t.TempDir()
+	write := func(name, content string) {
+		p := filepath.Join(root, name)
+		if err := os.MkdirAll(filepath.Dir(p), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(p, []byte(content), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	write("Makefile", "dev up: deps\n\ttrue\n")
+	write("justfile", "test:\n    true\nalias t := test\n")
+	write("api/main.go", "")
+	write("package.json", `{"scripts": {}}`)
+	m := `{"version": 1,
+	  "services": {"api": {"dir": "api", "run": "just test"}},
+	  "commands": {
+	    "dev": "make up",
+	    "test": {"api": "just t"},
+	    "lint": "bun run lint.ts",
+	    "format": "npm run format -w apps/web",
+	    "seed": {"run": "make seed"},
+	    "migrate": "scripts/migrate"
+	  },
+	  "detect": {"ignore": ["dangling:commands.seed", "dangling:commands.mig*"]}}`
+	res := ValidateBytes([]byte(m), root)
+	if len(res.Errors) > 0 || len(res.Warnings) > 0 {
+		t.Errorf("errors %q, warnings %q, want none", res.Errors, res.Warnings)
+	}
+	off := `{"version": 1, "commands": {"x": "scripts/nope"}, "detect": {"drift": false}}`
+	if res := ValidateBytes([]byte(off), root); len(res.Warnings) > 0 {
+		t.Errorf("drift off: warnings %q", res.Warnings)
+	}
+}

@@ -6,8 +6,8 @@
 //
 // With -dry (the default) it also checks, as warnings, that the folders,
 // scripts and task-runner targets the manifest points at exist (the spec's
-// dangling drift, section 12.4). The repository is the folder holding
-// .config/, or -root.
+// dangling drift, section 12.4), minus what the manifest's detect settings
+// silence. The repository is the folder holding .config/, or -root.
 //
 //	go run ./skills/dev-manifest/validate [-root <repo>] [-dry=false] <file>...
 //

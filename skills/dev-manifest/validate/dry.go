@@ -19,7 +19,32 @@ type dryChecker struct {
 }
 
 func (d *dryChecker) warnf(id, format string, args ...any) {
+	if d.silenced("dangling:" + id) {
+		return
+	}
 	d.warns = append(d.warns, fmt.Sprintf("dangling:%s: %s", id, fmt.Sprintf(format, args...)))
+}
+
+// silenced reports whether the manifest's detect settings turn a drift ID
+// off (spec section 12.4): drift false, or an ignore entry where * matches
+// any characters.
+func (d *dryChecker) silenced(id string) bool {
+	det := obj(d.m["detect"])
+	if drift, ok := det["drift"].(bool); ok && !drift {
+		return true
+	}
+	ignore, _ := det["ignore"].([]any)
+	for _, x := range ignore {
+		pat, _ := x.(string)
+		parts := strings.Split(pat, "*")
+		for i, p := range parts {
+			parts[i] = regexp.QuoteMeta(p)
+		}
+		if regexp.MustCompile("^" + strings.Join(parts, ".*") + "$").MatchString(id) {
+			return true
+		}
+	}
+	return false
 }
 
 // resolve expands $WORKTREE and $REPO to the root and makes a relative path
@@ -38,9 +63,11 @@ func (d *dryChecker) resolve(base, p string) (string, bool) {
 }
 
 func (d *dryChecker) check() {
+	dirs := map[string]string{}
 	for _, name := range sorted(d.services) {
 		s := d.services[name]
 		dir := d.dir("services."+name+".dir", d.root, s["dir"])
+		dirs[name] = dir
 		d.command("services."+name+".run", dir, s["run"])
 		d.command("services."+name+".stop", dir, s["stop"])
 	}
@@ -54,8 +81,8 @@ func (d *dryChecker) check() {
 		entries := obj(v)
 		for _, key := range sorted(entries) {
 			base := d.root
-			if s, ok := d.services[key]; ok {
-				base = d.dir("services."+key+".dir", d.root, s["dir"])
+			if dir, ok := dirs[key]; ok {
+				base = dir
 			}
 			d.command("commands."+name+"."+key, base, entries[key])
 		}
@@ -87,7 +114,6 @@ func (d *dryChecker) command(id string, dir string, v any) {
 			dir = d.dir(id+".dir", d.root, m["dir"])
 		}
 		v = m["run"]
-		id += ".run"
 	}
 	if dir == "" {
 		return // its folder is unknown or already reported
@@ -153,7 +179,17 @@ func (d *dryChecker) target(id, dir string, argv []string) {
 		default:
 			return
 		}
-		if strings.HasPrefix(name, "-") {
+		// Flags before -- may pick another package (-w, --filter, --prefix),
+		// and bun runs files as well as scripts.
+		for _, a := range rest {
+			if a == "--" {
+				break
+			}
+			if strings.HasPrefix(a, "-") {
+				return
+			}
+		}
+		if strings.ContainsAny(name, "./") {
 			return
 		}
 		scripts, err := packageScripts(filepath.Join(dir, "package.json"))
@@ -174,7 +210,7 @@ func (d *dryChecker) target(id, dir string, argv []string) {
 		if len(rest) == 0 || strings.HasPrefix(rest[0], "-") || strings.Contains(rest[0], "=") {
 			return
 		}
-		names, file, ok := runnerTargets(runner, dir)
+		names, file, ok := runnerTargets(runner, dir, d.root)
 		if !ok {
 			if runner != "mise" {
 				d.warnf(id, "%s %s: no %s file", runner, rest[0], runner)
@@ -202,19 +238,41 @@ func packageScripts(file string) (map[string]any, error) {
 }
 
 var (
-	makeTargetRe = regexp.MustCompile(`(?m)^([A-Za-z0-9][A-Za-z0-9_.-]*)\s*:([^=]|$)`)
+	makeTargetRe = regexp.MustCompile(`(?m)^([A-Za-z0-9][A-Za-z0-9_. -]*?)\s*:([^=]|$)`)
+	justAliasRe  = regexp.MustCompile(`(?m)^alias\s+([A-Za-z0-9_-]+)\s*:=`)
 	justRecipeRe = regexp.MustCompile(`(?m)^@?([A-Za-z0-9_-]+)( [^:]*)?:([^=]|$)`)
 	taskKeyRe    = regexp.MustCompile(`(?m)^  ([A-Za-z0-9_:.-]+):`)
 )
 
 // runnerTargets returns the targets a task runner's file defines, and the
-// file's name. names is nil when the file exists but the runner has other
-// ways to define tasks (mise's task folders). ok is false without a file.
-func runnerTargets(runner, dir string) (names map[string]bool, file string, ok bool) {
+// file's path relative to root. names is nil when the file exists but the
+// runner has other ways to define tasks (mise's task folders). ok is false
+// without a file. just, task and mise also look in dir's parents, up to root.
+func runnerTargets(runner, dir, root string) (names map[string]bool, file string, ok bool) {
+	for {
+		names, file, ok = runnerFile(runner, dir)
+		if ok || runner == "make" || dir == root || !strings.HasPrefix(dir, root) {
+			break
+		}
+		parent := filepath.Dir(dir)
+		if parent == dir {
+			break
+		}
+		dir = parent
+	}
+	if ok {
+		if rel, err := filepath.Rel(root, filepath.Join(dir, file)); err == nil {
+			file = rel
+		}
+	}
+	return names, file, ok
+}
+
+func runnerFile(runner, dir string) (names map[string]bool, file string, ok bool) {
 	candidates := map[string][]string{
 		"make": {"GNUmakefile", "makefile", "Makefile"},
 		"just": {"justfile", ".justfile", "Justfile"},
-		"task": {"Taskfile.yml", "Taskfile.yaml"},
+		"task": {"Taskfile.yml", "taskfile.yml", "Taskfile.yaml", "taskfile.yaml", "Taskfile.dist.yml", "taskfile.dist.yml", "Taskfile.dist.yaml", "taskfile.dist.yaml"},
 		"mise": {"mise.toml", ".mise.toml"},
 	}[runner]
 	// Compare names exactly: macOS folders ignore case, and make reads
@@ -239,10 +297,15 @@ func runnerTargets(runner, dir string) (names map[string]bool, file string, ok b
 		switch runner {
 		case "make":
 			for _, m := range makeTargetRe.FindAllStringSubmatch(string(b), -1) {
-				names[m[1]] = true
+				for _, n := range strings.Fields(m[1]) {
+					names[n] = true
+				}
 			}
 		case "just":
 			for _, m := range justRecipeRe.FindAllStringSubmatch(string(b), -1) {
+				names[m[1]] = true
+			}
+			for _, m := range justAliasRe.FindAllStringSubmatch(string(b), -1) {
 				names[m[1]] = true
 			}
 		case "task":

@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"path/filepath"
 	"regexp"
 	"sort"
 	"strings"
@@ -86,6 +87,9 @@ func ValidateBytes(b []byte, root string) Result {
 	c.check()
 	res.Errors = c.errs
 	if root != "" {
+		if abs, err := filepath.Abs(root); err == nil {
+			root = abs
+		}
 		d := dryChecker{checker: c, root: root}
 		d.check()
 		res.Warnings = d.warns
