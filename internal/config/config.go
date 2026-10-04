@@ -50,6 +50,7 @@ const (
 	EnvDiffCommand         = "HERDR_DECK_DIFF_COMMAND"
 	EnvDiffTerminal        = "HERDR_DECK_DIFF_TERMINAL"
 	EnvDiffView            = "HERDR_DECK_DIFF_VIEW"
+	EnvDiffLayout          = "HERDR_DECK_DIFF_LAYOUT"
 	// EnvLinearAPIKey is internal/source/linear's: the key itself, which
 	// wins over linear.api_key_command.
 	EnvLinearAPIKey = "LINEAR_API_KEY"
@@ -80,6 +81,17 @@ const (
 // DiffViews are diff_view's values, in the order the settings page cycles
 // them.
 var DiffViews = []string{DiffViewList, DiffViewTree}
+
+// The diff preview's layouts: one column with - and + lines, or the old
+// file on the left and the new one on the right.
+const (
+	DiffLayoutUnified = "unified"
+	DiffLayoutSplit   = "split"
+)
+
+// DiffLayouts are diff.layout's values, in the order the settings page
+// cycles them.
+var DiffLayouts = []string{DiffLayoutUnified, DiffLayoutSplit}
 
 // DefaultFoldedLists are the lists that start folded unless ui.folded_lists
 // says otherwise: TASKS.md's Backlog and the deck's own Resolved group.
@@ -166,7 +178,8 @@ type Program struct {
 // Diff is the [diff] table: the diff tool, and the Files tab's view.
 type Diff struct {
 	Program
-	View *string `toml:"view"`
+	View   *string `toml:"view"`
+	Layout *string `toml:"layout"`
 }
 
 // Duration is a TOML string such as "5s" or "1m30s".
@@ -326,6 +339,7 @@ func (f *File) decoders(md toml.MetaData) map[string]func(toml.Primitive) error 
 		KeyDiffCommand:         into(md, &f.Diff, func(t *Diff) **string { return &t.Command }),
 		KeyDiffTerminal:        into(md, &f.Diff, func(t *Diff) **bool { return &t.Terminal }),
 		KeyDiffView:            into(md, &f.Diff, func(t *Diff) **string { return &t.View }),
+		KeyDiffLayout:          into(md, &f.Diff, func(t *Diff) **string { return &t.Layout }),
 	}
 }
 
@@ -419,6 +433,9 @@ type Settings struct {
 	// DiffView is the Files section's view when the deck starts:
 	// DiffViewList or DiffViewTree.
 	DiffView string
+	// DiffLayout is the diff preview's layout when the deck starts:
+	// DiffLayoutUnified or DiffLayoutSplit.
+	DiffLayout string
 	// ReuseTabs opens a web link by focusing a browser tab that already
 	// shows it, where the browser allows (launch.Browser).
 	ReuseTabs bool
@@ -632,23 +649,19 @@ func Resolve(fl Flags, getenv func(string) string, lookPath func(string) (string
 	if s.Diff, err = r.program(KeyDiffCommand, KeyDiffTerminal, diff, DiffPlaceholders, def, true); err != nil {
 		return s, err
 	}
-	if s.DiffView, err = resolve(r, KeyDiffView, reader[string]{
-		parse: func(t string) (string, string, error) {
-			t = strings.TrimSpace(t)
-			return t, t, checkChoice(t, DiffViews)
-		},
-		file: func() (string, string, bool) {
-			if f.Diff == nil || f.Diff.View == nil {
-				return "", "", false
-			}
-			v := strings.TrimSpace(*f.Diff.View)
-			if err := checkChoice(v, DiffViews); err != nil {
-				r.problem(KeyDiffView, err.Error()+"; ignored")
-				return "", "", false
-			}
-			return v, v, true
-		},
-		def: func() (string, string) { return DiffViews[0], DiffViews[0] },
+	if s.DiffView, err = resolveChoice(r, KeyDiffView, DiffViews, func() *string {
+		if f.Diff == nil {
+			return nil
+		}
+		return f.Diff.View
+	}); err != nil {
+		return s, err
+	}
+	if s.DiffLayout, err = resolveChoice(r, KeyDiffLayout, DiffLayouts, func() *string {
+		if f.Diff == nil {
+			return nil
+		}
+		return f.Diff.Layout
 	}); err != nil {
 		return s, err
 	}
@@ -746,6 +759,30 @@ func resolveBool(r resolver, key string, file func(File) *bool, def bool) (bool,
 			return false, "", false
 		},
 		def: func() (bool, string) { return def, strconv.FormatBool(def) },
+	})
+}
+
+// resolveChoice settles a setting that is one of choices, the first being
+// its default; file gives the file's value, nil when it has none.
+func resolveChoice(r resolver, key string, choices []string, file func() *string) (string, error) {
+	return resolve(r, key, reader[string]{
+		parse: func(t string) (string, string, error) {
+			t = strings.TrimSpace(t)
+			return t, t, checkChoice(t, choices)
+		},
+		file: func() (string, string, bool) {
+			p := file()
+			if p == nil {
+				return "", "", false
+			}
+			v := strings.TrimSpace(*p)
+			if err := checkChoice(v, choices); err != nil {
+				r.problem(key, err.Error()+"; ignored")
+				return "", "", false
+			}
+			return v, v, true
+		},
+		def: func() (string, string) { return choices[0], choices[0] },
 	})
 }
 

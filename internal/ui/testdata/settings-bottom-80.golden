@@ -1,7 +1,6 @@
  Admin rebuild                                               ◐ 2  ◇ 1  ○ 1  ✉ 0
 ────────────────────────────────────────────────────────────────────────────────
 ─ Settings · /home/ada/.config/herdr-deck/config.toml ──────────────────────────
-   linear.status           true                                          default
    linear.api_key_command  none                                          default
 
  [figma] Figma links
@@ -21,8 +20,9 @@
  [diff] what d opens, and the Files tab
    diff.command            hunk diff {base} -- {file}                    default
    diff.terminal           true                                          default
- ▸ diff.view               list                                          default
-     the Files section's view at start: list, or tree (files under their
-     folders); d t switches
+   diff.view               list                                          default
+ ▸ diff.layout             unified                                       default
+     the diff preview's layout at start: unified, or split (old left, new
+     right); S switches
 ────────────────────────────────────────────────────────────────────────────────
  ↵ edit  x remove  j k move  esc back  q quit                             v9.9.9

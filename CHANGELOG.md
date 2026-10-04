@@ -8,6 +8,15 @@ and versions follow [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+
+- A split layout for the diff preview: `S` (or `|`) shows the old file on
+  the left and the new one on the right, with line numbers on each side
+  and removed and added lines paired up, and switches back to unified.
+  `diff.layout = "split"` (or the settings page, `--diff-layout`,
+  `$HERDR_DECK_DIFF_LAYOUT`) starts with it. A pane under 100 columns shows
+  unified and says so in the preview's header.
+
 ## [0.1.4] - 2026-10-04
 
 ### Added

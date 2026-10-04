@@ -1,9 +1,6 @@
  Admin rebuild                                               ◐ 2  ◇ 1  ○ 1  ✉ 0
 ────────────────────────────────────────────────────────────────────────────────
- apps/admin/src/pages/users/UsersOverviewPage.tsx  +214 −12             1–11/19
- @@ -1,9 +1,14 @@ import { Page } from "@acme/ui";
-   import { useState } from "react";
- − import { MembersList } from "../members/MembersList";
+ …/pages/users/UsersOverviewPage.tsx  +214 −12  split needs ≥ 100 cols  4–14/19
  + import { UsersTable } from "./UsersTable";
  + import { overview } from "./overview";
 
@@ -12,6 +9,9 @@
  + // Users page: the table, its filters and the overview cards, which take a v…
  + export function UsersOverviewPage() {
      const [query, setQuery] = useState("");
+ +   const stats = overview(users);
+     return (
+       <Page title="Users">
 ────────────────────────────────────────────────────────────────────────────────
  Users page                                                     ◐ working  ~60%
  t-0002 · Members /admin/users · Building overview · pane w1Z:p1     ▰▰▰▰▰▰▱▱▱▱
@@ -25,4 +25,4 @@
  6 M  apps/admin/src/routes.tsx                                 +6 -2  ▇▁▁▁▁▁▁▁
  7 ?  docs/users-page.md                                          +19  ▇▁▁▁▁▁▁▁
 ────────────────────────────────────────────────────────────────────────────────
- j k file  J K scroll  S split  v off  d diff tool  a all  esc list       v9.9.9
+ j k file  J K scroll  S unified  v off  d diff tool  a all  esc list     v9.9.9

@@ -21,11 +21,13 @@ import (
 
 // preview is one file's diff or one commit ready to draw: the patch and
 // each line's code, coloured by its file's language (empty for hunk
-// headers, notes and file lines). A commit's preview starts with its
-// author, date and body.
+// headers, notes and file lines), and its lines laid out for the split
+// layout (split.go). A commit's preview starts with its author, date and
+// body.
 type preview struct {
 	patch  deck.Patch
 	code   []string
+	split  splitView
 	commit *deck.Commit
 	body   []string
 }
@@ -134,6 +136,7 @@ func (m *Model) togglePreview() {
 	m.preview = true
 	m.prevTab = m.curTab()
 	m.prevThread, m.prevKey, m.prevOff = "", "", 0
+	m.prevSplit = m.splitShown()
 	m.syncPreview()
 }
 
@@ -155,7 +158,9 @@ func (m *Model) syncPreview() {
 	m.prevThread = diffKey(t)
 	if k != m.prevKey {
 		m.prevKey, m.prevOff = k, 0
+		m.prevSplit = m.splitShown()
 	}
+	m.relayoutPreview()
 	m.scrollPreview(0)
 }
 
@@ -226,7 +231,7 @@ func samePatch(a, b deck.Patch) bool {
 // newPreview colours a patch's code lines by the file's language. It
 // runs with the read, off the UI goroutine.
 func newPreview(path string, p deck.Patch) preview {
-	return preview{patch: p, code: colourCode(path, p.Lines)}
+	return preview{patch: p, code: colourCode(path, p.Lines), split: pairLines(p.Lines)}
 }
 
 // newCommitPreview colours a commit's patch file by file, each by its own
@@ -254,7 +259,7 @@ func newCommitPreview(c deck.Commit, cp deck.CommitPatch) preview {
 			body = append(body, syntax.Clean(strings.TrimRight(l, " \r")))
 		}
 	}
-	return preview{patch: cp.Patch, code: code, commit: &c, body: body}
+	return preview{patch: cp.Patch, code: code, split: pairLines(cp.Patch.Lines), commit: &c, body: body}
 }
 
 // colourCode is lines' code coloured by the language of the file at
@@ -277,7 +282,9 @@ func colourCode(path string, lines []deck.PatchLine) []string {
 }
 
 // previewKey handles the keys the preview takes over: J K scroll a line,
-// pgup pgdn (ctrl+u ctrl+d) a page. done is false for any other key.
+// pgup pgdn (ctrl+u ctrl+d) a page, S switches the layout (for the
+// session; diff.layout is the one it starts with). done is false for any
+// other key.
 func (m *Model) previewKey(msg tea.KeyPressMsg) bool {
 	if !m.preview {
 		return false
@@ -296,6 +303,9 @@ func (m *Model) previewKey(msg tea.KeyPressMsg) bool {
 		m.prevOff = 0
 	case "end":
 		m.scrollPreview(1 << 30)
+	case "S", "shift+s", "|":
+		m.split = !m.split
+		m.relayoutPreview()
 	default:
 		return false
 	}
@@ -310,7 +320,7 @@ func (m Model) previewTotal() int {
 	if !ok {
 		return 1
 	}
-	n := len(m.intro(p)) + len(p.patch.Lines)
+	n := len(m.intro(p)) + m.patchRows(p)
 	switch {
 	case len(p.patch.Lines) == 0 || p.patch.Binary:
 		n = len(m.intro(p)) + 1
@@ -394,17 +404,14 @@ func (m Model) previewLines(w, h int) []string {
 			}
 			tail = []string{dim.Render(more)}
 		}
-		patch := 0
-		if !p.patch.Binary {
-			patch = len(p.patch.Lines)
-		}
+		patch := m.patchRows(p)
 		for i := m.prevOff; i < m.prevOff+h; i++ {
 			switch {
 			case i < len(intro):
 				lines = append(lines, fit(intro[i], w))
 			case i-len(intro) < patch:
 				k := i - len(intro)
-				lines = append(lines, fit(m.diffLine(p.patch.Lines[k], p.code[k], w), w))
+				lines = append(lines, fit(m.patchRow(p, k, w), w))
 			case i-len(intro)-patch < len(tail):
 				lines = append(lines, fit(tail[i-len(intro)-patch], w))
 			}
@@ -427,9 +434,9 @@ func (m Model) previewHeader(f deck.DiffFile, sha string, ok bool, w, h int) str
 	if f.Untracked {
 		counts += dim.Render("  untracked")
 	}
-	right := ""
+	right := m.layoutNote()
 	if total := m.previewTotal(); ok && total > h {
-		right = dim.Render(fmt.Sprintf("%d–%d/%d", m.prevOff+1, min(m.prevOff+h, total), total)) + " "
+		right += dim.Render(fmt.Sprintf("%d–%d/%d", m.prevOff+1, min(m.prevOff+h, total), total)) + " "
 	}
 	lead := " "
 	if sha != "" {
@@ -447,9 +454,9 @@ func (m Model) commitHeader(c deck.Commit, ok bool, w, h int) string {
 	if c.Merge {
 		counts = dim.Render("merge")
 	}
-	right := ""
+	right := m.layoutNote()
 	if total := m.previewTotal(); ok && total > h {
-		right = dim.Render(fmt.Sprintf("%d–%d/%d", m.prevOff+1, min(m.prevOff+h, total), total)) + " "
+		right += dim.Render(fmt.Sprintf("%d–%d/%d", m.prevOff+1, min(m.prevOff+h, total), total)) + " "
 	}
 	room := w - 1 - ansi.StringWidth(c.Short) - 1 - 2 - ansi.StringWidth(counts) - ansi.StringWidth(right) - 2
 	subject := ansi.Truncate(syntax.Clean(c.Subject), max(room, 8), "…")
@@ -470,24 +477,34 @@ func (m Model) diffLine(l deck.PatchLine, code string, w int) string {
 	case deck.LineNote:
 		return dim.Render(ansi.Truncate("   \\ "+syntax.Clean(l.Text), w, "…"))
 	}
-	gutter, bg := "   ", ""
+	gutter := "   "
 	switch l.Kind {
 	case deck.LineAdded:
-		gutter, bg = " "+addedStyle.Bold(true).Render("+")+" ", addBgDark
-		if m.light {
-			bg = addBgLight
-		}
+		gutter = " " + addedStyle.Bold(true).Render("+") + " "
 	case deck.LineDeleted:
-		gutter, bg = " "+deletedStyle.Bold(true).Render("−")+" ", delBgDark
-		if m.light {
-			bg = delBgLight
-		}
+		gutter = " " + deletedStyle.Bold(true).Render("−") + " "
 	}
 	s := fit(gutter+ansi.Truncate(code, max(w-3, 1), "…"), w)
-	if bg == "" {
-		return s
+	if bg := m.lineTint(l.Kind); bg != "" {
+		return tint(s, bg)
 	}
-	return tint(s, bg)
+	return s
+}
+
+// lineTint is the background (SGR parameters) under an added or removed
+// line on this terminal, "" for other lines.
+func (m Model) lineTint(k deck.LineKind) string {
+	switch {
+	case k == deck.LineAdded && m.light:
+		return addBgLight
+	case k == deck.LineAdded:
+		return addBgDark
+	case k == deck.LineDeleted && m.light:
+		return delBgLight
+	case k == deck.LineDeleted:
+		return delBgDark
+	}
+	return ""
 }
 
 // tint puts the background bg (SGR parameters) under s, set again after

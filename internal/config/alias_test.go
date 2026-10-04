@@ -27,6 +27,7 @@ var samples = map[string]struct{ text, lit, shown, otherLit, other string }{
 	KeyDiffCommand:         {"tig", `"tig"`, "tig", `"lazygit"`, "lazygit"},
 	KeyDiffTerminal:        {"false", "false", "false", "true", "true"},
 	KeyDiffView:            {"tree", `"tree"`, "tree", `"list"`, "list"},
+	KeyDiffLayout:          {"split", `"split"`, "split", `"unified"`, "unified"},
 }
 
 func TestSamplesCoverSpecs(t *testing.T) {

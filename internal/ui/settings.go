@@ -233,6 +233,11 @@ func (m *Model) settingsSaved(msg settingsSavedMsg) tea.Cmd {
 		// A saved view applies now; d t alone never writes the file.
 		m.tree = msg.cfg.DiffView == config.DiffViewTree
 	}
+	if msg.key == config.KeyDiffLayout {
+		// Likewise a saved layout; S alone never writes the file.
+		m.split = msg.cfg.DiffLayout == config.DiffLayoutSplit
+		m.relayoutPreview()
+	}
 	sp, _ := config.SpecFor(msg.key)
 	v := msg.cfg.Values[msg.key]
 	what := "saved " + msg.key + " = " + valueText(v, sp)

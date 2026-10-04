@@ -48,6 +48,26 @@ const (
 	tabTextLight = 16
 )
 
+// The split diff's line numbers and divider: fixed greys from the
+// 256-colour palette that barely stand out from the background, so the
+// code dominates; the divider a step brighter than the numbers. Faint text
+// in the terminal's own colour stands out too much here.
+const (
+	lineNoDark   = 238
+	lineNoLight  = 252
+	dividerDark  = 240
+	dividerLight = 250
+)
+
+// greyStyle is foreground dark on a dark terminal, light on a light one.
+func greyStyle(dark, light int, isLight bool) lipgloss.Style {
+	c := dark
+	if isLight {
+		c = light
+	}
+	return lipgloss.NewStyle().Foreground(lipgloss.ANSIColor(c))
+}
+
 // highlight puts the selection background under s, which may already hold
 // styled text: the background is set again after each of its resets, so
 // red, cyan, magenta and dim text keep their colours on it.

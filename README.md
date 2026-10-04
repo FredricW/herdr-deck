@@ -350,6 +350,7 @@ it).
 | `diff.command` | `--diff-command` | `HERDR_DECK_DIFF_COMMAND` | `hunk diff {base} -- {file}` with hunk installed, else `git -C {path} diff --merge-base {base} -- {file}` | `--diff-tool`, `HERDR_DECK_DIFF_TOOL` |
 | `diff.terminal` | `--diff-terminal` | `HERDR_DECK_DIFF_TERMINAL` | `true` |  |
 | `diff.view` | `--diff-view` | `HERDR_DECK_DIFF_VIEW` | `list` | `diff_view` |
+| `diff.layout` | `--diff-layout` | `HERDR_DECK_DIFF_LAYOUT` | `unified` |  |
 <!-- end of settings table -->
 
 A command and its `terminal` option go together: the source that gives the
@@ -591,6 +592,7 @@ only threads waiting on you. The deck never marks an item handled.
 | `g` on Commits | in the focused drawer, open the commit under the cursor in the PR on GitHub (see Commits) |
 | `space` `→` `l` / `←` `h` on Commits | in the focused drawer, expand the commit under the cursor to its files / collapse it (`space` toggles); from the list, `space` folds and `l` is Linear as before |
 | `J` / `K` | scroll the preview a line (`pgup` / `pgdn` a page) |
+| `S` (or `\|`) | while the preview shows: switch between the unified and the split (old \| new) layout for the session (see Diff preview) |
 | `r` | the thread's report, full height, rendered as Markdown |
 | `z` | drawer: normal, full height, hidden |
 | `pgup` / `pgdn` | scroll the drawer, or the diff preview while it shows |
@@ -745,6 +747,33 @@ are cut with `…`, never wrapped. `J`/`K` scroll a line, `pgup`/`pgdn` (or
 the preview three lines. A file's diff shows up to 2000 lines and says how
 many more there are; git runs off the UI with the same 5 s timeout, and an
 answer is reused while the file's content is unchanged.
+
+`S` (or `|`) switches the preview to the split layout and back: the old
+file on the left, the new one on the right, each with line numbers in a
+dark grey that barely shows (light grey on a light terminal), so the code
+stands out, and a thin divider a shade brighter between them, as side-by-side diff tools show it.
+Within a hunk, each run of removed lines sits next to the added lines
+that follow it, and the shorter side gets blank filler; context lines
+show on both sides, hunk headers (and a commit's file rules) across both.
+The colours and tints stay (removed on the left, added on the right), and
+long lines are cut with `…` on their own side. An added file shows only
+its new side and a deleted one only its old side, across the whole width;
+a binary file or a pure rename keeps its note. The place carries over:
+toggling keeps the same hunk in view.
+
+```
+  1   import { useState } from "react";             │  1   import { useState } from "react";
+  2 − import { MembersList } from "../members/Membe… │  2 + import { UsersTable } from "./UsersTable";
+                                                    │  3 + import { overview } from "./overview";
+  3                                                 │  4
+```
+
+`S` only switches for the session; `diff.layout = "split"` in the config
+file (or the settings page, `--diff-layout`, `$HERDR_DECK_DIFF_LAYOUT`)
+starts the deck with it. The split layout needs a pane of at least 100
+columns (two sides of 49, about 40 columns of code each); a narrower one
+shows the unified layout with `split needs ≥ 100 cols` in the header, and
+the split comes back when the pane is wide enough again.
 
 `v` again, `esc`, another tab, another row or a full view (`z`, `r`, `?`)
 ends the preview and brings back the list with its cursor and scroll as

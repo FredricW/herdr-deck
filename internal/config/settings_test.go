@@ -47,6 +47,7 @@ folded_lists = ["In progress", " backlog ", "Backlog"]
 		KeyDiffCommand:     {Text: "git diff {base}", Source: FromFlag},
 		KeyDiffTerminal:    {Text: "true", Source: FromDefault},
 		KeyDiffView:        {Text: "tree", Source: FromFile},
+		KeyDiffLayout:      {Text: "unified", Source: FromDefault},
 		KeyFoldedLists:     {Text: "In progress, backlog", Source: FromFile},
 		KeyUpdateCheck:     {Text: "false", Source: FromFlag},
 		KeyAutoRestart:     {Text: "true", Source: FromDefault},
