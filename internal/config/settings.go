@@ -44,6 +44,9 @@ type Value struct {
 	// a flag or env var may hide it.
 	File   string
 	InFile bool
+	// HandEdit says the file's value cannot be edited as text without
+	// changing it, such as a list name with a comma; edit the file.
+	HandEdit bool
 }
 
 // fileValues are the values the file sets, as text, by key.
@@ -68,6 +71,10 @@ func fileValues(f File) map[string]string {
 	boolean(KeyAutoRestart, f.AutoRestart)
 	str(KeyProjectsRoot, f.ProjectsRoot)
 	str(KeyDiffView, f.DiffView)
+	if f.UI != nil && f.UI.FoldedLists != nil {
+		// As the file holds it, even when it does not validate.
+		out[KeyFoldedLists] = ListText(*f.UI.FoldedLists)
+	}
 	if f.RefreshInterval != nil {
 		out[KeyRefreshInterval] = f.RefreshInterval.String()
 	}
@@ -90,6 +97,7 @@ const (
 	KindDuration             // a Go duration such as "5s"
 	KindCommand              // a command line, split without a shell
 	KindChoice               // one of Spec.Choices; the page cycles them
+	KindList                 // names, written as a TOML array; edited comma-separated
 )
 
 // Setting keys, as Spec.Key and Settings.Values name them. A key in a table
@@ -109,6 +117,7 @@ const (
 	KeyAutoRestart         = "auto_restart"
 	KeyRefreshInterval     = "refresh_interval"
 	KeyProjectsRoot        = "projects_root"
+	KeyFoldedLists         = "ui.folded_lists"
 )
 
 // Spec describes one setting for the settings page.
@@ -155,6 +164,8 @@ var Specs = []Spec{
 		Help: "open a web link in a browser tab that already shows it (macOS)"},
 	{Key: KeyFigmaDesktop, Group: "Browser", Kind: KindBool, Env: EnvFigmaDesktop,
 		Help: "open Figma links in the Figma desktop app instead of the browser"},
+	{Key: KeyFoldedLists, Group: "List", Kind: KindList, Flag: "--ui-folded-lists", Env: EnvFoldedLists,
+		Help: "list headings that start folded, any case, comma-separated; " + NoLists + " folds none. The deck's own groups are Resolved and Other threads"},
 	{Key: KeyRefreshInterval, Group: "Projects and refresh", Kind: KindDuration, Flag: "--refresh-interval", Env: EnvRefreshInterval,
 		Help: "how often the deck reloads when no file change says to; 1s to 10m"},
 	{Key: KeyProjectsRoot, Group: "Projects and refresh", Kind: KindPath, Flag: "--projects-root", Env: EnvProjectsRoot, Restart: true,
@@ -217,6 +228,10 @@ func Check(key, text string) error {
 		}
 	case KindChoice:
 		return checkChoice(text, sp.Choices)
+	case KindList:
+		if _, err := ParseList(text); err != nil {
+			return err
+		}
 	}
 	return nil
 }

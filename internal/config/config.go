@@ -15,8 +15,10 @@ import (
 	"errors"
 	"fmt"
 	"io/fs"
+	"maps"
 	"os"
 	"path/filepath"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -43,6 +45,7 @@ const (
 	EnvUpdateCheck     = "HERDR_DECK_UPDATE_CHECK"
 	EnvAutoRestart     = "HERDR_DECK_AUTO_RESTART"
 	EnvLinearStatus    = "HERDR_DECK_LINEAR_STATUS"
+	EnvFoldedLists     = "HERDR_DECK_UI_FOLDED_LISTS"
 	// EnvLinearAPIKey is internal/source/linear's: the key itself, which
 	// wins over linear_api_key_command.
 	EnvLinearAPIKey = "LINEAR_API_KEY"
@@ -74,6 +77,14 @@ const (
 // them.
 var DiffViews = []string{DiffViewList, DiffViewTree}
 
+// DefaultFoldedLists are the lists that start folded unless ui.folded_lists
+// says otherwise: TASKS.md's Backlog and the deck's own Resolved group.
+var DefaultFoldedLists = []string{"Backlog", "Resolved"}
+
+// NoLists is how flags, environment variables and the settings page write
+// an empty ui.folded_lists: no list starts folded.
+const NoLists = "none"
+
 // Refresh interval default and allowed range.
 const (
 	DefaultRefreshInterval = 5 * time.Second
@@ -100,6 +111,14 @@ type File struct {
 	// LinearAPIKeyCommand prints the Linear API key, e.g. `op read …`. The
 	// key itself never goes in this file.
 	LinearAPIKeyCommand *string `toml:"linear_api_key_command"`
+	// UI is the [ui] table.
+	UI *UI `toml:"ui"`
+}
+
+// UI is the [ui] table: how the deck's list and drawer look and behave.
+type UI struct {
+	// FoldedLists are the list headings that start folded; [] folds none.
+	FoldedLists *[]string `toml:"folded_lists"`
 }
 
 // Program is a table such as [editor]: a command line with placeholders,
@@ -219,9 +238,19 @@ func Load(path string, named bool) (File, []string) {
 			return decode(md, p, &f.LinearAPIKeyCommand)
 		},
 	}
+	// Tables decoded one key at a time, so a bad value or an unknown key in
+	// them is reported and skipped on its own.
+	tables := map[string]map[string]func(toml.Primitive) error{
+		"ui": {
+			"folded_lists": func(p toml.Primitive) error { return decodeIn(md, p, &f.UI, func(u *UI) any { return &u.FoldedLists }) },
+		},
+	}
 	var problems []string
 	failed := map[string]bool{}
 	for _, k := range md.Keys() {
+		if _, ok := tables[k[0]]; ok {
+			continue // below
+		}
 		if len(k) != 1 {
 			continue
 		}
@@ -235,6 +264,13 @@ func Load(path string, named bool) (File, []string) {
 			failed[k[0]] = true
 			problems = append(problems, fmt.Sprintf("config: %s: %s: %s; ignored", path, k[0], valueErr(err)))
 		}
+	}
+	for _, name := range slices.Sorted(maps.Keys(tables)) {
+		p, ok := raw[name]
+		if !ok {
+			continue
+		}
+		problems = append(problems, decodeTable(md, p, path, name, tables[name])...)
 	}
 	// Keys left inside known tables, such as [editor] comand = "…".
 	for _, k := range md.Undecoded() {
@@ -255,6 +291,51 @@ func decode[T any](md toml.MetaData, p toml.Primitive, dst **T) error {
 	return nil
 }
 
+// decodeTable decodes the table p, called name, one key at a time with
+// fields, and returns a problem for each key that is unknown or does not
+// decode, and for a name that is not a table.
+func decodeTable(md toml.MetaData, p toml.Primitive, path, name string, fields map[string]func(toml.Primitive) error) []string {
+	// A dotted ui.key has no type of its own for ui, so look at the value.
+	var v any
+	if err := md.PrimitiveDecode(p, &v); err != nil {
+		return []string{fmt.Sprintf("config: %s: %s: %s; ignored", path, name, valueErr(err))}
+	}
+	if _, ok := v.(map[string]any); !ok {
+		return []string{fmt.Sprintf("config: %s: %s is not a table; ignored", path, name)}
+	}
+	var sub map[string]toml.Primitive
+	if err := md.PrimitiveDecode(p, &sub); err != nil {
+		return []string{fmt.Sprintf("config: %s: %s: %s; ignored", path, name, valueErr(err))}
+	}
+	var problems []string
+	for _, k := range slices.Sorted(maps.Keys(sub)) {
+		key := name + "." + k
+		dec, ok := fields[k]
+		if !ok {
+			problems = append(problems, fmt.Sprintf("config: %s: unknown key %q, ignored", path, key))
+			continue
+		}
+		if err := dec(sub[k]); err != nil {
+			problems = append(problems, fmt.Sprintf("config: %s: %s: %s; ignored", path, key, valueErr(err)))
+		}
+	}
+	return problems
+}
+
+// decodeIn decodes p into the field of the table *t that field picks,
+// creating the table first; the table stays nil when nothing decodes.
+func decodeIn[T any](md toml.MetaData, p toml.Primitive, t **T, field func(*T) any) error {
+	tab := *t
+	if tab == nil {
+		tab = new(T)
+	}
+	if err := md.PrimitiveDecode(p, field(tab)); err != nil {
+		return err
+	}
+	*t = tab
+	return nil
+}
+
 // Flags are the command-line values; "" means the flag was not given.
 type Flags struct {
 	Config          string
@@ -264,6 +345,8 @@ type Flags struct {
 	Editor          string
 	DiffTool        string
 	DiffView        string
+	// FoldedLists is comma-separated list headings, or NoLists.
+	FoldedLists string
 	// EditorTerminal, DiffTerminal, ReuseTabs, UpdateCheck and AutoRestart
 	// are nil when the flag was not given.
 	EditorTerminal *bool
@@ -301,6 +384,9 @@ type Settings struct {
 	AutoRestart bool
 	// LinearStatus shows each Linear issue's status next to its ID.
 	LinearStatus bool
+	// FoldedLists are the headings of the lists that start folded, matched
+	// without regard to case. It is never nil; empty folds none.
+	FoldedLists []string
 	// LinearAPIKeyCommand is the argv of the command that prints the Linear
 	// API key, or nil. $LINEAR_API_KEY wins over it (internal/source/linear).
 	LinearAPIKeyCommand []string
@@ -427,12 +513,25 @@ func Resolve(fl Flags, getenv func(string) string, lookPath func(string) (string
 		s.Values[KeyLinearAPIKeyCommand] = v
 	}
 
+	var fileFolded *[]string
+	if f.UI != nil {
+		fileFolded = f.UI.FoldedLists
+	}
+	if s.FoldedLists, err = s.resolveList(KeyFoldedLists, fl.FoldedLists, "--ui-folded-lists", EnvFoldedLists, fileFolded, DefaultFoldedLists, getenv); err != nil {
+		return s, err
+	}
+
 	s.UpdateCheck = s.resolveBool(KeyUpdateCheck, fl.UpdateCheck, EnvUpdateCheck, f.UpdateCheck, true, getenv)
 	s.AutoRestart = s.resolveBool(KeyAutoRestart, fl.AutoRestart, EnvAutoRestart, f.AutoRestart, true, getenv)
 	for k, text := range fileValues(f) {
 		v := s.Values[k]
 		v.File, v.InFile = text, true
 		s.Values[k] = v
+	}
+	if f.UI != nil && f.UI.FoldedLists != nil && !listFitsText(*f.UI.FoldedLists) {
+		v := s.Values[KeyFoldedLists]
+		v.HandEdit = true
+		s.Values[KeyFoldedLists] = v
 	}
 	// The Sources view is narrow: show the file as ~/… where it fits.
 	if home := homeDir(getenv); home != "" && strings.HasPrefix(s.Path, home+string(filepath.Separator)) {
@@ -573,6 +672,91 @@ func (s *Settings) resolveChoice(key, flag, flagName, env string, file *string, 
 	}
 	s.note(key, choices[0], FromDefault)
 	return choices[0], nil
+}
+
+// resolveList settles a list of names: flag > env > file > default. The
+// flag and env var are comma-separated (ParseList). A bad flag value is an
+// error; a bad environment or file value is a problem and the next source
+// is used.
+func (s *Settings) resolveList(key, flag, flagName, env string, file *[]string, def []string, getenv func(string) string) ([]string, error) {
+	if flag != "" {
+		l, err := ParseList(flag)
+		if err != nil {
+			return nil, fmt.Errorf("%s: %w", flagName, err)
+		}
+		s.note(key, ListText(l), FromFlag)
+		return l, nil
+	}
+	if e := strings.TrimSpace(getenv(env)); e != "" {
+		l, err := ParseList(e)
+		if err == nil {
+			s.note(key, ListText(l), FromEnv)
+			return l, nil
+		}
+		s.Problems = append(s.Problems, fmt.Sprintf("$%s: %v; ignored", env, err))
+	}
+	if file != nil {
+		l, err := cleanList(*file)
+		if err == nil {
+			s.note(key, ListText(l), FromFile)
+			return l, nil
+		}
+		s.Problems = append(s.Problems, fmt.Sprintf("config: %s: %s: %v; ignored", s.Path, key, err))
+	}
+	l := append([]string{}, def...)
+	s.note(key, ListText(l), FromDefault)
+	return l, nil
+}
+
+// ParseList reads comma-separated names such as "Backlog, Resolved", or
+// NoLists for none. It never returns nil.
+func ParseList(text string) ([]string, error) {
+	text = strings.TrimSpace(text)
+	if strings.EqualFold(text, NoLists) {
+		return []string{}, nil
+	}
+	l, err := cleanList(strings.Split(text, ","))
+	if err == nil && len(l) == 0 {
+		err = fmt.Errorf("%q names no list; %s folds none", text, NoLists)
+	}
+	return l, err
+}
+
+// cleanList trims each name and drops repeats, ignoring case. An empty
+// name is an error.
+func cleanList(names []string) ([]string, error) {
+	out := []string{}
+	seen := map[string]bool{}
+	for _, n := range names {
+		n = strings.TrimSpace(n)
+		if n == "" {
+			return nil, errors.New("a list name is empty")
+		}
+		if k := strings.ToLower(n); !seen[k] {
+			seen[k] = true
+			out = append(out, n)
+		}
+	}
+	return out, nil
+}
+
+// listFitsText says whether ParseList(ListText(l)) gives l back: no name
+// holds a comma or is NoLists.
+func listFitsText(l []string) bool {
+	for _, n := range l {
+		if strings.Contains(n, ",") || (len(l) == 1 && strings.EqualFold(strings.TrimSpace(n), NoLists)) {
+			return false
+		}
+	}
+	return true
+}
+
+// ListText is a list as ParseList reads it.
+func ListText(l []string) string {
+	if len(l) == 0 {
+		return NoLists
+	}
+	return strings.Join(l, ", ")
 }
 
 func checkChoice(v string, choices []string) error {

@@ -503,6 +503,61 @@ func TestResolveDiffView(t *testing.T) {
 	}
 }
 
+func TestResolveFoldedLists(t *testing.T) {
+	tests := []struct {
+		name, file, env, flag string
+		want                  []string
+		text                  string
+		problems              int
+	}{
+		{"default", "", "", "", []string{"Backlog", "Resolved"}, "Backlog, Resolved", 0},
+		{"file", "[ui]\nfolded_lists = [\"Later\", \" Done \"]\n", "", "", []string{"Later", "Done"}, "Later, Done", 0},
+		{"empty file list folds none", "ui.folded_lists = []\n", "", "", []string{}, "none", 0},
+		{"env beats file", "[ui]\nfolded_lists = [\"Later\"]\n", "Icebox, backlog", "", []string{"Icebox", "backlog"}, "Icebox, backlog", 0},
+		{"env none", "", "None", "", []string{}, "none", 0},
+		{"flag beats env", "", "Icebox", "Later,Done", []string{"Later", "Done"}, "Later, Done", 0},
+		{"repeats dropped, ignoring case", "", "", "Backlog, backlog", []string{"Backlog"}, "Backlog", 0},
+		{"bad env falls back to the file", "[ui]\nfolded_lists = [\"Later\"]\n", " , ", "", []string{"Later"}, "Later", 1},
+		{"empty name in the file", "[ui]\nfolded_lists = [\"\"]\n", "", "", []string{"Backlog", "Resolved"}, "Backlog, Resolved", 1},
+		{"unknown key in [ui] is skipped on its own", "[ui]\nfolded_lists = [\"Later\"]\ncolour = 1\n", "", "", []string{"Later"}, "Later", 1},
+		{"ui not a table", "ui = 3\n", "", "", []string{"Backlog", "Resolved"}, "Backlog, Resolved", 1},
+		{"wrong type", "[ui]\nfolded_lists = \"Backlog\"\n", "", "", []string{"Backlog", "Resolved"}, "Backlog, Resolved", 1},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			getenv, home := env(t, map[string]string{EnvFoldedLists: tt.env})
+			write(t, filepath.Join(home, ".config", "herdr-deck", "config.toml"), tt.file)
+			s, err := Resolve(Flags{FoldedLists: tt.flag}, getenv, noHunk)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if s.FoldedLists == nil || !slices.Equal(s.FoldedLists, tt.want) || s.Values[KeyFoldedLists].Text != tt.text || len(s.Problems) != tt.problems {
+				t.Errorf("FoldedLists = %q (%q), problems %q; want %q (%q) and %d problems",
+					s.FoldedLists, s.Values[KeyFoldedLists].Text, s.Problems, tt.want, tt.text, tt.problems)
+			}
+		})
+	}
+	for file, hand := range map[string]bool{
+		"[ui]\nfolded_lists = [\"Ideas, later\"]\n":    true,
+		"[ui]\nfolded_lists = [\"none\"]\n":            true,
+		"[ui]\nfolded_lists = [\"none\", \"Later\"]\n": false,
+	} {
+		getenv, home := env(t, nil)
+		write(t, filepath.Join(home, ".config", "herdr-deck", "config.toml"), file)
+		s, err := Resolve(Flags{}, getenv, noHunk)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if got := s.Values[KeyFoldedLists].HandEdit; got != hand {
+			t.Errorf("%q: HandEdit = %v, want %v", file, got, hand)
+		}
+	}
+	getenv, _ := env(t, nil)
+	if _, err := Resolve(Flags{FoldedLists: ","}, getenv, noHunk); err == nil || err.Error() != "--ui-folded-lists: a list name is empty" {
+		t.Errorf("bad flag: %v", err)
+	}
+}
+
 func TestCacheDir(t *testing.T) {
 	getenv, home := env(t, nil)
 	if got, want := CacheDir(getenv), filepath.Join(home, ".cache", "herdr-deck"); got != want {

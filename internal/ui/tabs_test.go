@@ -44,10 +44,10 @@ func TestInboxTintsRowsNotNeedsYou(t *testing.T) {
 		t.Errorf("the header does not count both items: %q", ansi.Strip(m.header(80)))
 	}
 	// A folded list says it holds news.
-	s.TaskLists[1].Name = "Backlog later"
+	s.TaskLists[1].Name = "Later"
 	s.Inbox[0].Thread = "t-0001"
-	m, _ = newModel(t, s, 80, 28)
-	if !strings.Contains(screen(m), "+ Backlog later (1) ○ ✉") {
+	m, _ = newModelWith(t, s, 80, 28, func(o *Options) { o.FoldedLists = []string{"later"} })
+	if !strings.Contains(screen(m), "+ Later (1) ○ ✉") {
 		t.Errorf("the folded list does not show its update:\n%s", screen(m))
 	}
 }

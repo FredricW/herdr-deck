@@ -308,6 +308,11 @@ terminal = false          # e.g. command = "nvim {path}" with terminal = true
 [diff]
 command = "hunk diff {base} -- {file}"
 terminal = true
+
+# The lists that start folded, by heading, in any case: TASKS.md's lists
+# and the deck's own groups (Resolved, Other threads). [] folds none.
+[ui]
+folded_lists = ["Backlog", "Resolved"]
 ```
 
 The Files section's starting view is a top-level key, so it goes above any
@@ -333,6 +338,7 @@ diff_view = "list"   # or "tree": the changed files under their folders
 | `[diff] command` | `--diff-tool` | `HERDR_DECK_DIFF_TOOL` | `hunk diff {base} -- {file}`, or `git -C {path} diff --merge-base {base} -- {file}` without hunk |
 | `[diff] terminal` | `--diff-terminal` | `HERDR_DECK_DIFF_TERMINAL` | `true` |
 | `diff_view` | `--diff-view` | `HERDR_DECK_DIFF_VIEW` | `list` |
+| `[ui] folded_lists` | `--ui-folded-lists` | `HERDR_DECK_UI_FOLDED_LISTS` | `["Backlog", "Resolved"]` |
 
 A command and its `terminal` option go together: the source that gives the
 command also decides `terminal` (or one above it does), so `--editor "zed
@@ -341,20 +347,30 @@ nvim. Without a `terminal` value, the editor is a desktop app and the diff
 tool a terminal program. A terminal program needs herdr; outside herdr, `e`
 and `d` say so in the status line.
 
+`--ui-folded-lists` and `$HERDR_DECK_UI_FOLDED_LISTS` take comma-separated
+headings, such as `"Backlog, Later"`, or `none` to fold nothing. A heading
+matches whole, so `Backlog` does not fold `Backlog later`. A heading with
+a comma, or a lone one named `none`, can only be set in the file; the
+settings page says so instead of editing it. `space` still
+folds or unfolds any list for the session.
+
 The deck does not read `$VISUAL` or `$EDITOR`. To use yours, put it in the
 file, e.g. `command = "nvim {path}"` with `terminal = true`.
 
 Press `s` for the settings page: every setting with its effective value and
 where it comes from (flag, env, file or default), grouped as above. `↵`
 toggles a switch, cycles a choice such as `diff_view`, or edits a value in
-place (checked as you type; `esc` cancels, an empty value removes it), and
+place (checked as you type; `esc` cancels, an empty value removes it;
+`ui.folded_lists` is edited as comma-separated names, `none` for none), and
 `x` removes a setting from the file
 so the next source decides. Each change is saved to the config file at once,
 creating it and its folder when missing. Only the changed line is touched:
 comments, key order and keys the deck does not know stay. A setting a flag
 or environment variable sets can still be saved, but the page says the
 override keeps winning. The running deck applies a change straight away,
-except `projects_root`, which needs a restart (the status line says so).
+except `projects_root`, which needs a restart (the status line says so). A
+new `ui.folded_lists` refolds the lists you have not folded or unfolded by
+hand; the ones you have stay as they are.
 `linear_api_key_command` is edited as a command; the deck never runs it
 there or shows the key it prints.
 
@@ -514,7 +530,7 @@ only threads waiting on you. The deck never marks an item handled.
 | Key | Action |
 |---|---|
 | `j` / `k`, `↓` / `↑` | move; the drawer follows |
-| `space` | fold or unfold the list under the cursor (Backlog starts folded) |
+| `space` | fold or unfold the list under the cursor (Backlog and Resolved start folded; see `[ui] folded_lists`) |
 | `[` / `]` | previous / next drawer tab: Overview, Files, Commits, Log |
 | `tab` | focus the drawer: `j`/`k` move its cursor, `↵` opens what is under it, `tab`/`shift+tab` switch tabs, `esc` returns to the list |
 | `1`–`9` | open the drawer's numbered link (Figma links in the desktop app with `figma_desktop = true`); on Files and Commits, preview the numbered file or commit |

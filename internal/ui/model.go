@@ -13,6 +13,7 @@ import (
 	tea "charm.land/bubbletea/v2"
 
 	"github.com/FredricW/herdr-deck/internal/changelog"
+	"github.com/FredricW/herdr-deck/internal/config"
 	"github.com/FredricW/herdr-deck/internal/deck"
 )
 
@@ -70,6 +71,10 @@ type Options struct {
 	// path, for some files (a rename's old and new path) or, with none,
 	// the whole commit. Tests replace it so no diff tool is ever run.
 	OpenCommit func(path, sha string, files []string) error
+	// FoldedLists are the headings of the lists that start folded, ignoring
+	// case (ui.folded_lists). Nil is config.DefaultFoldedLists; an empty,
+	// non-nil list folds none.
+	FoldedLists []string
 	// DiffTree starts the Files section in the tree view (diff_view =
 	// "tree"); d t switches views for the session.
 	DiffTree bool
@@ -241,6 +246,9 @@ func New(snap deck.Snapshot, opt Options) Model {
 	if opt.UpdateEvery == 0 {
 		opt.UpdateEvery = DefaultUpdateEvery
 	}
+	if opt.FoldedLists == nil {
+		opt.FoldedLists = config.DefaultFoldedLists
+	}
 	m := Model{
 		opt:            opt,
 		keys:           defaultKeys(),
@@ -273,7 +281,7 @@ func (m *Model) SetSnapshot(snap deck.Snapshot) {
 		selKey = r.key
 	}
 	m.snap = snap
-	m.rows = buildRows(snap, m.folds)
+	m.rows = buildRows(snap, m.folds, m.opt.FoldedLists)
 
 	switch {
 	case !m.moved:
@@ -945,7 +953,7 @@ func (m *Model) toggleFold() {
 		return
 	}
 	m.folds[r.list] = !r.folded
-	m.rows = buildRows(m.snap, m.folds)
+	m.rows = buildRows(m.snap, m.folds, m.opt.FoldedLists)
 	m.ensureVisible()
 }
 

@@ -161,6 +161,10 @@ func TestSaveLayouts(t *testing.T) {
 			"\"linear_workspace\" = \"globex\"\n"},
 		{"key in an array of tables is not ours", "[[editor]]\ncommand = \"vi\"\n", KeyUpdateCheck, ptr("true"),
 			"update_check = true\n\n[[editor]]\ncommand = \"vi\"\n"},
+		{"list written as an array", "", KeyFoldedLists, ptr(" Backlog ,Done, backlog"),
+			"[ui]\nfolded_lists = [\"Backlog\", \"Done\"]\n"},
+		{"none is an empty array", "[ui]\nfolded_lists = [\n  \"Backlog\",\n]\nother = true\n", KeyFoldedLists, ptr("none"),
+			"[ui]\nfolded_lists = []\nother = true\n"},
 		{"remove the last key of a table", "[editor]\ncommand = \"vi\"\n", KeyEditorCommand, nil,
 			"[editor]\n"},
 	}
@@ -193,6 +197,7 @@ func TestSaveRefuses(t *testing.T) {
 		{"not a bool", "", KeyReuseTabs, ptr("maybe"), "not true or false"},
 		{"workspace with a slash", "", KeyLinearWorkspace, ptr("acme/team"), "single word"},
 		{"empty", "", KeyLinearWorkspace, ptr("  "), "needs a value"},
+		{"empty list name", "", KeyFoldedLists, ptr("Backlog,,Done"), "a list name is empty"},
 		{"unknown key", "", "colour", ptr("red"), "unknown setting"},
 		{"broken file", "editor = [\n", KeyUpdateCheck, ptr("true"), "does not parse"},
 		{"inline table", "editor = { command = \"vi\" }\n", KeyEditorTerminal, ptr("true"), "edit editor.terminal by hand"},

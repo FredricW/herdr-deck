@@ -36,10 +36,14 @@ func Save(path, key string, value *string) error {
 		if err := Check(key, v); err != nil {
 			return err
 		}
-		if sp.Kind == KindBool {
+		switch sp.Kind {
+		case KindBool:
 			b, _ := strconv.ParseBool(v)
 			lit = strconv.FormatBool(b)
-		} else {
+		case KindList:
+			l, _ := ParseList(v)
+			lit = tomlArray(l)
+		default:
 			lit = tomlString(v)
 		}
 	}
@@ -64,7 +68,7 @@ func Save(path, key string, value *string) error {
 	if text == string(old) {
 		return nil
 	}
-	if err := verify(before, text, key, sp.Kind, lit, value != nil); err != nil {
+	if err := verify(before, text, key, lit, value != nil); err != nil {
 		return err
 	}
 	return writeAtomic(target, []byte(text))
@@ -72,7 +76,7 @@ func Save(path, key string, value *string) error {
 
 // verify decodes the patched text and checks that key holds the new value
 // and nothing else changed.
-func verify(before map[string]any, text, key string, kind Kind, lit string, set bool) error {
+func verify(before map[string]any, text, key string, lit string, set bool) error {
 	var after map[string]any
 	if _, err := toml.Decode(text, &after); err != nil {
 		return fmt.Errorf("saving %s would break the file (%s); nothing was written", key, parseErr(err))
@@ -90,17 +94,11 @@ func verify(before map[string]any, text, key string, kind Kind, lit string, set 
 		m = sub
 	}
 	if set {
-		var v any
-		if kind == KindBool {
-			v = lit == "true"
-		} else {
-			var s struct{ V string }
-			if _, err := toml.Decode("V = "+lit, &s); err != nil {
-				return err
-			}
-			v = s.V
+		var v map[string]any
+		if _, err := toml.Decode("V = "+lit, &v); err != nil {
+			return err
 		}
-		m[name] = v
+		m[name] = v["V"]
 	} else {
 		delete(m, name)
 	}
@@ -196,6 +194,15 @@ func tomlString(s string) string {
 	}
 	b.WriteByte('"')
 	return b.String()
+}
+
+// tomlArray writes names as a one-line TOML array of strings.
+func tomlArray(names []string) string {
+	q := make([]string, len(names))
+	for i, n := range names {
+		q[i] = tomlString(n)
+	}
+	return "[" + strings.Join(q, ", ") + "]"
 }
 
 // entry is a key/value line of a TOML document.

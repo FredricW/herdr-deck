@@ -99,7 +99,7 @@ func TestSettingsGolden(t *testing.T) {
 		{name: "settings-override", vars: map[string]string{config.EnvEditor: "nvim {path}", config.EnvLinearAPIKey: "lin_api_secret"},
 			fl: config.Flags{UpdateCheck: &no}, keys: keys("jjj")},
 		{name: "settings-edit", keys: append(keys("jjj"), tea.KeyPressMsg{Code: tea.KeyEnter}, tea.KeyPressMsg{Code: tea.KeyBackspace}, tea.KeyPressMsg{Code: tea.KeyBackspace}, tea.KeyPressMsg{Code: tea.KeyBackspace}, tea.KeyPressMsg{Code: tea.KeyBackspace}, tea.KeyPressMsg{Code: tea.KeyBackspace}, tea.KeyPressMsg{Code: tea.KeyBackspace}, tea.KeyPressMsg{Code: '{', Text: "{"}, tea.KeyPressMsg{Code: 'x', Text: "x"}, tea.KeyPressMsg{Code: '}', Text: "}"})},
-		{name: "settings-bottom", keys: keys("jjjjjjjjjjjjjjj")},
+		{name: "settings-bottom", keys: keys("jjjjjjjjjjjjjjjj")},
 	}
 	for _, c := range cases {
 		for _, w := range []int{80, 60} {
@@ -333,5 +333,72 @@ func TestSettingsCyclesDiffView(t *testing.T) {
 	m, _ = press(m, tea.KeyPressMsg{Code: tea.KeyEnter})
 	if got := e.file(t); got != "diff_view = \"list\"\n" || m.tree {
 		t.Errorf("second press: tree %v, file %q", m.tree, got)
+	}
+}
+
+// ui.folded_lists is edited as comma-separated text and applies at once: lists
+// the user has not folded or unfolded by hand follow it, and manual folds
+// stay.
+func TestSettingsEditsFoldedLists(t *testing.T) {
+	e := newSettingsEnv(t, "", nil)
+	m, _ := newModelWith(t, calm(), 80, 40, func(o *Options) { o.Settings = e.hooks(config.Flags{}) })
+	// Unfold Backlog by hand.
+	m, _ = press(m, keys("jjjjjj ")...)
+	if !strings.Contains(screen(m), "Settings page") {
+		t.Fatalf("space did not unfold Backlog:\n%s", screen(m))
+	}
+	m, _ = press(m, keys("s")...)
+	for m.set.cursor != indexOf(config.KeyFoldedLists) {
+		m, _ = press(m, keys("j")...)
+	}
+	m, _ = press(m, tea.KeyPressMsg{Code: tea.KeyEnter})
+	if got := m.set.input.Value(); got != "Backlog, Resolved" {
+		t.Fatalf("edit starts from %q", got)
+	}
+	m.set.input.SetValue("in progress, Backlog,")
+	m, _ = press(m, tea.KeyPressMsg{Code: tea.KeyEnter})
+	if !m.set.editing || m.set.invalid != "a list name is empty" {
+		t.Fatalf("editing %v, invalid %q", m.set.editing, m.set.invalid)
+	}
+	m.set.input.SetValue("in progress, Backlog")
+	m, _ = press(m, tea.KeyPressMsg{Code: tea.KeyEnter})
+	if got := e.file(t); got != "[ui]\nfolded_lists = [\"in progress\", \"Backlog\"]\n" {
+		t.Fatalf("file = %q", got)
+	}
+	if m.Status() != "saved ui.folded_lists = in progress, Backlog" {
+		t.Errorf("status = %q", m.Status())
+	}
+	m, _ = press(m, esc)
+	if s := screen(m); !strings.Contains(s, "+ In progress (3)") || !strings.Contains(s, "Settings page") {
+		t.Errorf("In progress should fold and the hand-unfolded Backlog stay open:\n%s", s)
+	}
+
+	// none folds nothing.
+	m, _ = press(m, keys("s")...)
+	m, _ = press(m, tea.KeyPressMsg{Code: tea.KeyEnter})
+	m.set.input.SetValue("none")
+	m, _ = press(m, tea.KeyPressMsg{Code: tea.KeyEnter})
+	if got := e.file(t); got != "[ui]\nfolded_lists = []\n" {
+		t.Fatalf("file = %q", got)
+	}
+	m, _ = press(m, esc)
+	if s := screen(m); strings.Contains(s, "+ In progress") || !strings.Contains(s, "Settings page") {
+		t.Errorf("none should unfold In progress:\n%s", s)
+	}
+}
+
+// A list name the comma-separated text cannot hold is never rewritten from
+// the page.
+func TestSettingsFoldedListsHandEdit(t *testing.T) {
+	for _, file := range []string{"[ui]\nfolded_lists = [\"Ideas, later\"]\n", "[ui]\nfolded_lists = [\"None\"]\n"} {
+		e := newSettingsEnv(t, file, nil)
+		m := settingsModel(t, e, config.Flags{}, 80, 28)
+		for m.set.cursor != indexOf(config.KeyFoldedLists) {
+			m, _ = press(m, keys("j")...)
+		}
+		m, _ = press(m, tea.KeyPressMsg{Code: tea.KeyEnter})
+		if m.set.editing || !strings.HasSuffix(m.Status(), "edit the file") || e.file(t) != file {
+			t.Errorf("%q: editing %v, status %q, file %q", file, m.set.editing, m.Status(), e.file(t))
+		}
 	}
 }

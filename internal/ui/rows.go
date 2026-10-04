@@ -104,11 +104,15 @@ func urgency(s deck.ThreadStatus) int {
 	return 4
 }
 
-// foldedByDefault names the lists that start folded: long lists the user
-// rarely needs at a glance.
-func foldedByDefault(list string) bool {
-	l := strings.ToLower(list)
-	return strings.Contains(l, "backlog") || l == strings.ToLower(listResolved)
+// startsFolded says whether list is one of the headings in folded (the
+// ui.folded_lists setting), ignoring case.
+func startsFolded(list string, folded []string) bool {
+	for _, f := range folded {
+		if strings.EqualFold(strings.TrimSpace(f), list) {
+			return true
+		}
+	}
+	return false
 }
 
 // inboxByThread counts the unhandled inbox items per thread id. Items
@@ -126,9 +130,9 @@ func inboxByThread(snap deck.Snapshot) map[string]int {
 // buildRows lays out the list: the Needs you group (threads waiting on the
 // user) pinned on top, then TASKS.md's lists in
 // order, then the threads no task names, with a gap between two groups.
-// folds holds the user's fold toggles by list name; lists without one use
-// foldedByDefault.
-func buildRows(snap deck.Snapshot, folds map[string]bool) []row {
+// folds holds the user's fold toggles by list name; lists without one start
+// folded when folded names them.
+func buildRows(snap deck.Snapshot, folds map[string]bool, folded []string) []row {
 	byID := make(map[string]deck.Thread, len(snap.Threads))
 	for _, t := range snap.Threads {
 		byID[t.ID] = t
@@ -206,15 +210,15 @@ func buildRows(snap deck.Snapshot, folds map[string]bool) []row {
 		rows = append(rows, pinned...)
 	}
 	for _, l := range lists {
-		folded, ok := folds[l.name]
+		isFolded, ok := folds[l.name]
 		if !ok {
-			folded = foldedByDefault(l.name)
+			isFolded = startsFolded(l.name, folded)
 		}
 		if len(rows) > 0 {
 			rows = append(rows, row{kind: rowGap, key: "gap:" + l.name})
 		}
-		h := row{kind: rowHeading, list: l.name, key: "head:" + l.name, count: len(l.rows), folded: folded, foldable: true}
-		if folded {
+		h := row{kind: rowHeading, list: l.name, key: "head:" + l.name, count: len(l.rows), folded: isFolded, foldable: true}
+		if isFolded {
 			for _, r := range l.rows {
 				h.updates += r.updates
 				for _, t := range r.threads {
@@ -225,7 +229,7 @@ func buildRows(snap deck.Snapshot, folds map[string]bool) []row {
 			}
 		}
 		rows = append(rows, h)
-		if !folded {
+		if !isFolded {
 			rows = append(rows, l.rows...)
 		}
 	}

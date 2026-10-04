@@ -2,6 +2,7 @@ package ui
 
 import (
 	"context"
+	"slices"
 	"strings"
 
 	"charm.land/bubbles/v2/key"
@@ -185,6 +186,10 @@ func (m *Model) editSetting() tea.Cmd {
 		}
 		return m.saveSetting(sp.Key, &next)
 	}
+	if v.InFile && v.HandEdit {
+		m.status = sp.Key + " holds a name the page cannot write back (a comma, or " + config.NoLists + "); edit the file"
+		return nil
+	}
 	in := textinput.New()
 	in.Prompt = ""
 	in.CharLimit = 1024
@@ -252,6 +257,11 @@ func (m *Model) applySettings(cfg config.Settings) tea.Cmd {
 	m.set.cfg, m.set.loaded, m.set.err = cfg, true, ""
 	m.opt.Tick = cfg.RefreshInterval
 	m.opt.FigmaDesktop = cfg.FigmaDesktop
+	if cfg.FoldedLists != nil && !slices.Equal(cfg.FoldedLists, m.opt.FoldedLists) {
+		// Lists the user folded or unfolded by hand keep that.
+		m.opt.FoldedLists = cfg.FoldedLists
+		m.SetSnapshot(m.snap)
+	}
 	if h := m.opt.Settings; h != nil && h.Apply != nil {
 		h.Apply(cfg)
 	}

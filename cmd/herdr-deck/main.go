@@ -69,6 +69,7 @@ func run(args []string) error {
 	fs.StringVar(&fl.Editor, "editor", "", "command that opens a worktree, {path} is the folder (default: $"+config.EnvEditor+", else [editor] command in the config file, else \""+config.DefaultEditor+"\")")
 	editorTerm := fs.Bool("editor-terminal", false, "the editor is a terminal program: open it in a new herdr pane (default: $"+config.EnvEditorTerminal+", else [editor] terminal)")
 	fs.StringVar(&fl.DiffTool, "diff-tool", "", "command that shows a worktree's diff: {path}, {base}, optional {file} (default: $"+config.EnvDiffTool+", else [diff] command, else hunk or git diff)")
+	fs.StringVar(&fl.FoldedLists, "ui-folded-lists", "", "list headings that start folded, comma-separated, any case; "+config.NoLists+" folds none (default: $"+config.EnvFoldedLists+", else [ui] folded_lists in the config file, else \""+config.ListText(config.DefaultFoldedLists)+"\")")
 	fs.StringVar(&fl.DiffView, "diff-view", "", "the Files section's view at start, list or tree (default: $"+config.EnvDiffView+", else diff_view in the config file, else list)")
 	diffTerm := fs.Bool("diff-terminal", false, "the diff tool is a terminal program (default: $"+config.EnvDiffTerminal+", else [diff] terminal)")
 	reuseTabs := fs.Bool("reuse-browser-tabs", true, "open a web link in a browser tab that already shows it, on macOS (default: $"+config.EnvReuseTabs+", else reuse_browser_tabs in the config file, else true)")
@@ -131,10 +132,11 @@ func run(args []string) error {
 			df := cur.Load().Diff
 			return runner.Run(df, launch.CommitArgv(df, path, sha, files...), path)
 		},
-		DiffTree:  cfg.DiffView == config.DiffViewTree,
-		Tick:      cfg.RefreshInterval,
-		Version:   shortVersionString(),
-		Changelog: ownChangelog,
+		DiffTree:    cfg.DiffView == config.DiffViewTree,
+		FoldedLists: cfg.FoldedLists,
+		Tick:        cfg.RefreshInterval,
+		Version:     shortVersionString(),
+		Changelog:   ownChangelog,
 		Settings: &ui.SettingsHooks{
 			Resolve: func() (config.Settings, error) { return config.Resolve(fl, os.Getenv, exec.LookPath) },
 			Save:    config.Save,
@@ -274,6 +276,7 @@ func run(args []string) error {
 		opt.RestartFailed = err.Error()
 		// Keep what the settings page saved since the start.
 		opt.Tick, opt.FigmaDesktop = cur.Load().RefreshInterval, cur.Load().FigmaDesktop
+		opt.FoldedLists = cur.Load().FoldedLists
 		opt.Updated = ""
 		model = ui.New(m.Snapshot(), opt)
 	}
