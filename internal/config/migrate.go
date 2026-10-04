@@ -15,6 +15,9 @@ type Migration struct {
 	Path          string
 	Before, After string
 	Moved         []string
+	// Backup is where the old file was kept: next to the file a symlink
+	// points to. "" when nothing was written.
+	Backup string
 }
 
 // MigrateFile reads the config file at path and moves every earlier flat
@@ -51,6 +54,7 @@ func MigrateFile(path string, write bool) (Migration, error) {
 	if err := os.WriteFile(target+".bak", b, mode); err != nil {
 		return m, fmt.Errorf("keeping the old file: %w", err)
 	}
+	m.Backup = target + ".bak"
 	return m, writeAtomic(target, []byte(m.After))
 }
 

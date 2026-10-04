@@ -373,9 +373,13 @@ func runConfig(args []string, getenv func(string) string, out io.Writer) error {
 	fmt.Fprintln(out)
 	fmt.Fprint(out, config.UnifiedDiff(m.Before, m.After, p, p+" (migrated)"))
 	if *write {
-		fmt.Fprintf(out, "\nThe old file is kept as %s.bak.\n", p)
+		fmt.Fprintf(out, "\nThe old file is kept as %s.\n", m.Backup)
 	} else {
-		fmt.Fprintln(out, "\nNothing was written: run `herdr-deck config migrate --write` to apply it, keeping the old file as .bak.")
+		cmd := "herdr-deck config migrate --write"
+		if *path != "" {
+			cmd = "herdr-deck config migrate --config " + launch.ShellLine([]string{*path}) + " --write"
+		}
+		fmt.Fprintln(out, "\nNothing was written: run `"+cmd+"` to apply it, keeping the old file as .bak.")
 	}
 	return nil
 }

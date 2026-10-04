@@ -8,7 +8,11 @@ import (
 )
 
 func TestConfigMigrate(t *testing.T) {
-	home := t.TempDir()
+	// Resolved, as the .bak path is: on macOS /var is a symlink.
+	home, err := filepath.EvalSymlinks(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
 	getenv := func(k string) string {
 		if k == "HOME" {
 			return home
@@ -43,6 +47,14 @@ func TestConfigMigrate(t *testing.T) {
 	if err := os.WriteFile(other, []byte("update_check = false\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
+	// The hint keeps the file named.
+	out.Reset()
+	if err := runConfig([]string{"migrate", "--config", other}, getenv, &out); err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(out.String(), "run `herdr-deck config migrate --config "+other+" --write`") {
+		t.Errorf("dry run hint lacks --config:\n%s", out.String())
+	}
 	out.Reset()
 	if err := runConfig([]string{"migrate", "--config", other, "--write"}, getenv, &out); err != nil {
 		t.Fatal(err)
@@ -55,6 +67,25 @@ func TestConfigMigrate(t *testing.T) {
 	}
 	if !strings.HasPrefix(out.String(), "Moved 1 setting(s) in "+other) || !strings.HasSuffix(out.String(), "kept as "+other+".bak.\n") {
 		t.Errorf("--write printed\n%s", out.String())
+	}
+
+	// A symlinked file keeps its .bak next to the real one, and says so.
+	real := filepath.Join(home, "dotfiles", "deck.toml")
+	link := filepath.Join(home, "link.toml")
+	if err := os.MkdirAll(filepath.Dir(real), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(real, []byte("diff_view = \"tree\"\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Symlink(real, link); err == nil {
+		out.Reset()
+		if err := runConfig([]string{"migrate", "--config", link, "--write"}, getenv, &out); err != nil {
+			t.Fatal(err)
+		}
+		if _, err := os.Stat(real + ".bak"); err != nil || !strings.HasSuffix(out.String(), "kept as "+real+".bak.\n") {
+			t.Errorf("symlink: .bak %v, printed\n%s", err, out.String())
+		}
 	}
 
 	out.Reset()
