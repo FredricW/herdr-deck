@@ -1,6 +1,3 @@
-// Package schema holds the JSON Schemas of the dev manifest
-// (docs/dev-manifest.md). Its test checks the schemas against the spec's
-// examples, so the two cannot drift apart.
 package schema
 
 import (

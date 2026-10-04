@@ -1,0 +1,15 @@
+{
+  "$schema": "https://raw.githubusercontent.com/FredricW/herdr-deck/main/schema/v1/dev.schema.json",
+  "version": 1,
+  "ports": { "web": { "base": 5173 } },
+  "services": {
+    "web": { "run": "npm run dev -- --port $$PORT --strictPort" }
+  },
+  "commands": {
+    "setup": "npm install",
+    "test": "npm test",
+    "lint": "npm run lint",
+    "format": "npm run format"
+  },
+  "links": [{ "title": "Recipe box", "url": "http://localhost:$PORT_web" }]
+}

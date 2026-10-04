@@ -727,6 +727,9 @@ ports come from a port store shared by every tool
 (`$XDG_STATE_HOME/dev-manifest/ports.json`), or from the project's own state
 file. Detection from task runners only seeds a first manifest
 (`herdr-deck dev init`) and warns about drift; it is never a runtime source.
+An agent skill, `skills/dev-manifest` (linked into `~/.claude/skills`), writes
+and validates manifests for existing repos until `herdr-deck dev init` and the
+drift check exist; the skill then uses them.
 The deck's implementation (reader, verb runner, store, seeding, drift) is next;
 until it lands, the Dev servers row above describes
 what the deck does.

@@ -1,0 +1,4 @@
+#!/bin/sh
+# Stops what dev-up started for one worktree.
+echo "fixture: not a real script" >&2
+exit 1

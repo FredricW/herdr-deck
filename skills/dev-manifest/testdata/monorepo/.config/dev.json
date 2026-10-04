@@ -1,0 +1,48 @@
+{
+  "$schema": "https://raw.githubusercontent.com/FredricW/herdr-deck/main/schema/v1/dev.schema.json",
+  "version": 1,
+  "name": "Acme shop",
+  "env": {
+    "vars": {
+      "DB_PORT": "$PORT_db",
+      "DATABASE_URL": "postgres://dev:dev@localhost:$PORT_db/shop"
+    }
+  },
+  "ports": {
+    "web": { "base": 3000 },
+    "api": { "base": 4000 },
+    "db": { "base": 5432 }
+  },
+  "services": {
+    "db": {
+      "run": ["docker", "compose", "up", "db"],
+      "stop": ["docker", "compose", "stop", "db"],
+      "ready": { "timeout": "90s" }
+    },
+    "api": {
+      "dir": "apps/api",
+      "run": "pnpm run dev",
+      "needs": "db",
+      "ready": { "http": "/healthz" }
+    },
+    "web": {
+      "dir": "apps/web",
+      "run": "pnpm run dev",
+      "needs": "api",
+      "env": { "API_URL": "http://localhost:$PORT_api" }
+    }
+  },
+  "commands": {
+    "setup": ["just", "setup"],
+    "test": { "*": "pnpm run test", "web": "pnpm run test", "api": "pnpm run test" },
+    "lint": { "*": "pnpm run lint", "web": "pnpm run lint", "api": "pnpm run lint" },
+    "format": "pnpm run format",
+    "migrate": { "api": { "run": "pnpm run migrate", "needs": "db" } },
+    "seed": { "api": { "run": "pnpm run seed", "needs": "db" } },
+    "teardown": ["just", "teardown"]
+  },
+  "links": [
+    { "title": "Shop", "url": "http://localhost:$PORT_web" },
+    { "title": "API health", "url": "http://localhost:$PORT_api/healthz" }
+  ]
+}

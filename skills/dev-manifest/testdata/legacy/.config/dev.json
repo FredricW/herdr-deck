@@ -1,0 +1,27 @@
+{
+  "$schema": "https://raw.githubusercontent.com/FredricW/herdr-deck/main/schema/v1/dev.schema.json",
+  "version": 1,
+  "ports": {
+    "frontend": { "state": "frontend_port" },
+    "api": { "state": "api_port" },
+    "docs": 6060
+  },
+  "state": { "file": "$REPO/.dev/$DIRNAME/state.json" },
+  "services": {
+    "frontend": { "log": "$REPO/.dev/$DIRNAME/logs/frontend.log" },
+    "api": { "log": "$REPO/.dev/$DIRNAME/logs/api.log" },
+    "docs": { "title": "Go docs", "run": ["make", "docs"] }
+  },
+  "groups": { "default": ["frontend", "api"] },
+  "commands": {
+    "dev": "scripts/dev-up --name $DIRNAME",
+    "stop": "scripts/dev-down --name $DIRNAME",
+    "test": ["make", "test"],
+    "lint": ["make", "lint"]
+  },
+  "links": [
+    { "title": "Frontend", "url": "http://localhost:$PORT_frontend", "needs": "frontend" },
+    { "title": "API docs", "url": "http://localhost:$PORT_api/docs", "needs": ["api"] },
+    { "title": "Go docs", "url": "http://localhost:$PORT_docs", "needs": "docs" }
+  ]
+}

@@ -1,0 +1,5 @@
+#!/bin/sh
+# Starts the frontend and the API for one worktree on free ports and writes
+# them to .dev/<name>/state.json, with logs in .dev/<name>/logs/.
+echo "fixture: not a real script" >&2
+exit 1

@@ -1,0 +1,9 @@
+# Install dependencies and start the database.
+setup:
+    pnpm install
+    docker compose up -d db
+    pnpm --filter api run migrate
+
+# Remove the database and its data.
+teardown:
+    docker compose down --volumes

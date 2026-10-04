@@ -1,0 +1,11 @@
+{
+  "state": {
+    "file": ".dev/$DIRNAME/state.json",
+    "ports": { "frontend": "frontend_port", "api": "api_port", "docs": 6060 }
+  },
+  "links": [
+    { "title": "Frontend", "url": "http://localhost:$PORT_frontend", "needs": "frontend" },
+    { "title": "API docs", "url": "http://localhost:$PORT_api/docs", "needs": ["api"] }
+  ],
+  "up": "scripts/dev-up --name $DIRNAME"
+}
