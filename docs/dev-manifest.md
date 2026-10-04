@@ -1,6 +1,6 @@
 # Dev manifest, version 1
 
-Status: **draft for review** (2026-10-03). Nothing implements it yet; herdr-deck
+Status: **approved** (2026-10-04). Nothing implements it yet; herdr-deck
 still reads `.herdr-deck/dev.json` (see the README's *Dev servers*).
 
 A dev manifest is a committed file, `.config/dev.json`, that tells any tool how
@@ -9,8 +9,8 @@ how to start and stop them, how to set it up, test it and lint it, and which
 pages to open. It is tool-neutral. herdr-deck reads it, and so can any other
 tool (a launcher, an editor extension, a script); none of them owns it.
 
-The JSON Schema is [`schema/dev.schema.json`](../schema/dev.schema.json); the
-port store's is [`schema/dev-ports.schema.json`](../schema/dev-ports.schema.json).
+The JSON Schema is [`schema/v1/dev.schema.json`](../schema/v1/dev.schema.json); the
+port store's is [`schema/v1/dev-ports.schema.json`](../schema/v1/dev-ports.schema.json).
 
 The key words MUST, MUST NOT, SHOULD, SHOULD NOT and MAY are used as in
 RFC 2119. *Tool* means any program that reads the manifest. *Worktree* means
@@ -34,7 +34,7 @@ Contents:
 14. [Examples](#14-examples)
 15. [Migrating from `.herdr-deck/dev.json`](#15-migrating-from-herdr-deckdevjson)
 16. [Other tools' files (non-normative)](#16-other-tools-files-non-normative)
-17. [Open questions](#17-open-questions)
+17. [Decisions](#17-decisions)
 
 ## 1. Goals
 
@@ -76,8 +76,15 @@ integers, and names here never are).
 `"$schema"` MAY name the schema, so editors can check the file:
 
 ```
-"$schema": "https://raw.githubusercontent.com/FredricW/herdr-deck/main/schema/dev.schema.json"
+"$schema": "https://raw.githubusercontent.com/FredricW/herdr-deck/main/schema/v1/dev.schema.json"
 ```
+
+The schema's path carries its version: `schema/v1/` holds the schemas for
+`"version": 1`. A published `v1` schema only changes compatibly (new optional
+fields, better descriptions); a breaking change gets `schema/v2/`, together
+with `"version": 2`. Once a herdr-deck release contains the schema, a
+tag-pinned URL (`…/herdr-deck/v0.2.0/schema/v1/dev.schema.json`, for example)
+can be used instead of `main`, for editors that must never see a change.
 
 ### 2.2 Lookup
 
@@ -833,7 +840,7 @@ A site whose dev server reads `PORT`. Each worktree gets its own port from
 <!-- example: dev.json -->
 ```json
 {
-  "$schema": "https://raw.githubusercontent.com/FredricW/herdr-deck/main/schema/dev.schema.json",
+  "$schema": "https://raw.githubusercontent.com/FredricW/herdr-deck/main/schema/v1/dev.schema.json",
   "version": 1,
   "ports": { "web": { "base": 3100 } },
   "services": { "web": { "run": "npm run dev" } },
@@ -857,7 +864,7 @@ A web app, an API with a gRPC port, a worker and a Postgres per worktree.
 <!-- example: dev.json -->
 ```json
 {
-  "$schema": "https://raw.githubusercontent.com/FredricW/herdr-deck/main/schema/dev.schema.json",
+  "$schema": "https://raw.githubusercontent.com/FredricW/herdr-deck/main/schema/v1/dev.schema.json",
   "version": 1,
   "name": "Acme shop",
   "env": {
@@ -1037,38 +1044,30 @@ publish a specification of their format, so detection does not depend on
 guessing another tool's private format. They would never be runtime sources,
 for the same reason as the task runners above.
 
-## 17. Open questions
+## 17. Decisions
 
-Things the spec decides one way for now, which the user may want otherwise:
+The user settled the draft's open questions on 2026-10-04:
 
-1. **Strict `$` in shell strings.** An unknown `$NAME` is an error, so shell
-   commands write `$$HOME`. This catches typos like `$PORT_wbe` and is what
-   herdr-deck does today, but it is unusual. The alternative passes unknown
-   names through to the shell and only checks `$PORT_<name>`.
-2. **`$env(…)` reads only `env.files`**, never the tool's own environment, so
-   every tool expands it the same way. Should it fall back to the process
-   environment?
-3. **Relative paths are relative to the worktree**, including `state.file`,
-   which was relative to the main checkout in `.herdr-deck/dev.json`. That
-   makes every path follow one rule, but migrations must add `$REPO/`.
-4. **The shared folder's name and place**: `~/.local/state/dev-manifest/` on
-   every platform (also macOS, where a launcher extension might expect its
-   own support folder). A tool that already has a port store should import
-   its assignments once.
-5. **Port store defaults**: a range of 100 per name, failing when it is full;
-   entries dropped as soon as their folder is gone (a worktree on an
-   unmounted disk would lose its ports).
+1. **Strict `$` in shell strings** stays: an unknown `$NAME` is an error, and
+   shell commands write `$$HOME`.
+2. **`$env(…)` reads only `env.files`**, never the tool's own environment.
+3. **Relative paths are relative to the worktree**, `state.file` included;
+   migrations add `$REPO/`.
+4. **The shared folder** is `~/.local/state/dev-manifest/` (or under
+   `$XDG_STATE_HOME`) on every platform, macOS included. A tool with a port
+   store of its own imports its assignments once.
+5. **Port store defaults**: a range of 100 per name, failing when full;
+   entries are dropped once their folder is gone.
 6. **Plain `test` with a per-service map** goes on after a failure and fails
-   at the end. The alternative stops at the first failure, like `make`.
-7. **`dev` with `commands.dev` ignores the services' `run`s.** Mixing (run
-   `commands.dev`, then start services with a `run`) is possible but harder to
-   reason about.
-8. **Verb names**: `dev`/`stop` with `up`/`down` as aliases, plus
-   `start <service>` and `restart`. Is `restart` worth reserving?
-9. **Service names without dashes** (`api_gateway`, not `api-gateway`),
-   because they become environment variable names and often port names.
-10. **The schema's URL** is the file on GitHub's `main` branch. A versioned URL
-    (a tag, or a `v1` path) would protect editors from a later edit.
-11. **Worktree lifecycle** (creating and removing worktrees, and their hooks)
-    stays out of the shared file, under `x-<tool>`. If two tools come to need
-    the same lifecycle commands, they could become standard fields.
+   at the end.
+7. **`dev` with `commands.dev`** runs only that command, not the services'
+   `run`s.
+8. **Verbs**: `dev`/`stop` with `up`/`down` as aliases, plus
+   `start <service>` and `restart`.
+9. **Service names have no dashes**, since they become environment variable
+   names.
+10. **The schema URL is versioned**: `schema/v1/…`, changed only compatibly;
+    a breaking change gets `v2` ([section 2.1](#21-file)). A tag-pinned URL
+    can be used once a release contains the schema.
+11. **Worktree lifecycle** (creating and removing worktrees) stays out of the
+    shared file, under `x-<tool>`.

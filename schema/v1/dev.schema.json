@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://raw.githubusercontent.com/FredricW/herdr-deck/main/schema/dev.schema.json",
+  "$id": "https://raw.githubusercontent.com/FredricW/herdr-deck/main/schema/v1/dev.schema.json",
   "title": "Dev manifest, version 1 (.config/dev.json)",
   "description": "How tools work a repository's checkout: its services and ports, how to start and stop them, its commands and its links. Specification: docs/dev-manifest.md in github.com/FredricW/herdr-deck. The schema checks shape only; tools also check variables, cross-references (needs, groups, ports) and dependency cycles.",
   "type": "object",

@@ -56,8 +56,8 @@ func TestSpecExamples(t *testing.T) {
 		t.Fatal(err)
 	}
 	schemas := map[string]*jsonschema.Schema{
-		"dev.json":       compile(t, "dev.schema.json"),
-		"dev-ports.json": compile(t, "dev-ports.schema.json"),
+		"dev.json":       compile(t, "v1/dev.schema.json"),
+		"dev-ports.json": compile(t, "v1/dev-ports.schema.json"),
 	}
 	counts := map[string]int{}
 	for i, m := range exampleRe.FindAllStringSubmatch(string(b), -1) {
@@ -84,7 +84,7 @@ func TestSpecExamples(t *testing.T) {
 }
 
 func TestInvalidManifests(t *testing.T) {
-	s := compile(t, "dev.schema.json")
+	s := compile(t, "v1/dev.schema.json")
 	files, err := filepath.Glob("testdata/invalid/*.json")
 	if err != nil {
 		t.Fatal(err)
@@ -107,7 +107,7 @@ func TestInvalidManifests(t *testing.T) {
 // TestSchemasAreJSON keeps the schema files plain JSON that encoding/json
 // reads, as tools without a schema library will.
 func TestSchemasAreJSON(t *testing.T) {
-	for _, f := range []string{"dev.schema.json", "dev-ports.schema.json"} {
+	for _, f := range []string{"v1/dev.schema.json", "v1/dev-ports.schema.json"} {
 		b, err := os.ReadFile(f)
 		if err != nil {
 			t.Fatal(err)

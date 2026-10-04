@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://raw.githubusercontent.com/FredricW/herdr-deck/main/schema/dev-ports.schema.json",
+  "$id": "https://raw.githubusercontent.com/FredricW/herdr-deck/main/schema/v1/dev-ports.schema.json",
   "title": "Dev manifest port store, version 1 ($XDG_STATE_HOME/dev-manifest/ports.json)",
   "description": "Ports handed out per worktree, shared by every tool that reads dev manifests. Specification: docs/dev-manifest.md, section 10, in github.com/FredricW/herdr-deck.",
   "type": "object",

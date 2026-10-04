@@ -698,8 +698,8 @@ completed and canceled dim, the ID too. The list's LINKS column keeps its
 
 ## Dev manifest
 
-Draft spec, awaiting the user's review (2026-10-03):
-[docs/dev-manifest.md](dev-manifest.md), with JSON Schemas in `schema/`
+Spec, approved by the user on 2026-10-04 (decisions in its section 17):
+[docs/dev-manifest.md](dev-manifest.md), with JSON Schemas in `schema/v1/`
 (checked against the spec's examples by `go test ./schema`). A shared,
 tool-neutral `.config/dev.json` (services, groups, commands, links) replaces
 `.herdr-deck/dev.json`, which stays readable as a legacy fallback. Per-worktree
@@ -707,8 +707,8 @@ ports come from a port store shared by every tool
 (`$XDG_STATE_HOME/dev-manifest/ports.json`), or from the project's own state
 file. Detection from task runners only seeds a first manifest
 (`herdr-deck dev init`) and warns about drift; it is never a runtime source.
-The deck's implementation (reader, verb runner, store, seeding, drift) follows
-once the spec is approved; until then the Dev servers row above describes
+The deck's implementation (reader, verb runner, store, seeding, drift) is next;
+until it lands, the Dev servers row above describes
 what the deck does.
 
 ## Milestones
