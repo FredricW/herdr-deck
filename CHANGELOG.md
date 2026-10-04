@@ -21,6 +21,16 @@ and versions follow [Semantic Versioning](https://semver.org/).
   narrow drawer. With a Linear API key bare IDs open Linear's own URL, so
   `linear.workspace` is no longer needed; the open-link action asks Linear
   for the workspace too.
+- The drawer reads each open thread PR from GitHub through your `gh`, so the
+  *PR* section says why it is not merging: every check (failing ones as
+  chips, running and queued ones too), behind its base, conflicts, draft,
+  reviews still asked for, changes requested and auto-merge. A new
+  *Review* section lists the PR's unresolved review threads with their
+  file, line, author and first comment; `↵` or a click opens one on GitHub.
+  `c` (or a check chip) shows a failed check's failing step's log, full
+  height, read on demand. Without `gh`, or logged out, the deck keeps
+  herdr-projects' ticker data and says so in `!`. `github.enabled = false`
+  turns it off.
 
 ## [0.1.4] - 2026-10-04
 

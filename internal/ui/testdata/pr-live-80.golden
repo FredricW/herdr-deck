@@ -1,0 +1,28 @@
+ Admin rebuild                                               ◐ 2  ◇ 1  ○ 1  ✉ 0
+────────────────────────────────────────────────────────────────────────────────
+    WORK                         THREAD  STATUS              PR      LINKS  DEV
+  In progress
+  ◐ Users page                   t-0002  Building overview           L4
+  ◐ Templates page               t-0003  Writing tests               L F    ●●●
+ ▸◇ Document select for summary  t-0004  review required     #2320✕  L F3   ●○
+
+  On hold until Monday 2026-10-05
+  ○ Subscriptions list           t-0001  idle                        L N    ~○
+
+  + Backlog (3)
+
+
+────────────────────────────────────────────────────────────────────────────────
+ Document select for summary                                           ◇ review
+ t-0004 · Summary select documents · pane w21:p1              #2320 ✕ 1 failing
+ Overview   Files   Commits   Log 6                      ↓ Links · Dev · Thread
+ ── PR ──
+ [5 #2320] open · review required · 2 comments (sam, alex)
+ ✕ 1 failing: [lint]  ◌ 1 running: test (macos-latest) 6m  ✓ 2 passed
+ ✕ blocked: checks failing, checks running, review required (sam)
+ ── Review ──  2 unresolved · 1 outdated
+ src/pages/users/index.ts:41  sam
+   Should this be paginated? The list can get long.
+ src/pages/users/table.tsx:12  alex · +2 replies
+────────────────────────────────────────────────────────────────────────────────
+ 1-9 link  l f n g o first  ↵ pane  [ ] tab  z drawer  ? help             v9.9.9

@@ -746,6 +746,52 @@ fetch.
 - Tests use a fake `http.RoundTripper` and command runner; they never call
   Linear.
 
+## GitHub pull requests
+
+The read-only part of the shortlist in
+[docs/research/integrations-linear-github.md](research/integrations-linear-github.md):
+G1 (why the PR is not merging), G2 (a failed check's log tail) and G3
+(unresolved review threads). Writes (re-runs, merges) are not decided.
+`internal/source/github`:
+
+- Shells out to `gh` (the research doc's option A), so the deck never
+  handles a token: one `gh api graphql --hostname <host>` per batch of up
+  to 10 open thread PRs on a host, one aliased `repository { pullRequest }`
+  each, plus `rateLimit`. It asks for state, draft, mergeable,
+  mergeStateStatus, reviewDecision, base, auto-merge, review requests, the
+  head commit's statusCheckRollup contexts (check runs and statuses, one
+  per name, the latest run winning) and review threads (unresolved kept,
+  outdated last, the first comment and a count). About 3 points a PR.
+- `live.Source.Read` calls `Apply` after herdr's state, which lays the cache
+  over each thread PR and queues a background read of the open PRs of
+  unresolved threads that are missing or stale: after 45 s for the PR the
+  drawer shows (the UI passes it through `Options.FocusPR`, and a stale one
+  is read at once and first), after 3 minutes for the rest. A merged or
+  closed PR is not read again. `OnUpdate` reloads the deck.
+- The ticker and the deck both describe a PR. The newer one wins: the
+  deck's read replaces the ticker's state, review and failing checks (and
+  `CheckedAt`) when it is newer; a newer ticker that disagrees keeps its
+  fields, drops the deck's checks and makes the deck read the PR again.
+- Back-off: a minute after a failure, doubling up to 10 minutes; until
+  `resetAt` after a rate limit (`RATE_LIMITED` or "rate limit" from gh);
+  until the reset when fewer than 100 points remain. gh missing or logged
+  out (exit code 4) is a Sources note and the PR keeps the ticker's data;
+  other failures are `Snapshot.Missing` as `GitHub: …`.
+- Logs (`Reader.Log`, behind `c` or a check chip): the job ID comes from
+  the check's `detailsUrl` (`/actions/runs/<run>/job/<job>`); `gh api
+  repos/{o}/{r}/actions/jobs/{job}/logs --allow-escape-sequences` (retried
+  without the flag on an older gh) keeps the last 4 MB; `Tail` cuts from
+  the failing step's `##[group]Run …` (its header group left out) to the
+  step's end, drops timestamps, colour codes and group markers, and keeps
+  200 lines. A finished job's tail is cached by job ID. Checks outside
+  Actions open their page instead.
+- The UI: the *PR* section's checks line and merge-state line
+  (`mergeReason`), the *Review* section after it, and the log view
+  (`modeCheck`, full height like the report). Settings: `[github] enabled`
+  (default true); the intervals are constants.
+- Tests use a fake gh runner with made-up fixtures (`testdata/`); they never
+  call GitHub.
+
 ## Dev manifest
 
 Spec, approved by the user on 2026-10-04 (decisions in its section 17):
@@ -832,7 +878,7 @@ marked parallel.
    "Browser tabs" has the rules), `u` starts dev servers (the manifest's
    `up`), Figma link handlers with the open-link action (see herdr
    integration), and Linear issue status next to IDs (see "Linear issue
-   status" above), the drawer's Files section, whose `d` opens the diff
+   status" above), the GitHub PR reads (see "GitHub pull requests" above), the drawer's Files section, whose `d` opens the diff
    tool (see UI), the settings page (`s`, see Configuration),
    CHANGELOG.md with What's new (`w`, see Updates), and README GIFs that
    `make demo` renders with VHS from `docs/demo/*.tape` on `--fake` data

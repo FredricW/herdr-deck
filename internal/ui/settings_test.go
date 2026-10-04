@@ -301,9 +301,9 @@ func TestSettingsUpdateCheckOff(t *testing.T) {
 func TestSettingsClickSelects(t *testing.T) {
 	e := newSettingsEnv(t, "", nil)
 	m := settingsModel(t, e, config.Flags{}, 80, 28)
-	x, y := find(t, m, "updates.check")
+	x, y := find(t, m, "browser.reuse_tabs")
 	m, _ = press(m, click(x, y))
-	if m.set.cursor != indexOf(config.KeyUpdateCheck) {
+	if m.set.cursor != indexOf(config.KeyReuseTabs) {
 		t.Errorf("cursor = %d", m.set.cursor)
 	}
 	m, _ = press(m, esc)

@@ -15,6 +15,7 @@ type keyMap struct {
 	Settings       key.Binding
 	News           key.Binding
 	Projects       key.Binding
+	Check          key.Binding
 	NextTab        key.Binding
 	PrevTab        key.Binding
 	Focus, Unfocus key.Binding
@@ -44,6 +45,7 @@ func defaultKeys() keyMap {
 		Settings:  key.NewBinding(key.WithKeys("s")),
 		News:      key.NewBinding(key.WithKeys("w")),
 		Projects:  key.NewBinding(key.WithKeys("p")),
+		Check:     key.NewBinding(key.WithKeys("c")),
 		NextTab:   key.NewBinding(key.WithKeys("]")),
 		PrevTab:   key.NewBinding(key.WithKeys("[")),
 		Focus:     key.NewBinding(key.WithKeys("tab")),

@@ -1,0 +1,20 @@
+﻿2026-10-02T14:30:01.0000000Z ##[group]Runner Image
+2026-10-02T14:30:01.0000000Z   Image: ubuntu-24.04
+2026-10-02T14:30:01.0000000Z ##[endgroup]
+2026-10-02T14:30:05.0000000Z ##[group]Run actions/checkout@v4
+2026-10-02T14:30:05.0000000Z with:
+2026-10-02T14:30:05.0000000Z   repository: acme/webshop
+2026-10-02T14:30:05.0000000Z ##[endgroup]
+2026-10-02T14:30:06.0000000Z Syncing repository: acme/webshop
+2026-10-02T14:30:20.0000000Z ##[group]Run go test ./...
+2026-10-02T14:30:20.0000000Z go test ./...
+2026-10-02T14:30:20.0000000Z shell: /usr/bin/bash -e {0}
+2026-10-02T14:30:20.0000000Z ##[endgroup]
+2026-10-02T14:31:00.0000000Z ok  	acme/webshop/internal/admin	0.101s
+2026-10-02T14:31:01.0000000Z --- FAIL: TestUsersPage (0.02s)
+2026-10-02T14:31:01.0000000Z     users_test.go:41: got [31m3[0m rows, want 4
+2026-10-02T14:31:01.0000000Z FAIL
+2026-10-02T14:31:01.0000000Z FAIL	acme/webshop/internal/users	0.214s
+2026-10-02T14:31:02.0000000Z ##[error]Process completed with exit code 1.
+2026-10-02T14:31:03.0000000Z Post job cleanup.
+2026-10-02T14:31:03.0000000Z [command]/usr/bin/git version

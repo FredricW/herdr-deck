@@ -14,6 +14,9 @@
    linear.status           true                                          default
    linear.api_key_command  none                                          default
 
+ [github] pull requests
+   github.enabled          true                                          default
+
  [figma] Figma links
    figma.desktop           false                                         default
 
@@ -21,8 +24,5 @@
    browser.reuse_tabs      true                                          default
 
  [updates] new versions of the deck
-   updates.check           true                                          default
-   updates.auto_restart    true                                          default
-
 ────────────────────────────────────────────────────────────────────────────────
  ↵ edit  x remove  j k move  esc back  q quit                             v9.9.9

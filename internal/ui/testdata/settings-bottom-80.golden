@@ -1,7 +1,7 @@
  Admin rebuild                                               ◐ 2  ◇ 1  ○ 1  ✉ 0
 ────────────────────────────────────────────────────────────────────────────────
 ─ Settings · /home/ada/.config/herdr-deck/config.toml ──────────────────────────
-   linear.api_key_command  none                                          default
+   github.enabled          true                                          default
 
  [figma] Figma links
    figma.desktop           false                                         default

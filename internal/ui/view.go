@@ -38,7 +38,7 @@ func (m Model) View() tea.View {
 // the full height, and a view asked for by key is never hidden.
 func (m Model) effectiveSize() drawerSize {
 	switch {
-	case m.mode == modeReport || m.mode == modeSettings:
+	case m.mode == modeReport || m.mode == modeSettings || m.mode == modeCheck:
 		return sizeFull
 	case m.mode != modeRow && m.size == sizeHidden:
 		return sizeNormal
@@ -52,9 +52,9 @@ func (m Model) effectiveSize() drawerSize {
 func (m Model) headSize() int {
 	r, ok := m.selected()
 	switch {
-	case m.mode == modeReport && ok:
+	case (m.mode == modeReport || m.mode == modeCheck) && ok:
 		return 3
-	case m.mode != modeRow && m.mode != modeReport:
+	case m.mode != modeRow && m.mode != modeReport && m.mode != modeCheck:
 		return 0
 	case !ok || r.kind == rowHeading:
 		return 2
@@ -122,6 +122,10 @@ func (m Model) drawerFor(width, h int) *drawer {
 	case modeReport:
 		if ok {
 			return m.reportDrawer(r, width)
+		}
+	case modeCheck:
+		if ok {
+			return m.checkDrawer(r, width)
 		}
 	}
 	if !ok {
@@ -593,6 +597,8 @@ func (m Model) footer(w int) string {
 		hint = "↵ edit  x remove  j k move  esc back  q quit"
 	case m.mode == modeReport:
 		hint = "esc back  pgup pgdn scroll  ? help  q quit"
+	case m.mode == modeCheck:
+		hint = "esc back  pgup pgdn scroll  ↵ on GitHub  c next  q quit"
 	case m.mode != modeRow:
 		hint = "esc back  pgup pgdn scroll  z drawer  ? help  q quit"
 	case !ok:

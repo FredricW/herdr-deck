@@ -33,6 +33,7 @@ func (m Model) overview(d *drawer, r row, links []deck.Link, h int) {
 		name  string
 		style lipgloss.Style
 		body  func()
+		note  string // dim after the heading
 	}
 	var secs []sec
 	if hasThread && len(t.Next) > 0 {
@@ -40,7 +41,7 @@ func (m Model) overview(d *drawer, r row, links []deck.Link, h int) {
 		if t.Status == deck.StatusNeedsYou {
 			st = needsStyle
 		}
-		secs = append(secs, sec{"Next", st, func() {
+		secs = append(secs, sec{name: "Next", style: st, body: func() {
 			for _, n := range t.Next {
 				g := words(n, plain)
 				g.items = append([]item{span("→", bold)}, g.items...)
@@ -50,10 +51,13 @@ func (m Model) overview(d *drawer, r row, links []deck.Link, h int) {
 		}})
 	}
 	if hasThread && t.PR != nil {
-		secs = append(secs, sec{"PR", bold, func() { m.prSection(d, *t.PR, links, prLink, narrow) }})
+		secs = append(secs, sec{name: "PR", style: bold, body: func() { m.prSection(d, *t.PR, links, prLink, narrow) }})
+		if t.PR.Live && t.PR.State == "OPEN" && len(t.PR.Threads) > 0 {
+			secs = append(secs, sec{name: "Review", style: bold, note: reviewNote(*t.PR), body: func() { m.reviewSection(d, *t.PR) }})
+		}
 	}
 	if r.task != nil && r.task.Notes != "" {
-		secs = append(secs, sec{"Note", bold, func() {
+		secs = append(secs, sec{name: "Note", style: bold, body: func() {
 			// Each line is a note of its own, so each renders on its own:
 			// as one document, Markdown would join them into a paragraph.
 			for _, n := range strings.Split(r.task.Notes, "\n") {
@@ -65,7 +69,7 @@ func (m Model) overview(d *drawer, r row, links []deck.Link, h int) {
 	// a wrapping line of chips.
 	chipped := func(l deck.Link) bool { return l.Kind != deck.LinkLocalhost && !titled(l) }
 	if g, unlinked := m.chips(d, links, prLink, chipped); len(g.items) > 0 || hasTitled(links, prLink) {
-		secs = append(secs, sec{"Links", bold, func() {
+		secs = append(secs, sec{name: "Links", style: bold, body: func() {
 			for i, l := range links {
 				if i != prLink && titled(l) {
 					d.flow(group{items: []item{m.issueChip(d, l, i)}})
@@ -84,7 +88,7 @@ func (m Model) overview(d *drawer, r row, links []deck.Link, h int) {
 	local, _ := m.chips(d, links, prLink, func(l deck.Link) bool { return l.Kind == deck.LinkLocalhost })
 	hasDev := hasThread && (len(t.DevServers) > 0 || t.DevNote != "" || t.DevUp != nil)
 	if hasDev || len(local.items) > 0 {
-		secs = append(secs, sec{"Dev", bold, func() {
+		secs = append(secs, sec{name: "Dev", style: bold, body: func() {
 			if hasDev {
 				g := devGroup(t)
 				if narrow && g.sep == "   " {
@@ -100,7 +104,7 @@ func (m Model) overview(d *drawer, r row, links []deck.Link, h int) {
 		}})
 	}
 	if hasThread {
-		secs = append(secs, sec{"Thread", bold, func() { m.threadSection(d, r, t) }})
+		secs = append(secs, sec{name: "Thread", style: bold, body: func() { m.threadSection(d, r, t) }})
 	}
 
 	build := func(blanks bool) {
@@ -122,7 +126,11 @@ func (m Model) overview(d *drawer, r row, links []deck.Link, h int) {
 				d.line("")
 			}
 			d.sections = append(d.sections, section{name: s.name, at: len(d.lines)})
-			d.line(" " + dim.Render("── ") + s.style.Render(s.name) + dim.Render(" ──"))
+			head := " " + dim.Render("── ") + s.style.Render(s.name) + dim.Render(" ──")
+			if s.note != "" {
+				head += "  " + dim.Render(s.note)
+			}
+			d.line(head)
 			s.body()
 		}
 		if blanks && full && len(secs) > 0 {
@@ -302,10 +310,16 @@ func (m Model) prSection(d *drawer, pr deck.PullRequest, links []deck.Link, prLi
 		g.items = append(g.items, span("·", dim), span(text, st))
 	}
 	if s := strings.ToLower(pr.State); s != "" {
+		if pr.Live && pr.Draft && pr.State == "OPEN" {
+			s = "draft"
+		}
 		g.items = append(g.items, span(s, plain))
 	}
 	if pr.State == "OPEN" && pr.Review != "" {
 		add(reviewText(pr), reviewTextStyle(pr.Review))
+	}
+	if pr.Live && pr.State == "OPEN" && pr.AutoMerge {
+		add("auto-merge on", okStyle)
 	}
 	if n := pr.Comments; n > 0 {
 		switch {
@@ -318,12 +332,18 @@ func (m Model) prSection(d *drawer, pr deck.PullRequest, links []deck.Link, prLi
 		}
 	}
 	d.flow(g)
-	if pr.State != "" {
+	switch {
+	case pr.Live && len(pr.Checks) > 0 && pr.State == "OPEN":
+		d.flow(m.checksGroup(d, pr))
+	case pr.State != "":
 		if n := len(pr.FailingChecks); n > 0 {
 			d.flow(words(fmt.Sprintf("✕ %d failing: %s", n, strings.Join(pr.FailingChecks, ", ")), failStyle))
 		} else if pr.State == "OPEN" {
 			d.flow(words("✓ no failing checks", okStyle))
 		}
+	}
+	if text, st := mergeReason(pr); text != "" {
+		d.flow(words(text, st))
 	}
 	if m.effectiveSize() == sizeFull && !pr.CheckedAt.IsZero() {
 		d.flow(words("checked "+ago(m.opt.Now().Sub(pr.CheckedAt)), dim))

@@ -27,6 +27,11 @@ type Options struct {
 	Load func(context.Context) deck.Snapshot
 	// Tick is the reload interval; zero means DefaultTick.
 	Tick time.Duration
+	// FocusPR tells the GitHub reader which PR the drawer shows ("" for
+	// none), so it reads that one more often; CheckLog reads a failed
+	// check's log tail, of the PR at prURL. Nil leaves them out.
+	FocusPR  func(url string)
+	CheckLog func(ctx context.Context, prURL string, c deck.Check) (deck.CheckLog, error)
 	// OpenURL opens a link; OpenEditor opens a worktree folder. Tests
 	// replace both so nothing is ever opened.
 	OpenURL    func(url string) error
@@ -238,6 +243,14 @@ type Model struct {
 
 	set  settingsPage
 	pick picker
+
+	// watched is the PR last given to FocusPR; logs are the failed
+	// checks' logs read, by job ID, and logCheck (of the PR logPR) the
+	// one the log view shows.
+	watched  string
+	logs     map[int64]checkLog
+	logCheck deck.Check
+	logPR    string
 }
 
 // New returns a model showing snap until Options.Load delivers a fresh one.
@@ -264,6 +277,7 @@ func New(snap deck.Snapshot, opt Options) Model {
 		commitFileSets: map[string]commitFiles{},
 		filesReading:   map[string]bool{},
 		patches:        map[string]preview{},
+		logs:           map[int64]checkLog{},
 		choosing:       noKind,
 		tree:           opt.DiffTree,
 		split:          opt.DiffSplit,
@@ -312,7 +326,7 @@ func (m *Model) SetSnapshot(snap deck.Snapshot) {
 	// position belongs to the row it was opened on.
 	if r, _ := m.selected(); r.key != selKey {
 		m.drawerOff, m.dcur = 0, 0
-		if m.mode == modeReport {
+		if m.mode == modeReport || m.mode == modeCheck {
 			m.mode = modeRow
 		}
 	}
@@ -469,7 +483,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.loaded = true
 		m.SetSnapshot(deck.Snapshot(msg))
 		m.syncPreview()
-		diff := tea.Batch(m.readDiff(true), m.readCommits(true), m.readPatch(true))
+		diff := tea.Batch(m.readDiff(true), m.readCommits(true), m.readPatch(true), m.watchPR())
 		if m.pending {
 			m.pending = false
 			return m, tea.Batch(m.refresh(), diff)
@@ -517,6 +531,8 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		} else {
 			m.status = past + " " + msg.what
 		}
+	case checkLogMsg:
+		m.setCheckLog(msg)
 	case devUpMsg:
 		if msg.err != nil {
 			m.status = "could not start dev servers: " + msg.err.Error()
@@ -542,7 +558,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 // thread, and a patch read when the preview moved to another file.
 func (m Model) followDiff(cmd tea.Cmd) (tea.Model, tea.Cmd) {
 	m.syncPreview()
-	return m, tea.Batch(cmd, m.readDiff(false), m.readCommits(false), m.readPatch(false))
+	return m, tea.Batch(cmd, m.readDiff(false), m.readCommits(false), m.readPatch(false), m.watchPR())
 }
 
 // diffThread is the selected row's thread whose worktree the Files section
@@ -775,6 +791,12 @@ func (m *Model) act(a action) tea.Cmd {
 		return m.toggleExpand(a.n-1, -1)
 	case actCommitFile:
 		m.previewCommitFile(a.n-1, a.f)
+	case actCheck:
+		if pr, ok := m.prOf(); ok {
+			return m.openCheck(pr, a.n)
+		}
+	case actThread:
+		return m.openThread(a.n)
 	}
 	return nil
 }
@@ -869,6 +891,10 @@ func (m Model) handleKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		return m, m.focusPane()
 	case m.dfocus && key.Matches(msg, m.keys.Back):
 		m.dfocus = false
+	case m.mode == modeCheck && key.Matches(msg, m.keys.Pane):
+		return m, m.openURL(m.logCheck.URL, m.logCheck.Name)
+	case key.Matches(msg, m.keys.Check):
+		return m, m.checkKey()
 	case key.Matches(msg, m.keys.Down):
 		m.move(1)
 	case key.Matches(msg, m.keys.Up):

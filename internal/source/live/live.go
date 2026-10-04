@@ -11,6 +11,7 @@ import (
 
 	"github.com/FredricW/herdr-deck/internal/deck"
 	"github.com/FredricW/herdr-deck/internal/source/dev"
+	"github.com/FredricW/herdr-deck/internal/source/github"
 	"github.com/FredricW/herdr-deck/internal/source/herdr"
 	"github.com/FredricW/herdr-deck/internal/source/linear"
 	"github.com/FredricW/herdr-deck/internal/source/projects"
@@ -34,6 +35,9 @@ type Source struct {
 	// Linear adds each Linear link's issue status; nil leaves IDs without
 	// one.
 	Linear *linear.Reader
+	// GitHub reads thread PRs from GitHub through gh, beyond the ticker's
+	// summary; nil leaves PRs as herdr-projects' ticker saw them.
+	GitHub *github.Reader
 	// Roster reads every project under the projects root for the project
 	// picker; nil leaves Snapshot.Projects empty.
 	Roster *projects.Roster
@@ -89,6 +93,10 @@ func (s Source) Read(ctx context.Context) deck.Snapshot {
 	snap.ReadAt = now()
 	if s.Herdr != nil {
 		s.Herdr.Apply(ctx, &snap, snap.ReadAt)
+	}
+	if s.GitHub != nil {
+		// After herdr, which may resolve a thread: those are not read.
+		s.GitHub.Apply(&snap)
 	}
 	if s.Dev != nil {
 		// After herdr: its workspace port token is the fallback port.
