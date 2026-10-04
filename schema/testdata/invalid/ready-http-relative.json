@@ -1,0 +1,1 @@
+{"version": 1, "services": {"web": {"run": "npm run dev", "ready": {"http": "healthz"}}}}
