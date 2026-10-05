@@ -8,6 +8,12 @@ and versions follow [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Changed
+
+- The drawer's tab bar has a blank line above and below it and one column
+  of padding on either side, so it no longer runs into the card or the
+  tab's content.
+
 ## [0.1.5] - 2026-10-05
 
 ### Added

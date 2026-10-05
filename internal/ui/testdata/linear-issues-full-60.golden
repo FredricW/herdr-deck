@@ -2,7 +2,9 @@
 ────────────────────────────────────────────────────────────
  Users page                                 ◐ working  ~60%
  t-0002 · Building overview                      ▰▰▰▰▰▰▱▱▱▱
- Overview   Files   Commits   Log 7
+
+  Overview   Files   Commits   Log 7
+
 
  ── Note ──
  Phase 1 = layout + overview (ABC-1256); report on 1257/1250
@@ -21,8 +23,6 @@
  pane    w1Z:p1
  branch  hp/admin-rebuild/t-0002-members-admin-users
  report  threads/t-0002.md · changed 14:36 · r
-
-
 
 ────────────────────────────────────────────────────────────
  1-9 link  o open  ↵ pane  [ ] tab  z drawer  ? help  v9.9.9

@@ -15,14 +15,14 @@
 ────────────────────────────────────────────────────────────
  Users page                                 ◐ working  ~60%
  t-0002 · Building overview                      ▰▰▰▰▰▰▱▱▱▱
- Overview   Files   Commits   Log 7                ↓ 4 more
+
+  Overview   Files   Commits   Log 7               ↓ 6 more
+
  ── Note ──
  Phase 1 = layout + overview (ABC-1256); report on 1257/1250
  before starting them.
  ── Links ──
  [1 ABC-1246 done] [2 ABC-1256 in progress]
  [3 ABC-1257 todo] [4 ABC-1250]
- ── Dev ──
- not started: no .dev/t-0002/state.json · u starts it
 ────────────────────────────────────────────────────────────
  Linear: 1-4 open  a all  l first  esc cancel         v9.9.9

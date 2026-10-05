@@ -15,14 +15,14 @@
 ────────────────────────────────────────────────────────────
  Document select for summary                       ◇ review
  t-0004                                           #2320 ✕ 2
- Overview   Files   Commits   Log 7
+
+  Overview   Files   Commits   Log 7               ↓ 1 more
+
    2m  ✕ checks failing: lint, test (ubuntu-latest)       ✉
   25m  ◇ [5 #2320] updated · open · 2 comments
    3h  ◇ [5 #2320] opened
    4h  ● waiting on you · pane w21:p1
    5h  » prompted by routine pr-followup · checks-failed
    5h  ▶ launched in pane w21:p1
-   5h  + created from origin/main
-
 ────────────────────────────────────────────────────────────
  1-9 link  g PR  r report  [ ] tab  z drawer  ? help  v9.9.9

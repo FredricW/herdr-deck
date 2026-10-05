@@ -2,26 +2,26 @@
 ────────────────────────────────────────────────────────────────────────────────
  Users page                                                     ◐ working  ~60%
  t-0002 · Members /admin/users · Building overview · pane w1Z:p1     ▰▰▰▰▰▰▱▱▱▱
- Overview   Files   Commits   Log 7
+
+  Overview   Files   Commits   Log 7
 
  ── Note ──
  Phase 1 = layout + overview (ABC-1256); report on 1257/1250 before starting
  them.
-
  ── Links ──
  [1 ABC-1246 Users list: columns and sorting · done · sam]
  [2 ABC-1256 Users overview layout with the activity panel… · in progress · AL]
  [3 ABC-1257 Invite flow · todo]
  [4 ABC-1250]
-
  ── Dev ──
  not started: no .dev/t-0002/state.json · u starts it
-
  ── Thread ──
  pane     w1Z:p1
  branch   hp/admin-rebuild/t-0002-members-admin-users
  report   threads/t-0002.md · changed 14:36 · r shows it
  base     origin/main
+
+
 
 
 ────────────────────────────────────────────────────────────────────────────────

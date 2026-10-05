@@ -152,12 +152,25 @@ func newDrawer(width int, title string) *drawer {
 }
 
 // head is the lines drawn above the scrolling ones: the card and the tab
-// bar, or the report's line.
+// bar, or the report's line, with a blank line above and below it.
 func (d *drawer) head() []string {
 	if d.tabs == "" {
 		return d.card
 	}
-	return append(append([]string(nil), d.card...), d.tabs)
+	return append(append([]string(nil), d.card...), "", d.tabs, "")
+}
+
+// headLines is the head in n lines: short of room it drops the blank line
+// below the tab bar, then the one above, before the bar itself.
+func (d *drawer) headLines(n int) []string {
+	h := d.head()
+	if d.tabs == "" || n >= len(h) || n < len(d.card)+1 {
+		return h[:min(n, len(h))]
+	}
+	if n == len(d.card)+1 {
+		return append(append([]string(nil), d.card...), d.tabs)
+	}
+	return h[:n]
 }
 
 // nextStop hands out the builder's next cursor stop and says whether the

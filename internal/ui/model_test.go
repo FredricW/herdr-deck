@@ -691,12 +691,12 @@ func TestEditorPaneAndReport(t *testing.T) {
 func TestDrawerSizes(t *testing.T) {
 	m, _ := newModel(t, calm(), 80, 28)
 	// Half of the pane: the list keeps 11 rows; the drawer its rule, the
-	// card, the tab bar and 8 lines of content.
-	if l := m.layout(); l.drawerH != 8 || l.listH != 11 || l.headN != 3 {
+	// card, the tab bar between blank lines and 6 lines of content.
+	if l := m.layout(); l.drawerH != 6 || l.listH != 11 || l.headN != 5 || l.tabY != l.headTop+3 {
 		t.Fatalf("normal: list %d, head %d, drawer %d", l.listH, l.headN, l.drawerH)
 	}
 	m, _ = press(m, keys("z")...)
-	if l := m.layout(); l.listH != 0 || l.drawerH != 21 {
+	if l := m.layout(); l.listH != 0 || l.drawerH != 19 {
 		t.Fatalf("full: list %d, drawer %d", l.listH, l.drawerH)
 	}
 	m, _ = press(m, keys("z")...)
@@ -711,6 +711,31 @@ func TestDrawerSizes(t *testing.T) {
 	m, _ = press(m, keys("z")...)
 	if m.size != sizeNormal {
 		t.Fatalf("z does not cycle back to normal")
+	}
+}
+
+// A short pane drops the blank lines around the tab bar before the bar,
+// and a full view keeps its head and a line of content.
+func TestShortPaneKeepsTabBar(t *testing.T) {
+	for _, h := range []int{8, 9, 10, 11, 12} {
+		m, _ := newModel(t, calm(), 80, h)
+		// Under 11 rows the normal drawer has room for the card only.
+		if h >= 11 {
+			l := m.layout()
+			lines := strings.Split(ansi.Strip(m.View().Content), "\n")
+			if l.tabY < 0 || l.tabY >= len(lines) || !strings.Contains(lines[l.tabY], "Overview") {
+				t.Errorf("%d rows: tab bar not on line %d:\n%s", h, l.tabY, screen(m))
+				continue
+			}
+			x, y := find(t, m, "Log 7")
+			if m, _ = press(m, click(x+1, y)); m.curTab() != tabLog {
+				t.Errorf("%d rows: click on Log: %v", h, m.curTab())
+			}
+		}
+		m, _ = press(m, keys("r")...)
+		if l := m.layout(); l.drawerH < 1 || !strings.Contains(screen(m), "esc returns") {
+			t.Errorf("%d rows: report drawer %d lines:\n%s", h, l.drawerH, screen(m))
+		}
 	}
 }
 
@@ -791,7 +816,7 @@ func TestDrawerScrollStaysInContent(t *testing.T) {
 	s.Threads[1].Report = strings.Repeat("line\n\n", 60)
 	m, _ := newModel(t, s, 80, 28)
 	m, _ = press(m, keys("r")...)
-	for range 10 {
+	for range 20 {
 		m, _ = press(m, tea.KeyPressMsg{Code: tea.KeyPgDown})
 	}
 	l := m.layout()

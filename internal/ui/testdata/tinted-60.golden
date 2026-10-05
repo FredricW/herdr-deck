@@ -15,14 +15,14 @@
 ────────────────────────────────────────────────────────────
  Document select for summary                       ◇ review
  t-0004                                           #2320 ✕ 2
- Overview   Files   Commits   Log 7                ↓ 5 more
+
+  Overview   Files   Commits   Log 7               ↓ 7 more
+
  ✉ 1 update · see Log
  ── PR ──
  [5 #2320] open · review required · 2c
  ✕ 2 failing: lint, test (ubuntu-latest)
  ── Links ──
  [1 ABC-1191] [2 Figma 598-48083] [3 1138-88367]
- [4 635-76529]
- ── Dev ──
 ────────────────────────────────────────────────────────────
  1-9 link  o open  ↵ pane  [ ] tab  z drawer  ? help  v9.9.9

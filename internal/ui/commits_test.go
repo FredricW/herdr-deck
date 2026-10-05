@@ -311,7 +311,7 @@ func TestCommitsCursorFollowsCommit(t *testing.T) {
 
 func TestCommitsExpand(t *testing.T) {
 	var shas []string
-	m, opened := commitsModel(t, 80, 28, sampleCommits(), &shas)
+	m, opened := commitsModel(t, 80, 30, sampleCommits(), &shas)
 	m, _ = press(m, keys("]]")...)
 	// From the list, l is still Linear's key and space folds.
 	m, _ = press(m, keys("l")...)

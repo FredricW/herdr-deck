@@ -2,7 +2,9 @@
 ────────────────────────────────────────────────────────────────────────────────
  Document select for summary                                           ◇ review
  t-0004 · Summary select documents · pane w21:p1              #2320 ✕ 1 failing
+
  lint · ✕ failed 4m ago · step "golangci-lint run ./..." · esc returns
+
  level=info msg="[runner] linters took 4.2s"
  internal/users/page.go:88:2: ineffectual assignment to rows (ineffassign)
      rows = filter(rows)
@@ -15,8 +17,6 @@
  Error: Process completed with exit code 1.
 
  ↵ opens the job on GitHub · c the next failed check
-
-
 
 
 

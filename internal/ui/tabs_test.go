@@ -183,8 +183,22 @@ func TestClickTabsAndUpdates(t *testing.T) {
 	if m.curTab() != tabLog {
 		t.Errorf("click on a dim Files: %v", m.curTab())
 	}
+	// The bar's own padding column and the blank lines around it are not
+	// tabs; Overview's label padding is.
 	x, y = find(t, m, "Overview")
-	m, _ = press(m, click(x+1, y))
+	if x != 2 {
+		t.Errorf("Overview's label starts at column %d, want 2", x)
+	}
+	for _, c := range []tea.MouseClickMsg{click(0, y), click(x, y-1), click(x, y+1)} {
+		m, _ = press(m, c)
+		if m.curTab() != tabLog {
+			t.Errorf("click at %d,%d: %v", c.X, c.Y, m.curTab())
+		}
+	}
+	m, _ = press(m, click(x-1, y))
+	if m.curTab() != tabOverview {
+		t.Fatalf("click on Overview's padding: %v", m.curTab())
+	}
 	x, y = find(t, m, "1 update · see Log")
 	m, _ = press(m, click(x+2, y))
 	if m.curTab() != tabLog {

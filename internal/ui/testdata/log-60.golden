@@ -15,14 +15,14 @@
 ────────────────────────────────────────────────────────────
  Users page                               ● needs you  ~95%
  t-0002                                          ▰▰▰▰▰▰▰▰▰▱
- Overview   Files   Commits   Log 7
+
+  Overview   Files   Commits   Log 7               ↓ 1 more
+
    3m  ● waiting on you · pane w1Z:p1                     ✉
    5m  ≡ new report · r shows it
    1h  ≡ new report
    5h  ● blocked on a prompt · pane w1Z:p1
   21h  ≡ new report
   22h  ▶ launched in pane w1Z:p1 · brief read
-  22h  + created from origin/main
-
 ────────────────────────────────────────────────────────────
  r report  ↵ go to pane  [ ] tab  z drawer  ? help    v9.9.9

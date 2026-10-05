@@ -90,10 +90,12 @@ Every line the drawer shows today, and where it goes:
 ──────────────────────────────────────────────────  the list's bottom rule
  Users page                     ● needs you  ~95%    card, line 1: title · pill · percent
  t-0002 · Members /admin/users       ▰▰▰▰▰▰▰▰▰▱    card, line 2 (dim) · progress bar
- Overview   Files 11   Log 7           ↓ 7 more    tabs on blue / grey · what is below
- ── Next ──                                          the tab's content: eight lines
+                                                     blank
+  Overview   Files 11   Log 7         ↓ 7 more     tabs on blue / grey · what is below
+                                                     blank
+ ── Next ──                                          the tab's content: six lines
  → Approve phase 1 (ABC-1256 overview)               at the normal height in a
- …                                                   28-row pane, 21 at full height
+ …                                                   28-row pane, 19 at full height
 ```
 
 - **Card.** Line 1: the row's title, bold; at the right the status pill
@@ -106,7 +108,9 @@ Every line the drawer shows today, and where it goes:
   card shows the most pressing one, as the list does, and *Thread* lists
   them all.
 - **Tab bar.** ` Overview `, ` Files N `, ` Commits N `, ` Log N ` on
-  their backgrounds, one space apart. `Files N` counts changed files
+  their backgrounds, one space apart, with a blank line above and below
+  the bar and one column of padding at either end of it. A report's or a
+  failed check's line stands in the same place. `Files N` counts changed files
   (`Files …` until git has answered once), `Commits N` the branch's
   commits, `Log N` counts events. A tab with nothing behind it (no
   thread, a resolved thread's files) is dim, has no count and is skipped.

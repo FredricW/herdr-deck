@@ -2,7 +2,9 @@
 ────────────────────────────────────────────────────────────
  Document select for summary                       ◇ review
  t-0004                                           #2320 ✕ 1
- Overview   Files   Commits   Log 6                ↓ 2 more
+
+  Overview   Files   Commits   Log 6               ↓ 4 more
+
  ── PR ──
  [5 #2320] open · review required · 2c
  ✕ 1 failing: [lint]  ◌ 1 running: test (macos-latest) 6m
@@ -22,7 +24,5 @@
  [4 635-76529]
  ── Dev ──
  :5174 frontend ●  :8002 api ○
- [6 Frontend ●] [7 API docs ○]
- ── Thread ──
 ────────────────────────────────────────────────────────────
  1-9 link  o open  ↵ pane  [ ] tab  z drawer  ? help  v9.9.9
