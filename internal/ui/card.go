@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"path/filepath"
 	"regexp"
+	"slices"
 	"strconv"
 	"strings"
 
@@ -169,8 +170,9 @@ func (m Model) curTab() tabKind {
 }
 
 // card is the header card: the title, the status pill and the percent on
-// line 1; on line 2, dim, the thread's repo and branch (a task without one:
-// its list), with the progress bar or the PR at the right.
+// line 1; on line 2, dim, the thread's repo and branch and, when it fits,
+// the activity while working (a task without a thread: its list), with the
+// progress bar or the PR at the right.
 func (m Model) card(r row, w int) []string {
 	narrow := w < wideMin
 	t, hasThread := r.thread()
@@ -214,6 +216,13 @@ func (m Model) card(r row, w int) []string {
 	}
 	if bar != "" {
 		bar += " "
+	}
+	// The activity goes last, and only whole: the repo and branch matter more.
+	if hasThread && t.Status == deck.StatusWorking && t.Activity != "" {
+		with := append(slices.Clone(parts), t.Activity)
+		if 1+ansi.StringWidth(strings.Join(with, " · "))+1+ansi.StringWidth(bar) <= w {
+			parts = with
+		}
 	}
 	line2 := spread(" "+dim.Render(strings.Join(parts, " · ")), bar, w)
 	return []string{line1, line2}

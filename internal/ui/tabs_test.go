@@ -288,4 +288,11 @@ func TestCardShowsRepoAndBranch(t *testing.T) {
 			t.Errorf("repo %q branch %q: card line 2 = %q, want %q", c.repo, c.branch, got, c.want)
 		}
 	}
+	// A working thread's activity follows, only when it fits whole.
+	th := deck.Thread{ID: "t-0009", Status: deck.StatusWorking, Activity: "Writing tests", Repo: "/src/webshop", Branch: "hp/admin-rebuild/t-0009-x"}
+	for w, want := range map[int]string{80: "webshop · t-0009-x · Writing tests", 30: "webshop · t-0009-x"} {
+		if got := strings.TrimSpace(ansi.Strip(m.card(row{kind: rowWork, threads: []deck.Thread{th}}, w)[1])); got != want {
+			t.Errorf("at %d columns: card line 2 = %q, want %q", w, got, want)
+		}
+	}
 }

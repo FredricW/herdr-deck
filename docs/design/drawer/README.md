@@ -68,7 +68,7 @@ Every line the drawer shows today, and where it goes:
 |---|---|
 | title rule (`─ Users page ─`) | card, line 1 |
 | `Thread` id, title, pane, agent state | *Thread* (`thread` id and title, `pane` and the agent's state) |
-| `Status` state line and activity | card: status pill and percent with a bar; the activity on line 2 |
+| `Status` state line and activity | card: status pill and percent with a bar; the activity on line 2 when it fits |
 | `Owner` | card, line 2 |
 | `Next` | Overview, *Next* |
 | `Note` | Overview, *Note* |
@@ -98,17 +98,17 @@ Every line the drawer shows today, and where it goes:
  …                                                   28-row pane, 19 at full height
 ```
 
-- **Card.** Line 1: the row's title, bold; at the right the status pill
-  (`● needs you`, `◐ working`, `◇ review`, `↻ landing`, `○ idle`, `○ no
-  thread`, `✓ done`, `✉ inbox`) and the percent, both in the status colour.
-  Line 2, dim: the repo (its folder's name) and the branch, without the
+- **Card.** Line 1: the row's title, bold; at the right the status pill (`●
+  needs you`, `◐ working`, `◇ review`, `↻ landing`, `○ idle`, `○ no thread`,
+  `✓ done`, `✉ inbox`) and the percent, both in the status colour. Line 2,
+  dim: the repo (its folder's name) and the branch, without the
   `hp/<project>/` prefix every herdr-projects branch carries, cut with `…`
-  when it does not fit; a task without a thread shows its list and
-  `TASKS.md`. At the right a ten-cell bar `▰▱` in the status colour, or,
-  with no percent, the PR (`#2320 ✕ 2 failing`). The thread id, its title
-  and the pane are in *Thread*. Several threads on one task: the
-  card shows the most pressing one, as the list does, and *Thread* lists
-  them all.
+  when it does not fit, then the activity while working when it fits whole;
+  a task without a thread shows its list and `TASKS.md`. At the right a
+  ten-cell bar `▰▱` in the status colour, or, with no percent, the PR
+  (`#2320 ✕ 2 failing`). The thread id, its title and the pane are in
+  *Thread*. Several threads on one task: the card shows the most pressing
+  one, as the list does, and *Thread* lists them all.
 - ***Thread*** starts with `thread` (the id, and the thread's title when
   the row is a task), then `pane`, `branch` (in full, so it can be read and
   copied whole), `report`, `base` and `log`.
