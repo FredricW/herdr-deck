@@ -1,7 +1,7 @@
  Admin rebuild                           ◐ 2  ◇ 1  ○ 1  ✉ 0
 ────────────────────────────────────────────────────────────
  Document select for summary                       ◇ review
- t-0004                                           #2320 ✕ 1
+ webshop · t-0004-summary                         #2320 ✕ 1
 
  lint · ✕ failed 4m ago · step "golangci-lint run ./..." · …
 

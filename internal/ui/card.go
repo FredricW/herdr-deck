@@ -2,6 +2,7 @@ package ui
 
 import (
 	"fmt"
+	"path/filepath"
 	"regexp"
 	"strconv"
 	"strings"
@@ -168,8 +169,8 @@ func (m Model) curTab() tabKind {
 }
 
 // card is the header card: the title, the status pill and the percent on
-// line 1; on line 2, dim, what the row is, with the progress bar or the PR
-// at the right.
+// line 1; on line 2, dim, the thread's repo and branch (a task without one:
+// its list), with the progress bar or the PR at the right.
 func (m Model) card(r row, w int) []string {
 	narrow := w < wideMin
 	t, hasThread := r.thread()
@@ -193,15 +194,11 @@ func (m Model) card(r row, w int) []string {
 	var bar string
 	switch {
 	case hasThread:
-		parts = append(parts, t.ID)
-		if r.task != nil && t.Title != "" && !narrow {
-			parts = append(parts, t.Title)
+		if t.Repo != "" {
+			parts = append(parts, filepath.Base(t.Repo))
 		}
-		if t.Status == deck.StatusWorking && t.Activity != "" {
-			parts = append(parts, t.Activity)
-		}
-		if p := paneID(t); p != "" && !narrow {
-			parts = append(parts, "pane "+p)
+		if b := m.shortBranch(t.Branch); b != "" {
+			parts = append(parts, b)
 		}
 		switch {
 		case hasPct:
@@ -220,6 +217,18 @@ func (m Model) card(r row, w int) []string {
 	}
 	line2 := spread(" "+dim.Render(strings.Join(parts, " · ")), bar, w)
 	return []string{line1, line2}
+}
+
+// shortBranch is the branch as the card shows it: without the
+// `hp/<project>/` prefix herdr-projects gives every thread's branch, since
+// the deck already shows which project it is.
+func (m Model) shortBranch(b string) string {
+	if slug := m.snap.Project.Slug; slug != "" {
+		if rest, ok := strings.CutPrefix(b, "hp/"+slug+"/"); ok && rest != "" {
+			return rest
+		}
+	}
+	return b
 }
 
 // statusPill is the card's status: the list's glyph and a word, in the
@@ -279,14 +288,6 @@ func prBrief(pr deck.PullRequest, narrow bool) string {
 		s += " " + okStyle.Render("✓")
 	}
 	return s
-}
-
-// paneID is the thread's herdr pane: the live one, else the recorded one.
-func paneID(t deck.Thread) string {
-	if t.Pane != nil {
-		return t.Pane.ID
-	}
-	return t.PaneID
 }
 
 // projectDrawer shows a list heading, or the project when there is no

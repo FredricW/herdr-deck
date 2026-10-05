@@ -13,6 +13,9 @@ and versions follow [Semantic Versioning](https://semver.org/).
 - The drawer's tab bar has a blank line above and below it and one column
   of padding on either side, so it no longer runs into the card or the
   tab's content.
+- The drawer's header card shows the thread's repo and branch on its
+  second line; the thread id, its title and the pane moved into the
+  *Thread* section.
 
 ## [0.1.5] - 2026-10-05
 

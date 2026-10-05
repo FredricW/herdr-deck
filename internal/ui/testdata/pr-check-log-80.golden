@@ -1,7 +1,7 @@
  Admin rebuild                                               ◐ 2  ◇ 1  ○ 1  ✉ 0
 ────────────────────────────────────────────────────────────────────────────────
  Document select for summary                                           ◇ review
- t-0004 · Summary select documents · pane w21:p1              #2320 ✕ 1 failing
+ webshop · t-0004-summary                                     #2320 ✕ 1 failing
 
  lint · ✕ failed 4m ago · step "golangci-lint run ./..." · esc returns
 

@@ -1,9 +1,9 @@
  Admin rebuild                                               ◐ 2  ◇ 1  ○ 1  ✉ 0
 ────────────────────────────────────────────────────────────────────────────────
  Document select for summary                                           ◇ review
- t-0004 · Summary select documents · pane w21:p1              #2320 ✕ 1 failing
+ webshop · t-0004-summary                                     #2320 ✕ 1 failing
 
-  Overview   Files   Commits   Log 6                                   ↓ 3 more
+  Overview   Files   Commits   Log 6                                   ↓ 4 more
 
  ── PR ──
  [5 #2320] open · review required · 2 comments (sam, alex)

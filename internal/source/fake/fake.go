@@ -84,7 +84,7 @@ func Snapshot(slug string, now time.Time) deck.Snapshot {
 		Threads: []deck.Thread{
 			{
 				ID: "t-0001", Title: "Subscriptions /admin/plans", Status: deck.StatusUnknown, Group: "idle",
-				StateLine: "idle", PaneID: "w1Y:p1", Branch: "hp/admin-rebuild/t-0001-subscriptions", Base: "origin/main",
+				StateLine: "idle", PaneID: "w1Y:p1", Repo: "/src/webshop", Branch: "hp/admin-rebuild/t-0001-subscriptions", Base: "origin/main",
 				Log: []deck.LogEvent{
 					ev(now, 26*time.Hour, deck.EventLaunched, "launched in pane w1Y:p1", "", "threads/t-0001.toml"),
 					ev(now, 26*time.Hour+time.Minute, deck.EventCreated, "created from origin/main", "", "threads/t-0001.toml"),
@@ -97,7 +97,7 @@ func Snapshot(slug string, now time.Time) deck.Snapshot {
 			{
 				ID: "t-0002", Title: "Members /admin/users", Status: deck.StatusNeedsYou, Group: "waiting-on-you",
 				StateLine: "needs you · ~95%", Activity: "Waiting for you", PaneID: "w1Z:p1", Percent: pct(95),
-				Worktree: "/src/worktrees/t-0002", Branch: "hp/admin-rebuild/t-0002-members-admin-users", Base: "origin/main",
+				Worktree: "/src/worktrees/t-0002", Repo: "/src/webshop", Branch: "hp/admin-rebuild/t-0002-members-admin-users", Base: "origin/main",
 				Created: now.Add(-22*time.Hour - 31*time.Minute), LaunchedAt: now.Add(-22*time.Hour - 30*time.Minute),
 				BriefSeenAt: now.Add(-22*time.Hour - 29*time.Minute), LastReportChange: now.Add(-5 * time.Minute),
 				Log: []deck.LogEvent{
@@ -120,7 +120,7 @@ func Snapshot(slug string, now time.Time) deck.Snapshot {
 			{
 				ID: "t-0003", Title: "Templates /templates", Status: deck.StatusWorking, Group: "working",
 				StateLine: "working · ~40%", Activity: "Writing tests", PaneID: "w20:p1", Percent: pct(40),
-				Branch: "hp/admin-rebuild/t-0003-templates", Base: "origin/main",
+				Repo: "/src/webshop", Branch: "hp/admin-rebuild/t-0003-templates", Base: "origin/main",
 				Log: []deck.LogEvent{
 					ev(now, 40*time.Minute, deck.EventReport, "new report", "", "inbox/done/20261002T140100Z-thread-state-t-0003-3.md"),
 					ev(now, 3*time.Hour, deck.EventLaunched, "launched in pane w20:p1", "", "threads/t-0003.toml"),
@@ -135,7 +135,7 @@ func Snapshot(slug string, now time.Time) deck.Snapshot {
 			},
 			{
 				ID: "t-0004", Title: "Summary select documents", Status: deck.StatusReview, Group: "ready-for-review",
-				StateLine: "ready for review", PaneID: "w21:p1", Branch: "hp/admin-rebuild/t-0004-summary", Base: "origin/main",
+				StateLine: "ready for review", PaneID: "w21:p1", Repo: "/src/webshop", Branch: "hp/admin-rebuild/t-0004-summary", Base: "origin/main",
 				PR: &deck.PullRequest{
 					URL: "https://github.com/acme/webshop/pull/2320", Number: 2320,
 					State: "OPEN", Review: "REVIEW_REQUIRED", Comments: 2, Commenters: []string{"sam", "alex"},

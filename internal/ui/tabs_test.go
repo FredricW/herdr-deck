@@ -270,3 +270,22 @@ func TestTabColours(t *testing.T) {
 		t.Errorf("light terminal tab bar %q: want 16 text and 254 grey", l)
 	}
 }
+
+// The card's second line is the repo and the branch without the
+// `hp/<project>/` prefix; another project's prefix stays.
+func TestCardShowsRepoAndBranch(t *testing.T) {
+	m, _ := newModel(t, fakeSnap(), 80, 30)
+	cases := []struct{ repo, branch, want string }{
+		{"/src/webshop", "hp/admin-rebuild/t-0009-x", "webshop · t-0009-x"},
+		{"", "hp/other/t-0009-x", "hp/other/t-0009-x"},
+		{"/src/webshop", "hp/admin-rebuild/", "webshop · hp/admin-rebuild/"},
+		{"/src/webshop", "", "webshop"},
+	}
+	for _, c := range cases {
+		th := deck.Thread{ID: "t-0009", Repo: c.repo, Branch: c.branch}
+		got := strings.TrimSpace(ansi.Strip(m.card(row{kind: rowWork, threads: []deck.Thread{th}}, 80)[1]))
+		if got != c.want {
+			t.Errorf("repo %q branch %q: card line 2 = %q, want %q", c.repo, c.branch, got, c.want)
+		}
+	}
+}

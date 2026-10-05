@@ -378,8 +378,8 @@ func ago(d time.Duration) string {
 }
 
 // threadSection is the metadata the card has no room for, under dim
-// labels: the other threads of a task, the pane and its agent, branch,
-// report, base and the dev log.
+// labels: the thread (or all of a task's threads), the pane and its
+// agent, the full branch, report, base and the dev log.
 func (m Model) threadSection(d *drawer, r row, t deck.Thread) {
 	narrow := d.width < wideMin
 	if len(r.threads) > 1 {
@@ -390,6 +390,13 @@ func (m Model) threadSection(d *drawer, r row, t deck.Thread) {
 			g.items = append(g.items, span("·", dim), span(st, ss))
 			d.field("thread", false, g)
 		}
+	} else {
+		g := group{sep: " ", items: []item{span(t.ID, plain)}}
+		if r.task != nil && t.Title != "" && t.Title != r.task.Title {
+			g.items = append(g.items, span("·", dim))
+			g.items = append(g.items, words(t.Title, dim).items...)
+		}
+		d.field("thread", false, g)
 	}
 	if items := m.paneValue(t); len(items) > 0 {
 		d.field("pane", false, group{sep: " ", items: items})
