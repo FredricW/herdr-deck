@@ -40,6 +40,15 @@ const (
 	selLight = 254
 )
 
+// An inactive drawer tab's background: one step off the terminal's, so the
+// tabs read as quiet labels and the active one's blue stands out. 235 sits
+// just above dark backgrounds such as Catppuccin Mocha's #1e1e2e, where 234
+// would be darker than the background.
+const (
+	tabIdleDark  = 235
+	tabIdleLight = 255
+)
+
 // The active drawer tab's text on its blue: near-black from the 256-colour
 // palette (fixed, so it stays dark whatever the theme), black on a light
 // terminal.

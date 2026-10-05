@@ -67,8 +67,8 @@ Every line the drawer shows today, and where it goes:
 | Today | New place |
 |---|---|
 | title rule (`─ Users page ─`) | card, line 1 |
-| `Thread` id, title, pane, agent state | card, line 2 (id, thread title, pane); the agent's state in *Thread* |
-| `Status` state line and activity | card: status pill and percent with a bar; the activity on line 2 |
+| `Thread` id, title, pane, agent state | *Thread* (`thread` id and title, `pane` and the agent's state) |
+| `Status` state line and activity | card: status pill and percent with a bar; the activity on line 2 when it fits |
 | `Owner` | card, line 2 |
 | `Next` | Overview, *Next* |
 | `Note` | Overview, *Note* |
@@ -77,7 +77,7 @@ Every line the drawer shows today, and where it goes:
 | `Open` (localhost links with dots) | Overview, *Dev*, as chips under the servers |
 | `Dev` (servers with dots, `starting…`) | Overview, *Dev* |
 | `Report` | Overview, *Thread*; report events in Log; `r` as today |
-| `Branch` | Overview, *Thread* |
+| `Repo`, `Branch` | card, line 2 (repo folder name, branch without `hp/<project>/`); the full branch in *Thread* |
 | `Log` (the dev `up` command's log file) | Overview, *Thread* (`log`) |
 | `Files` | the Files tab |
 | inbox item: `Kind`, `Subject`, `Summary`, `File`, links | card (summary, kind, time, file), Overview *Subject* and *Links*; Files and Log are the subject thread's |
@@ -89,7 +89,7 @@ Every line the drawer shows today, and where it goes:
 ```text
 ──────────────────────────────────────────────────  the list's bottom rule
  Users page                     ● needs you  ~95%    card, line 1: title · pill · percent
- t-0002 · Members /admin/users       ▰▰▰▰▰▰▰▰▰▱    card, line 2 (dim) · progress bar
+ webshop · t-0002-members-admin-users   ▰▰▰▰▰▰▰▰▰▱    card, line 2 (dim) · progress bar
                                                      blank
   Overview   Files 11   Log 7         ↓ 7 more     tabs on blue / grey · what is below
                                                      blank
@@ -98,15 +98,20 @@ Every line the drawer shows today, and where it goes:
  …                                                   28-row pane, 19 at full height
 ```
 
-- **Card.** Line 1: the row's title, bold; at the right the status pill
-  (`● needs you`, `◐ working`, `◇ review`, `↻ landing`, `○ idle`, `○ no
-  thread`, `✓ done`, `✉ inbox`) and the percent, both in the status colour.
-  Line 2, dim: thread id, the thread's own title when the row is a task
-  (dropped at 60 columns), the activity while working, the pane (dropped at
-  60); at the right a ten-cell bar `▰▱` in the status colour, or, with no
-  percent, the PR (`#2320 ✕ 2 failing`). Several threads on one task: the
-  card shows the most pressing one, as the list does, and *Thread* lists
-  them all.
+- **Card.** Line 1: the row's title, bold; at the right the status pill (`●
+  needs you`, `◐ working`, `◇ review`, `↻ landing`, `○ idle`, `○ no thread`,
+  `✓ done`, `✉ inbox`) and the percent, both in the status colour. Line 2,
+  dim: the repo (its folder's name) and the branch, without the
+  `hp/<project>/` prefix every herdr-projects branch carries, cut with `…`
+  when it does not fit, then the activity while working when it fits whole;
+  a task without a thread shows its list and `TASKS.md`. At the right a
+  ten-cell bar `▰▱` in the status colour, or, with no percent, the PR
+  (`#2320 ✕ 2 failing`). The thread id, its title and the pane are in
+  *Thread*. Several threads on one task: the card shows the most pressing
+  one, as the list does, and *Thread* lists them all.
+- ***Thread*** starts with `thread` (the id, and the thread's title when
+  the row is a task), then `pane`, `branch` (in full, so it can be read and
+  copied whole), `report`, `base` and `log`.
 - **Tab bar.** ` Overview `, ` Files N `, ` Commits N `, ` Log N ` on
   their backgrounds, one space apart, with a blank line above and below
   the bar and one column of padding at either end of it. A report's or a
@@ -136,7 +141,7 @@ applied to the new parts:
 | Card second line | dim |
 | Pill, percent and bar | the status colour: needs you red bold, working cyan, review magenta, landing green, idle / no thread / done dim, inbox yellow; empty bar cells `▱` dim |
 | Active tab | blue background, bold near-black text (256-colour 234; 16 on a light terminal) |
-| Inactive tabs | dark grey background (256-colour 237; 254 on a light terminal), plain text; a tab without data dim text |
+| Inactive tabs | a grey one step off the terminal's background (256-colour 235; 255 on a light terminal), so they read as quiet labels next to the active tab; plain text, and dim text on a tab without data |
 | The `↓` hint | dim |
 | Section rules | dim rule, bold name; *Next* red while the thread needs you |
 | Link chips | brackets dim, digit bold, Linear ID blue, Figma magenta, Notion and GitHub default; Linear state in its state colour (as today); a closed issue's chip dim |

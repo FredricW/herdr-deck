@@ -259,14 +259,40 @@ func TestTabColours(t *testing.T) {
 		return ""
 	}
 	l := bar(m)
-	if !strings.Contains(l, "38;5;234") || !strings.Contains(l, "44") || !strings.Contains(l, "48;5;237") {
-		t.Errorf("dark terminal tab bar %q: want 234 text on blue (44) and 237 grey", l)
+	if !strings.Contains(l, "38;5;234") || !strings.Contains(l, "44") || !strings.Contains(l, "48;5;235") {
+		t.Errorf("dark terminal tab bar %q: want 234 text on blue (44) and 235 grey", l)
 	}
 	if strings.Contains(l, "97m") {
 		t.Errorf("the active tab is still bright white: %q", l)
 	}
 	m, _ = press(m, tea.BackgroundColorMsg{Color: color.White})
-	if l := bar(m); !strings.Contains(l, "38;5;16") || !strings.Contains(l, "48;5;254") {
-		t.Errorf("light terminal tab bar %q: want 16 text and 254 grey", l)
+	if l := bar(m); !strings.Contains(l, "38;5;16") || !strings.Contains(l, "48;5;255") {
+		t.Errorf("light terminal tab bar %q: want 16 text and 255 grey", l)
+	}
+}
+
+// The card's second line is the repo and the branch without the
+// `hp/<project>/` prefix; another project's prefix stays.
+func TestCardShowsRepoAndBranch(t *testing.T) {
+	m, _ := newModel(t, fakeSnap(), 80, 30)
+	cases := []struct{ repo, branch, want string }{
+		{"/src/webshop", "hp/admin-rebuild/t-0009-x", "webshop · t-0009-x"},
+		{"", "hp/other/t-0009-x", "hp/other/t-0009-x"},
+		{"/src/webshop", "hp/admin-rebuild/", "webshop · hp/admin-rebuild/"},
+		{"/src/webshop", "", "webshop"},
+	}
+	for _, c := range cases {
+		th := deck.Thread{ID: "t-0009", Repo: c.repo, Branch: c.branch}
+		got := strings.TrimSpace(ansi.Strip(m.card(row{kind: rowWork, threads: []deck.Thread{th}}, 80)[1]))
+		if got != c.want {
+			t.Errorf("repo %q branch %q: card line 2 = %q, want %q", c.repo, c.branch, got, c.want)
+		}
+	}
+	// A working thread's activity follows, only when it fits whole.
+	th := deck.Thread{ID: "t-0009", Status: deck.StatusWorking, Activity: "Writing tests", Repo: "/src/webshop", Branch: "hp/admin-rebuild/t-0009-x"}
+	for w, want := range map[int]string{80: "webshop · t-0009-x · Writing tests", 30: "webshop · t-0009-x"} {
+		if got := strings.TrimSpace(ansi.Strip(m.card(row{kind: rowWork, threads: []deck.Thread{th}}, w)[1])); got != want {
+			t.Errorf("at %d columns: card line 2 = %q, want %q", w, got, want)
+		}
 	}
 }

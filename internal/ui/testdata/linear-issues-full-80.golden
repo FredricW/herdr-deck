@@ -1,7 +1,7 @@
  Admin rebuild                                               ◐ 2  ◇ 1  ○ 1  ✉ 0
 ────────────────────────────────────────────────────────────────────────────────
  Users page                                                     ◐ working  ~60%
- t-0002 · Members /admin/users · Building overview · pane w1Z:p1     ▰▰▰▰▰▰▱▱▱▱
+ webshop · t-0002-members-admin-users · Building overview            ▰▰▰▰▰▰▱▱▱▱
 
   Overview   Files   Commits   Log 7
 
@@ -16,11 +16,11 @@
  ── Dev ──
  not started: no .dev/t-0002/state.json · u starts it
  ── Thread ──
+ thread   t-0002 · Members /admin/users
  pane     w1Z:p1
  branch   hp/admin-rebuild/t-0002-members-admin-users
  report   threads/t-0002.md · changed 14:36 · r shows it
  base     origin/main
-
 
 
 
