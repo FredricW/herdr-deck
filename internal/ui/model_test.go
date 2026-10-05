@@ -714,6 +714,31 @@ func TestDrawerSizes(t *testing.T) {
 	}
 }
 
+// A short pane drops the blank lines around the tab bar before the bar,
+// and a full view keeps its head and a line of content.
+func TestShortPaneKeepsTabBar(t *testing.T) {
+	for _, h := range []int{8, 9, 10, 11, 12} {
+		m, _ := newModel(t, calm(), 80, h)
+		// Under 11 rows the normal drawer has room for the card only.
+		if h >= 11 {
+			l := m.layout()
+			lines := strings.Split(ansi.Strip(m.View().Content), "\n")
+			if l.tabY < 0 || l.tabY >= len(lines) || !strings.Contains(lines[l.tabY], "Overview") {
+				t.Errorf("%d rows: tab bar not on line %d:\n%s", h, l.tabY, screen(m))
+				continue
+			}
+			x, y := find(t, m, "Log 7")
+			if m, _ = press(m, click(x+1, y)); m.curTab() != tabLog {
+				t.Errorf("%d rows: click on Log: %v", h, m.curTab())
+			}
+		}
+		m, _ = press(m, keys("r")...)
+		if l := m.layout(); l.drawerH < 1 || !strings.Contains(screen(m), "esc returns") {
+			t.Errorf("%d rows: report drawer %d lines:\n%s", h, l.drawerH, screen(m))
+		}
+	}
+}
+
 func TestLongListScrolls(t *testing.T) {
 	s := calm()
 	for i := range 30 {

@@ -160,6 +160,19 @@ func (d *drawer) head() []string {
 	return append(append([]string(nil), d.card...), "", d.tabs, "")
 }
 
+// headLines is the head in n lines: short of room it drops the blank line
+// below the tab bar, then the one above, before the bar itself.
+func (d *drawer) headLines(n int) []string {
+	h := d.head()
+	if d.tabs == "" || n >= len(h) || n < len(d.card)+1 {
+		return h[:min(n, len(h))]
+	}
+	if n == len(d.card)+1 {
+		return append(append([]string(nil), d.card...), d.tabs)
+	}
+	return h[:n]
+}
+
 // nextStop hands out the builder's next cursor stop and says whether the
 // cursor is on it.
 func (d *drawer) nextStop() bool {

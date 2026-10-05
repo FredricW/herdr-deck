@@ -81,8 +81,10 @@ func (m Model) layout() frame {
 		} else {
 			f.headTop = 2
 		}
-		f.headN = head
-		f.drawerTop = f.headTop + head
+		// Keep a line of content, as a short pane drops the head's
+		// blank lines first.
+		f.headN = min(head, max(h-3-f.headTop, 0))
+		f.drawerTop = f.headTop + f.headN
 		f.drawerH = h - 2 - f.drawerTop
 	default:
 		block := max(body/2, 6)
@@ -94,8 +96,8 @@ func (m Model) layout() frame {
 		f.drawerTop = f.headTop + f.headN
 		f.drawerH = block - 1 - f.headN
 	}
-	if head == 5 && f.headN >= 4 && m.mode == modeRow {
-		f.tabY = f.headTop + 3
+	if head == 5 && f.headN >= 3 && m.mode == modeRow {
+		f.tabY = f.headTop + min(f.headN, 4) - 1 // see drawer.headLines
 	}
 	// Other projects' needs take the list's last line while it has two.
 	if f.listH >= 2 && m.otherNeeds() > 0 {
@@ -163,7 +165,7 @@ func (m Model) render() string {
 		case f.sepY >= 0:
 			lines = append(lines, rule)
 		}
-		lines = append(lines, f.drawer.head()[:f.headN]...)
+		lines = append(lines, f.drawer.headLines(f.headN)...)
 		dl := f.drawer.lines
 		off := clamp(m.drawerOff, 0, max(len(dl)-f.drawerH, 0))
 		for i := range f.drawerH {
