@@ -37,13 +37,17 @@ type patchMsg struct {
 	data preview
 }
 
-// The tint under added and removed lines: subtle on a dark terminal,
-// pale on a light one. True colour; the terminal's profile downsamples it.
+// The tint under added and removed lines: a hint of green or red close
+// to the background (about 14 % of GitHub's diff green and red over a
+// near-black or white one), so the code's colours dominate. True colour;
+// the terminal's profile downsamples it: on a 256-colour terminal the dark
+// tints become the dark greys 234 and 235 and the light ones the pale
+// 194 and 224.
 const (
-	addBgDark  = "48;2;22;54;33"
-	delBgDark  = "48;2;64;26;31"
-	addBgLight = "48;2;222;250;228"
-	delBgLight = "48;2;255;228;226"
+	addBgDark  = "48;2;25;41;29"
+	delBgDark  = "48;2;52;29;30"
+	addBgLight = "48;2;230;244;232"
+	delBgLight = "48;2;254;234;233"
 )
 
 // patchKey names a file of a thread's diff.

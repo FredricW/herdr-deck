@@ -16,7 +16,7 @@ import (
 
 // layout writes a splitView's rows as text, one per row: "full" rows by
 // their line, pairs as left|right with the lines' texts and numbers, _
-// for filler.
+// for filler, "" for a blank row.
 func layout(lines []deck.PatchLine, sv splitView) []string {
 	side := func(i int, nos []int) string {
 		switch {
@@ -30,6 +30,8 @@ func layout(lines []deck.PatchLine, sv splitView) []string {
 	var out []string
 	for _, r := range sv.rows {
 		switch {
+		case r.gap:
+			out = append(out, "")
 		case r.full >= 0:
 			out = append(out, lines[r.full].Text)
 		case r.only != 0:
@@ -88,6 +90,11 @@ func TestPairLines(t *testing.T) {
 			want:  []string{"@@ -1,2 +1,2 @@", "1:a | 1:b", "2:z | 2:z", `\ | \`},
 		},
 		{
+			name:  "a blank row between hunks",
+			patch: "@@ -1,1 +1,1 @@\n-a\n+b\n@@ -9,1 +9,1 @@\n c\n",
+			want:  []string{"@@ -1,1 +1,1 @@", "1:a | 1:b", "", "@@ -9,1 +9,1 @@", "9:c | 9:c"},
+		},
+		{
 			name:  "an added file has only its new side",
 			patch: "@@ -0,0 +1,2 @@\n+a\n+b\n",
 			want:  []string{"@@ -0,0 +1,2 @@", "only+1 1:a", "only+1 2:b"},
@@ -122,18 +129,31 @@ func TestPairLinesCommit(t *testing.T) {
 		{Kind: deck.LineContext, Text: "c"},
 	}
 	sv := pairLines(lines)
-	want := []string{"new.go", "@@ -0,0 +1 @@", "only+1 1:package x", "old.go", "@@ -120,2 +120,2 @@", "120:a | 120:b", "121:c | 121:c"}
+	want := []string{"new.go", "@@ -0,0 +1 @@", "only+1 1:package x", "", "old.go", "@@ -120,2 +120,2 @@", "120:a | 120:b", "121:c | 121:c"}
 	if got := layout(lines, sv); strings.Join(got, "\n") != strings.Join(want, "\n") {
 		t.Errorf("rows:\n%s\nwant:\n%s", strings.Join(got, "\n"), strings.Join(want, "\n"))
 	}
 	if sv.numW != 3 {
 		t.Errorf("numW = %d, want 3", sv.numW)
 	}
-	// Each patch line maps to the row that shows it.
-	for k, want := range map[int]int{0: 0, 2: 2, 5: 5, 6: 5, 7: 6} {
-		if got := sv.rowOf(k); got != want {
+	// Each patch line maps to the row that shows it, a file's or hunk's
+	// line to the blank row before it.
+	for k, want := range map[int]int{0: 0, 2: 2, 3: 3, 5: 6, 6: 6, 7: 7} {
+		if got := rowOf(sv.rows, k); got != want {
 			t.Errorf("rowOf(%d) = %d, want %d", k, got, want)
 		}
+	}
+	// The unified rows: every line, with the same blank row.
+	var uni []string
+	for _, r := range sv.uni {
+		if r.gap {
+			uni = append(uni, "")
+		} else {
+			uni = append(uni, lines[r.full].Text)
+		}
+	}
+	if want := []string{"new.go", "@@ -0,0 +1 @@", "package x", "", "old.go", "@@ -120,2 +120,2 @@", "a", "b", "c"}; strings.Join(uni, "|") != strings.Join(want, "|") {
+		t.Errorf("unified rows %q, want %q", uni, want)
 	}
 }
 
@@ -212,6 +232,28 @@ func TestSplitColoursAndCuts(t *testing.T) {
 			t.Errorf("no %s (%q) in the split preview", what, want)
 		}
 	}
+	// Filler is hatched in a dim grey, its number and sign columns blank,
+	// and never tinted.
+	hatched := 0
+	for _, l := range strings.Split(out, "\n") {
+		left, _, _ := strings.Cut(l, "│")
+		if !strings.Contains(left, "╱") {
+			continue
+		}
+		hatched++
+		if !strings.Contains(left, fmt.Sprintf("\x1b[38;5;%dm╱", hatchDark)) {
+			t.Errorf("hatching not in grey %d: %q", hatchDark, left)
+		}
+		if strings.Contains(left, addBgDark) || strings.Contains(left, delBgDark) {
+			t.Errorf("tinted hatching: %q", left)
+		}
+		if plain := ansi.Strip(left); !strings.HasPrefix(plain, "      ╱") || !strings.HasSuffix(plain, "╱ ") {
+			t.Errorf("hatching over the number, sign or last column: %q", plain)
+		}
+	}
+	if hatched == 0 {
+		t.Error("no hatched filler in the split preview")
+	}
 	if strings.Contains(out, "\x1b[2m 1") {
 		t.Error("line numbers are faint rather than the fixed grey")
 	}
@@ -220,6 +262,7 @@ func TestSplitColoursAndCuts(t *testing.T) {
 	for what, want := range map[string]string{
 		"line number": fmt.Sprintf("\x1b[38;5;%dm 1", lineNoLight),
 		"divider":     fmt.Sprintf("\x1b[38;5;%dm│", dividerLight),
+		"hatching":    fmt.Sprintf("\x1b[38;5;%dm╱", hatchLight),
 	} {
 		if !strings.Contains(out, want) {
 			t.Errorf("light terminal: no %s (%q)", what, want)
@@ -247,9 +290,10 @@ func TestSplitToggle(t *testing.T) {
 	if m.splitShown() || !strings.Contains(screen(m), "S split") {
 		t.Fatalf("starts split, or no S in the footer:\n%s", screen(m))
 	}
-	// Scroll to the second hunk's header (patch line 14).
+	// Scroll to the blank row before the second hunk's header (patch
+	// line 14).
 	m, _ = press(m, keys(strings.Repeat("J", 14))...)
-	if !strings.HasPrefix(strings.Split(screen(m), "\n")[3], " @@ -40,3") {
+	if !atSecondHunk(screen(m)) {
 		t.Fatalf("not at the second hunk:\n%s", screen(m))
 	}
 	m, _ = press(m, keys("S")...)
@@ -257,10 +301,10 @@ func TestSplitToggle(t *testing.T) {
 		t.Fatalf("S did not switch to split:\n%s", screen(m))
 	}
 	p := m.patches[m.prevKey]
-	if r := p.split.rows[m.prevOff]; r.full != 14 {
-		t.Errorf("split: the top row is %+v, want the second hunk's header", r)
+	if r := p.split.rows[m.prevOff]; r.full != 14 || !r.gap {
+		t.Errorf("split: the top row is %+v, want the blank row before the second hunk's header", r)
 	}
-	if !strings.HasPrefix(strings.Split(screen(m), "\n")[3], " @@ -40,3") {
+	if !atSecondHunk(screen(m)) {
 		t.Errorf("split lost the place:\n%s", screen(m))
 	}
 	m, _ = press(m, keys("|")...)
@@ -280,6 +324,13 @@ func TestSplitToggle(t *testing.T) {
 	}
 }
 
+// atSecondHunk says whether the preview starts with the blank row before
+// the sample file's second hunk.
+func atSecondHunk(s string) bool {
+	l := strings.Split(s, "\n")
+	return strings.TrimSpace(l[3]) == "" && strings.HasPrefix(l[4], " @@ -40,3")
+}
+
 // A pane under splitMinWidth shows unified and says why; widening it
 // brings the split back, near the same place.
 func TestSplitNarrowFallback(t *testing.T) {
@@ -296,7 +347,7 @@ func TestSplitNarrowFallback(t *testing.T) {
 	if !m.splitShown() || strings.Contains(screen(m), "split needs") {
 		t.Fatalf("%d columns: not split:\n%s", splitMinWidth, screen(m))
 	}
-	if r := m.patches[m.prevKey].split.rows[m.prevOff]; r.full != 14 {
+	if r := m.patches[m.prevKey].split.rows[m.prevOff]; r.full != 14 || !r.gap {
 		t.Errorf("widening lost the place: top row %+v", r)
 	}
 	m, _ = press(m, tea.WindowSizeMsg{Width: splitMinWidth - 1, Height: 14})

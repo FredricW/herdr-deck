@@ -17,8 +17,10 @@ import (
 // tools show a change. Within a hunk, a run of removed lines sits next to
 // the added lines that follow it, and the shorter side gets blank filler;
 // context shows on both sides. Hunk headers and a commit's file rules
-// span both sides. An added file shows only its new side, a deleted one
-// only its old side, across the whole width. S switches between this and
+// span both sides, with a blank row before each file but the first and
+// each hunk but a file's first. The side without a line shows a dim
+// hatching. An added file shows only its new side, a deleted one only its
+// old side, across the whole width. S switches between this and
 // the unified layout; diff.layout picks the one the deck starts with.
 
 // splitMinWidth is the narrowest preview that shows the split layout: two
@@ -28,10 +30,14 @@ import (
 const splitMinWidth = 100
 
 // sideRow is one row of the split layout: a line across both sides, or a
-// patch line on the left and one on the right (-1 is filler).
+// patch line on the left and one on the right (-1 is filler). The unified
+// layout's rows are sideRows too, each line drawn across.
 type sideRow struct {
 	full int // a hunk header or a commit's file line, drawn across; else -1
 	l, r int // the patch lines on the left and right, -1 for none
+	// gap marks the blank row before line full, which separates files
+	// and hunks.
+	gap bool
 	// only is -1 when the row's file has only an old side (it was
 	// deleted), 1 when it has only a new one (it was added), else 0.
 	only int
@@ -52,6 +58,9 @@ func (r sideRow) anchor() int {
 // splitView is a patch laid out for the split layout.
 type splitView struct {
 	rows []sideRow
+	// uni is the same patch's rows in the unified layout: each line
+	// across, with the same blank rows.
+	uni []sideRow
 	// oldNo and newNo are each patch line's number in the old and the new
 	// file, 0 for none.
 	oldNo, newNo []int
@@ -85,10 +94,18 @@ func pairLines(lines []deck.PatchLine) splitView {
 	}
 	oldN, newN, maxN := 0, 0, 0
 	last := deck.LineContext
+	gaps := gapsBefore(lines)
 	for i, l := range lines {
+		if gaps[i] {
+			sv.uni = append(sv.uni, sideRow{full: i, l: -1, r: -1, gap: true})
+		}
+		sv.uni = append(sv.uni, sideRow{full: i, l: -1, r: -1})
 		switch l.Kind {
 		case deck.LineHunk, deck.LineFile:
 			flush()
+			if gaps[i] {
+				sv.rows = append(sv.rows, sideRow{full: i, l: -1, r: -1, gap: true})
+			}
 			oldN, newN = 0, 0
 			if h, ok := parseHunk(l.Text); ok {
 				oldN, newN = h.oldStart, h.newStart
@@ -128,9 +145,34 @@ func pairLines(lines []deck.PatchLine) splitView {
 	return sv
 }
 
-// rowOf is the row that shows patch line k, or the one after.
-func (sv splitView) rowOf(k int) int {
-	return max(sort.Search(len(sv.rows), func(i int) bool { return sv.rows[i].anchor() > k })-1, 0)
+// gapsBefore marks the lines that get a blank row before them: each
+// file's line but the first, and each hunk header but a file's first.
+func gapsBefore(lines []deck.PatchLine) []bool {
+	gaps := make([]bool, len(lines))
+	hunks := false // a hunk header came since the last file line
+	for i, l := range lines {
+		switch l.Kind {
+		case deck.LineFile:
+			gaps[i] = i > 0
+			hunks = false
+		case deck.LineHunk:
+			gaps[i] = hunks
+			hunks = true
+		}
+	}
+	return gaps
+}
+
+// rowOf is the row of rows that shows patch line k, or the one after; a
+// blank row before it rather than its header, so a place in one layout
+// keeps its blank row in the other.
+func rowOf(rows []sideRow, k int) int {
+	if len(rows) == 0 {
+		return 0
+	}
+	j := max(sort.Search(len(rows), func(i int) bool { return rows[i].anchor() > k })-1, 0)
+	a := rows[j].anchor()
+	return sort.Search(len(rows), func(i int) bool { return rows[i].anchor() >= a })
 }
 
 // hunk is a hunk header's ranges.
@@ -215,19 +257,25 @@ func (m Model) patchRows(p preview) int {
 	if p.patch.Binary {
 		return 0
 	}
+	return len(m.layoutRows(p))
+}
+
+// layoutRows is the patch's rows in the layout shown.
+func (m Model) layoutRows(p preview) []sideRow {
 	if m.splitShown() {
-		return len(p.split.rows)
+		return p.split.rows
 	}
-	return len(p.patch.Lines)
+	return p.split.uni
 }
 
 // patchRow draws row k of the patch in the layout shown.
 func (m Model) patchRow(p preview, k, w int) string {
-	if !m.splitShown() {
-		return m.diffLine(p.patch.Lines[k], p.code[k], w)
-	}
-	r := p.split.rows[k]
+	r := m.layoutRows(p)[k]
 	switch {
+	case r.gap:
+		return ""
+	case !m.splitShown():
+		return m.diffLine(p.patch.Lines[r.full], p.code[r.full], w)
 	case r.full >= 0:
 		return m.diffLine(p.patch.Lines[r.full], "", w)
 	case r.only < 0:
@@ -242,12 +290,16 @@ func (m Model) patchRow(p preview, k, w int) string {
 // sideCell draws patch line i on the old (left) or new side in w
 // columns: its line number in a grey that barely shows, then like a unified line, a red − or
 // green + and the tint under removed and added code. Long lines are cut
-// with …; i < 0 is blank filler.
+// with …; i < 0 is filler, hatched where the code would be.
 func (m Model) sideCell(p preview, i int, old bool, w int) string {
-	if i < 0 {
-		return strings.Repeat(" ", max(w, 0))
-	}
 	sv := p.split
+	if i < 0 {
+		// Blank where the number and sign would be and at the end, as
+		// beside a line; never tinted.
+		lead := sv.numW + 4
+		n := max(w-lead-1, 0)
+		return fit(strings.Repeat(" ", lead)+greyStyle(hatchDark, hatchLight, m.light).Render(strings.Repeat("╱", n)), w)
+	}
 	l := p.patch.Lines[i]
 	if l.Kind == deck.LineNote {
 		return fit(strings.Repeat(" ", sv.numW+2)+dim.Render("\\ "+syntax.Clean(l.Text)), w)
@@ -289,16 +341,14 @@ func (m *Model) relayoutPreview() {
 	}
 	intro := len(m.intro(p))
 	if k := m.prevOff - intro; k > 0 {
-		lines, rows := len(p.patch.Lines), len(p.split.rows)
-		switch {
-		case split && k < lines:
-			m.prevOff = intro + p.split.rowOf(k)
-		case split:
-			m.prevOff = intro + rows + k - lines // in the tail
-		case k < rows:
-			m.prevOff = intro + p.split.rows[k].anchor()
-		default:
-			m.prevOff = intro + lines + k - rows
+		from, to := p.split.uni, p.split.rows
+		if !split {
+			from, to = to, from
+		}
+		if k < len(from) {
+			m.prevOff = intro + rowOf(to, from[k].anchor())
+		} else {
+			m.prevOff = intro + len(to) + k - len(from) // in the tail
 		}
 	}
 	m.scrollPreview(0)
