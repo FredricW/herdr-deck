@@ -16,6 +16,8 @@ and versions follow [Semantic Versioning](https://semver.org/).
 - The drawer's header card shows the thread's repo and branch on its
   second line; the thread id, its title and the pane moved into the
   *Thread* section.
+- Inactive drawer tabs have a much quieter background, just off the
+  terminal's, so the active tab stands out.
 
 ## [0.1.5] - 2026-10-05
 

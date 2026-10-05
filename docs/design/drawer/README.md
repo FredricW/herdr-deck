@@ -141,7 +141,7 @@ applied to the new parts:
 | Card second line | dim |
 | Pill, percent and bar | the status colour: needs you red bold, working cyan, review magenta, landing green, idle / no thread / done dim, inbox yellow; empty bar cells `▱` dim |
 | Active tab | blue background, bold near-black text (256-colour 234; 16 on a light terminal) |
-| Inactive tabs | dark grey background (256-colour 237; 254 on a light terminal), plain text; a tab without data dim text |
+| Inactive tabs | a grey one step off the terminal's background (256-colour 235; 255 on a light terminal), so they read as quiet labels next to the active tab; plain text, and dim text on a tab without data |
 | The `↓` hint | dim |
 | Section rules | dim rule, bold name; *Next* red while the thread needs you |
 | Link chips | brackets dim, digit bold, Linear ID blue, Figma magenta, Notion and GitHub default; Linear state in its state colour (as today); a closed issue's chip dim |

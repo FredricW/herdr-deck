@@ -259,15 +259,15 @@ func TestTabColours(t *testing.T) {
 		return ""
 	}
 	l := bar(m)
-	if !strings.Contains(l, "38;5;234") || !strings.Contains(l, "44") || !strings.Contains(l, "48;5;237") {
-		t.Errorf("dark terminal tab bar %q: want 234 text on blue (44) and 237 grey", l)
+	if !strings.Contains(l, "38;5;234") || !strings.Contains(l, "44") || !strings.Contains(l, "48;5;235") {
+		t.Errorf("dark terminal tab bar %q: want 234 text on blue (44) and 235 grey", l)
 	}
 	if strings.Contains(l, "97m") {
 		t.Errorf("the active tab is still bright white: %q", l)
 	}
 	m, _ = press(m, tea.BackgroundColorMsg{Color: color.White})
-	if l := bar(m); !strings.Contains(l, "38;5;16") || !strings.Contains(l, "48;5;254") {
-		t.Errorf("light terminal tab bar %q: want 16 text and 254 grey", l)
+	if l := bar(m); !strings.Contains(l, "38;5;16") || !strings.Contains(l, "48;5;255") {
+		t.Errorf("light terminal tab bar %q: want 16 text and 255 grey", l)
 	}
 }
 
