@@ -17,6 +17,7 @@ import (
 	"fmt"
 	"io/fs"
 	"maps"
+	"math"
 	"os"
 	"path/filepath"
 	"slices"
@@ -1035,6 +1036,9 @@ func parseFraction(s string) (float64, error) {
 }
 
 func checkFraction(v float64) error {
+	if math.IsNaN(v) {
+		return errors.New("NaN is not a number such as 0.5")
+	}
 	if v < MinDrawerHeight || v > MaxDrawerHeight {
 		return fmt.Errorf("%s is outside %s–%s", FractionText(v), FractionText(MinDrawerHeight), FractionText(MaxDrawerHeight))
 	}

@@ -263,6 +263,7 @@ func TestSaveRefuses(t *testing.T) {
 		{"duration out of range", "", KeyRefreshInterval, ptr("1h"), "outside"},
 		{"not a number", "", KeyDrawerHeight, ptr("half"), "not a number"},
 		{"drawer height out of range", "", KeyDrawerHeight, ptr("0.95"), "outside"},
+		{"drawer height NaN", "", KeyDrawerHeight, ptr("NaN"), "not a number"},
 		{"unknown placeholder", "", KeyEditorCommand, ptr("zed {file}"), "unknown placeholder {file}"},
 		{"unbalanced quote", "", KeyDiffCommand, ptr(`git diff "{base}`), "quote"},
 		{"relative path", "", KeyProjectsRoot, ptr("projects"), "not an absolute path"},

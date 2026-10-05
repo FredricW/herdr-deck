@@ -1,6 +1,7 @@
 package config
 
 import (
+	"math"
 	"os"
 	"path/filepath"
 	"testing"
@@ -24,7 +25,7 @@ func TestDrawerHeightFile(t *testing.T) {
 	if v, ok := ReadDrawerHeight(path); !ok || v != 0.9 {
 		t.Errorf("ReadDrawerHeight = %v, %v; want 0.9", v, ok)
 	}
-	for _, bad := range []float64{0, 1, -0.5} {
+	for _, bad := range []float64{0, 1, -0.5, math.NaN()} {
 		if err := WriteDrawerHeight(path, bad); err == nil {
 			t.Errorf("WriteDrawerHeight(%v) must fail", bad)
 		}

@@ -288,8 +288,10 @@ func TestResolveDrawerHeight(t *testing.T) {
 	if len(s.Problems) != 2 || !strings.Contains(s.Problems[0], EnvDrawerHeight) || !strings.Contains(s.Problems[1], "0.1 is outside 0.2–0.8") {
 		t.Errorf("problems = %q, want the env value then the file value", s.Problems)
 	}
-	if _, err := Resolve(fls(KeyDrawerHeight, "big"), getenv, noHunk); err == nil {
-		t.Error("a bad --ui-drawer-height must be an error")
+	for _, bad := range []string{"big", "NaN"} {
+		if _, err := Resolve(fls(KeyDrawerHeight, bad), getenv, noHunk); err == nil {
+			t.Errorf("--ui-drawer-height %s must be an error", bad)
+		}
 	}
 	if s, err := Resolve(fls(KeyDrawerHeight, "0.3"), getenv, noHunk); err != nil || s.DrawerHeight != 0.3 {
 		t.Errorf("--ui-drawer-height 0.3 = %v, %v", s.DrawerHeight, err)
