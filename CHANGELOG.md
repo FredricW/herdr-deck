@@ -8,19 +8,16 @@ and versions follow [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.1.5] - 2026-10-05
+
 ### Added
 
 - A split layout for the diff preview: `S` (or `|`) shows the old file on
-  the left and the new one on the right, with line numbers on each side
-  and removed and added lines paired up, and switches back to unified.
-  `diff.layout = "split"` (or the settings page, `--diff-layout`,
+  the left and the new one on the right, with faint line numbers on each
+  side and removed and added lines paired up, and switches back to
+  unified. `diff.layout = "split"` (or the settings page, `--diff-layout`,
   `$HERDR_DECK_DIFF_LAYOUT`) starts with it. A pane under 100 columns shows
   unified and says so in the preview's header.
-- Linear issues in the drawer show their title and assignee, one line
-  each: `[1 ABC-123 Fix login · in progress · ana]`, shortened to fit a
-  narrow drawer. With a Linear API key bare IDs open Linear's own URL, so
-  `linear.workspace` is no longer needed; the open-link action asks Linear
-  for the workspace too.
 - The drawer reads each open thread PR from GitHub through your `gh`, so the
   *PR* section says why it is not merging: every check (failing ones as
   chips, running and queued ones too), behind its base, conflicts, draft,
@@ -31,6 +28,19 @@ and versions follow [Semantic Versioning](https://semver.org/).
   height, read on demand. Without `gh`, or logged out, the deck keeps
   herdr-projects' ticker data and says so in `!`. `github.enabled = false`
   turns it off.
+- Linear issues in the drawer show their title and assignee, one line
+  each: `[1 ABC-123 Fix login · in progress · ana]`, shortened to fit a
+  narrow drawer.
+- A spec for a shared, tool-neutral dev manifest, `.config/dev.json`
+  (`docs/dev-manifest.md` in the repo), and an agent skill,
+  `skills/dev-manifest`, that writes and validates one for a repository.
+  The deck still reads `.herdr-deck/dev.json` for now.
+
+### Changed
+
+- With a Linear API key, bare Linear IDs open Linear's own URL, so
+  `linear.workspace` is no longer needed; the open-link action asks Linear
+  for the workspace too.
 
 ## [0.1.4] - 2026-10-04
 
