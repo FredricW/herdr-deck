@@ -8,16 +8,16 @@ and versions follow [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.1.6] - 2026-10-05
+
 ### Changed
 
-- The drawer's tab bar has a blank line above and below it and one column
-  of padding on either side, so it no longer runs into the card or the
-  tab's content.
+- The drawer's tab bar has a blank line above and below it and a column
+  of padding on either side, and inactive tabs have a much quieter
+  background, just off the terminal's, so the active tab stands out.
 - The drawer's header card shows the thread's repo and branch on its
   second line; the thread id, its title and the pane moved into the
   *Thread* section.
-- Inactive drawer tabs have a much quieter background, just off the
-  terminal's, so the active tab stands out.
 - The diff preview is calmer: added and removed lines get a fainter green
   and red tint, so the code's colours dominate; a blank line separates
   hunks and a commit's files; and in the split layout the side without a
