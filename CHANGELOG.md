@@ -18,6 +18,10 @@ and versions follow [Semantic Versioning](https://semver.org/).
   *Thread* section.
 - Inactive drawer tabs have a much quieter background, just off the
   terminal's, so the active tab stands out.
+- The diff preview is calmer: added and removed lines get a fainter green
+  and red tint, so the code's colours dominate; a blank line separates
+  hunks and a commit's files; and in the split layout the side without a
+  line shows a dim `╱╱╱` hatching instead of blank space.
 
 ## [0.1.5] - 2026-10-05
 

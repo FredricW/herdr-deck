@@ -1,17 +1,17 @@
  Admin rebuild                                                                                       ◐ 2  ◇ 1  ○ 1  ✉ 0
 ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
- apps/admin/src/pages/users/UsersOverviewPage.tsx  +214 −12                                                     4–14/15
-                                                           │  3 + import { overview } from "./overview";
+ apps/admin/src/pages/users/UsersOverviewPage.tsx  +214 −12                                                     4–14/16
+      ╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱ │  3 + import { overview } from "./overview";
   3                                                        │  4
   4 − // Members: everyone in the workspace.               │  5 + // Users page: the table, its filters and the overvi…
   5 − export function MembersPage() {                      │  6 + export function UsersOverviewPage() {
   6     const [query, setQuery] = useState("");            │  7     const [query, setQuery] = useState("");
-                                                           │  8 +   const stats = overview(users);
+      ╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱ │  8 +   const stats = overview(users);
   7     return (                                           │  9     return (
   8       <Page title="Users">                             │ 10       <Page title="Users">
+
  @@ -40,3 +45,3 @@ function Invite() {
  40 −   return <Button>Invite member</Button>;             │ 45 +   return <Button>Invite user</Button>;
- 41   }                                                    │ 46   }
 ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
  Users page                                                                                             ◐ working  ~60%
  webshop · t-0002-members-admin-users · Building overview                                                    ▰▰▰▰▰▰▱▱▱▱

@@ -68,6 +68,13 @@ const (
 	dividerLight = 250
 )
 
+// The split diff's hatching where a side has no line: a step fainter than
+// the line numbers, so it reads as "nothing here" without drawing the eye.
+const (
+	hatchDark  = 237
+	hatchLight = 253
+)
+
 // greyStyle is foreground dark on a dark terminal, light on a light one.
 func greyStyle(dark, light int, isLight bool) lipgloss.Style {
 	c := dark

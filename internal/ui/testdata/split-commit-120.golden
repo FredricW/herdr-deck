@@ -1,6 +1,6 @@
  Admin rebuild                                                                                       ◐ 2  ◇ 1  ○ 1  ✉ 0
 ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
- c3a91f0 Show the overview cards above the users table  +214 −12                                                1–11/17
+ c3a91f0 Show the overview cards above the users table  +214 −12                                                1–11/18
  Agent · 2026-10-02 14:29 · 12m ago
 
  The cards count active and invited users (ABC-1256).
@@ -10,7 +10,7 @@
  ── apps/admin/src/pages/users/UsersOverviewPage.tsx ───────────────────────────────────────────────────────────────────
  @@ -1,4 +1,5 @@
  1   import { useState } from "react";                     │ 1   import { useState } from "react";
-                                                           │ 2 + import { overview } from "./overview";
+     ╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱ │ 2 + import { overview } from "./overview";
  2                                                         │ 3
 ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
  Users page                                                                                             ◐ working  ~60%

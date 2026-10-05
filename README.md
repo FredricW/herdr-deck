@@ -820,9 +820,11 @@ added, from its contents, and a binary file a one-line note.
 The header names the file with its `+N −M` and which lines show. Code is
 coloured by the file's language (chroma's lexers, in the terminal's own
 named colours, so it reads on dark and light themes); a language it does
-not know shows as plain text. Added lines have a green `+` and a green tint,
-removed lines a red `−` and a red tint, hunk headers are dim. Long lines
-are cut with `…`, never wrapped. `J`/`K` scroll a line, `pgup`/`pgdn` (or
+not know shows as plain text. Added lines have a bold green `+` and a faint
+green tint, removed lines a bold red `−` and a faint red tint (just a hint,
+so the code's colours dominate), hunk headers are dim. A blank line
+separates hunks, and a commit's files. Long lines are cut with `…`, never
+wrapped. `J`/`K` scroll a line, `pgup`/`pgdn` (or
 `ctrl+u`/`ctrl+d`) a page, `home`/`end` to either end, and the wheel over
 the preview three lines. A file's diff shows up to 2000 lines and says how
 many more there are; git runs off the UI with the same 5 s timeout, and an
@@ -833,7 +835,8 @@ file on the left, the new one on the right, each with line numbers in a
 dark grey that barely shows (light grey on a light terminal), so the code
 stands out, and a thin divider a shade brighter between them, as side-by-side diff tools show it.
 Within a hunk, each run of removed lines sits next to the added lines
-that follow it, and the shorter side gets blank filler; context lines
+that follow it, and the shorter side is filled with a dim `╱╱╱` hatching
+where its code would be; context lines
 show on both sides, hunk headers (and a commit's file rules) across both.
 The colours and tints stay (removed on the left, added on the right), and
 long lines are cut with `…` on their own side. An added file shows only
@@ -843,8 +846,8 @@ toggling keeps the same hunk in view.
 
 ```
   1   import { useState } from "react";             │  1   import { useState } from "react";
-  2 − import { MembersList } from "../members/Membe… │  2 + import { UsersTable } from "./UsersTable";
-                                                    │  3 + import { overview } from "./overview";
+  2 − import { MembersList } from "../members/Memb… │  2 + import { UsersTable } from "./UsersTable";
+      ╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱ │  3 + import { overview } from "./overview";
   3                                                 │  4
 ```
 

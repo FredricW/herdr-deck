@@ -1,6 +1,6 @@
  Admin rebuild                                               ◐ 2  ◇ 1  ○ 1  ✉ 0
 ────────────────────────────────────────────────────────────────────────────────
- c3a91f0 Show the overview cards above the users table  +214 −12        5–15/18
+ c3a91f0 Show the overview cards above the users table  +214 −12        5–15/19
  They read the table's query.
 
  ── apps/admin/src/pages/users/UsersOverviewPage.tsx ───────────────────────────
@@ -10,8 +10,8 @@
 
  − export function MembersPage() {
  + export function UsersOverviewPage() {
+
  ── apps/admin/src/pages/users/overview.ts ─────────────────────────────────────
- @@ -0,0 +1,3 @@
 ────────────────────────────────────────────────────────────────────────────────
  Users page                                                     ◐ working  ~60%
  webshop · t-0002-members-admin-users · Building overview            ▰▰▰▰▰▰▱▱▱▱
