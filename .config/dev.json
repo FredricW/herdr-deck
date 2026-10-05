@@ -1,0 +1,12 @@
+{
+  "$schema": "https://raw.githubusercontent.com/FredricW/herdr-deck/main/schema/v1/dev.schema.json",
+  "version": 1,
+  "commands": {
+    "dev": null,
+    "test": "make test",
+    "lint": "make lint",
+    "format": ["gofmt", "-w", "."],
+    "build": { "title": "Build", "run": "make build" },
+    "demo": { "title": "Render README GIFs", "run": "make demo" }
+  }
+}
