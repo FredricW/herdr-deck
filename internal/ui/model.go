@@ -80,6 +80,15 @@ type Options struct {
 	// case (ui.folded_lists). Nil is config.DefaultFoldedLists; an empty,
 	// non-nil list folds none.
 	FoldedLists []string
+	// DrawerHeight is the drawer's share of the pane at its normal size
+	// (ui.drawer_height); zero is config.DefaultDrawerHeight. DrawerKept,
+	// when above zero, is the height last dragged to, and wins over it.
+	DrawerHeight float64
+	DrawerKept   float64
+	// KeepDrawer keeps a height the drawer was dragged (or resized with
+	// + -) to, for the next start. It runs off the UI goroutine. Nil
+	// keeps nothing.
+	KeepDrawer func(float64) error
 	// DiffSplit starts the diff preview in the split layout (diff.layout =
 	// "split"); S switches layouts for the session.
 	DiffSplit bool
@@ -149,7 +158,8 @@ type (
 		err  error
 		verb string // "open" when empty
 	}
-	devUpMsg struct {
+	drawerKeptMsg struct{ err error }
+	devUpMsg      struct {
 		status string
 		err    error
 	}
@@ -191,6 +201,9 @@ type Model struct {
 	drawerOff int
 	mode      drawerMode
 	size      drawerSize
+	frac      float64       // the drawer's share of the pane at its normal size
+	dragging  bool          // the rule above the drawer is being dragged
+	dragFrom  float64       // frac when the drag started
 	choosing  deck.LinkKind // the link chooser's kind, or noKind
 	tab       tabKind       // the drawer tab chosen; curTab is the one shown
 	dfocus    bool          // the drawer has the focus (tab), not the list
@@ -267,6 +280,9 @@ func New(snap deck.Snapshot, opt Options) Model {
 	if opt.FoldedLists == nil {
 		opt.FoldedLists = config.DefaultFoldedLists
 	}
+	if opt.DrawerHeight <= 0 {
+		opt.DrawerHeight = config.DefaultDrawerHeight
+	}
 	m := Model{
 		opt:            opt,
 		keys:           defaultKeys(),
@@ -285,6 +301,10 @@ func New(snap deck.Snapshot, opt Options) Model {
 		height:         defaultHeight,
 		loaded:         opt.Load == nil,
 		loading:        opt.Load != nil, // Init starts the first load
+		frac:           opt.DrawerHeight,
+	}
+	if opt.DrawerKept > 0 && opt.DrawerKept < 1 {
+		m.frac = opt.DrawerKept
 	}
 	if opt.Updated != "" {
 		m.notice = "Updated to v" + opt.Updated + " · " + m.keys.News.Keys()[0] + " what's new"
@@ -550,6 +570,21 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tea.MouseWheelMsg:
 		m.handleWheel(msg.Mouse())
 		return m.followDiff(nil)
+	case tea.MouseMotionMsg:
+		if m.dragging {
+			m.dragTo(msg.Mouse().Y)
+		}
+	case tea.MouseReleaseMsg:
+		if m.dragging {
+			m.dragging = false
+			if m.frac != m.dragFrom {
+				return m, m.keepDrawer()
+			}
+		}
+	case drawerKeptMsg:
+		if msg.err != nil {
+			m.status = "could not keep the drawer height: " + msg.err.Error()
+		}
 	}
 	return m, nil
 }
@@ -928,6 +963,10 @@ func (m Model) handleKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		}
 		m.drawerOff = 0
 		m.ensureVisible()
+	case key.Matches(msg, m.keys.Grow):
+		return m, m.resizeDrawer(1)
+	case key.Matches(msg, m.keys.Shrink):
+		return m, m.resizeDrawer(-1)
 	case key.Matches(msg, m.keys.Sources):
 		m.toggleMode(modeSources)
 	case key.Matches(msg, m.keys.Help):
@@ -1248,6 +1287,12 @@ func (m *Model) handleClick(mouse tea.Mouse) (tea.Model, tea.Cmd) {
 	}
 	l := m.layout()
 	switch {
+	case l.sepY >= 0 && mouse.Y == l.sepY && m.effectiveSize() == sizeNormal:
+		// The rule above the drawer: a press starts a drag, and does
+		// nothing else.
+		if _, _, _, ok := m.drawerBlocks(); ok {
+			m.dragging, m.dragFrom = true, m.frac
+		}
 	case l.attn > 0 && mouse.Y == l.attn:
 		m.openPicker()
 	case mouse.Y == 0 && mouse.X >= l.bang.x0 && mouse.X < l.bang.x1:
@@ -1303,6 +1348,67 @@ func (m *Model) handleClick(mouse tea.Mouse) (tea.Model, tea.Cmd) {
 	}
 	return *m, nil
 }
+
+// dragTo moves the rule above the drawer to screen line y, within the
+// list's and the drawer's limits.
+func (m *Model) dragTo(y int) {
+	_, lo, hi, ok := m.drawerBlocks()
+	if !ok {
+		return
+	}
+	body := max(m.height, 8) - 4
+	listTop := 3 // see layout
+	m.setDrawerBlock(clamp(body-1-(y-listTop), lo, hi))
+}
+
+// resizeDrawer grows (or shrinks) the drawer by delta lines and keeps the
+// new height; a hidden drawer grows to its normal size and a full one
+// shrinks to it.
+func (m *Model) resizeDrawer(delta int) tea.Cmd {
+	switch {
+	case m.size == sizeHidden && delta > 0, m.size == sizeFull && delta < 0:
+		m.size = sizeNormal
+		m.drawerOff = 0
+		m.ensureVisible()
+		return nil
+	case m.effectiveSize() != sizeNormal:
+		return nil
+	}
+	block, lo, hi, ok := m.drawerBlocks()
+	if !ok || clamp(block+delta, lo, hi) == block {
+		return nil
+	}
+	m.setDrawerBlock(block + delta)
+	return m.keepDrawer()
+}
+
+// setDrawerBlock gives the drawer block lines at its normal size, as a
+// share of the pane, so the height follows the pane's.
+func (m *Model) setDrawerBlock(block int) {
+	m.frac = float64(block) / float64(max(m.height, 8)-4)
+	m.relayoutDrawer()
+}
+
+// relayoutDrawer keeps the list's cursor, the drawer's and the preview's
+// scroll in view after the drawer's height changed.
+func (m *Model) relayoutDrawer() {
+	m.scrollDrawer(0)
+	m.ensureVisible()
+	m.scrollPreview(0)
+}
+
+// keepDrawer keeps the drawer's height for the next start.
+func (m *Model) keepDrawer() tea.Cmd {
+	keep, frac := m.opt.KeepDrawer, m.frac
+	if keep == nil {
+		return nil
+	}
+	return func() tea.Msg { return drawerKeptMsg{err: keep(frac)} }
+}
+
+// DrawerHeight is the drawer's share of the pane at its normal size, for a
+// deck that takes over from this one.
+func (m Model) DrawerHeight() float64 { return m.frac }
 
 // focusDrawer gives a row's drawer the focus, as a click in it does.
 func (m *Model) focusDrawer() {

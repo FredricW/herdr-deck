@@ -37,6 +37,7 @@ const (
 	EnvPath                = "HERDR_DECK_CONFIG"
 	EnvRefreshInterval     = "HERDR_DECK_UI_REFRESH_INTERVAL"
 	EnvFoldedLists         = "HERDR_DECK_UI_FOLDED_LISTS"
+	EnvDrawerHeight        = "HERDR_DECK_UI_DRAWER_HEIGHT"
 	EnvProjectsRoot        = "HERDR_PROJECTS_ROOT"
 	EnvLinearWorkspace     = deck.EnvLinearWorkspace
 	EnvLinearStatus        = "HERDR_DECK_LINEAR_STATUS"
@@ -102,6 +103,14 @@ var DefaultFoldedLists = []string{"Backlog", "Resolved"}
 // an empty ui.folded_lists: no list starts folded.
 const NoLists = "none"
 
+// Drawer height default and allowed range, as a share of the pane below
+// the header.
+const (
+	DefaultDrawerHeight = 0.5
+	MinDrawerHeight     = 0.2
+	MaxDrawerHeight     = 0.8
+)
+
 // Refresh interval default and allowed range.
 const (
 	DefaultRefreshInterval = 5 * time.Second
@@ -136,6 +145,8 @@ type UI struct {
 	RefreshInterval *Duration `toml:"refresh_interval"`
 	// FoldedLists are the list headings that start folded; [] folds none.
 	FoldedLists *[]string `toml:"folded_lists"`
+	// DrawerHeight is the drawer's share of the pane until it is dragged.
+	DrawerHeight *float64 `toml:"drawer_height"`
 }
 
 // Projects is the [projects] table.
@@ -334,6 +345,7 @@ func (f *File) decoders(md toml.MetaData) map[string]func(toml.Primitive) error 
 	return map[string]func(toml.Primitive) error{
 		KeyRefreshInterval:     into(md, &f.UI, func(t *UI) **Duration { return &t.RefreshInterval }),
 		KeyFoldedLists:         into(md, &f.UI, func(t *UI) **[]string { return &t.FoldedLists }),
+		KeyDrawerHeight:        into(md, &f.UI, func(t *UI) **float64 { return &t.DrawerHeight }),
 		KeyProjectsRoot:        into(md, &f.Projects, func(t *Projects) **string { return &t.Root }),
 		KeyLinearWorkspace:     into(md, &f.Linear, func(t *Linear) **string { return &t.Workspace }),
 		KeyLinearStatus:        into(md, &f.Linear, func(t *Linear) **bool { return &t.Status }),
@@ -464,6 +476,10 @@ type Settings struct {
 	// FoldedLists are the headings of the lists that start folded, matched
 	// without regard to case. It is never nil; empty folds none.
 	FoldedLists []string
+	// DrawerHeight is the drawer's default share of the pane below the
+	// header, MinDrawerHeight to MaxDrawerHeight. A dragged height, kept in
+	// the state folder (DrawerFile), wins over it.
+	DrawerHeight float64
 	// LinearAPIKeyCommand is the argv of the command that prints the Linear
 	// API key, or nil. $LINEAR_API_KEY wins over it (internal/source/linear).
 	LinearAPIKeyCommand []string
@@ -532,6 +548,27 @@ func Resolve(fl Flags, getenv func(string) string, lookPath func(string) (string
 		def: func() ([]string, string) {
 			return append([]string{}, DefaultFoldedLists...), ListText(DefaultFoldedLists)
 		},
+	}); err != nil {
+		return s, err
+	}
+
+	if s.DrawerHeight, err = resolve(r, KeyDrawerHeight, reader[float64]{
+		parse: func(t string) (float64, string, error) {
+			v, err := parseFraction(strings.TrimSpace(t))
+			return v, FractionText(v), err
+		},
+		file: func() (float64, string, bool) {
+			if f.UI == nil || f.UI.DrawerHeight == nil {
+				return 0, "", false
+			}
+			v := *f.UI.DrawerHeight
+			if err := checkFraction(v); err != nil {
+				r.problem(KeyDrawerHeight, fmt.Sprintf("%v; using %v", err, FractionText(DefaultDrawerHeight)))
+				return 0, "", false
+			}
+			return v, FractionText(v), true
+		},
+		def: func() (float64, string) { return DefaultDrawerHeight, FractionText(DefaultDrawerHeight) },
 	}); err != nil {
 		return s, err
 	}
@@ -986,6 +1023,27 @@ func parseInterval(s string) (time.Duration, error) {
 		return 0, fmt.Errorf("%q is not a duration such as \"5s\"", s)
 	}
 	return d, checkInterval(d)
+}
+
+// parseFraction reads a drawer height such as 0.5.
+func parseFraction(s string) (float64, error) {
+	v, err := strconv.ParseFloat(s, 64)
+	if err != nil {
+		return 0, fmt.Errorf("%q is not a number such as 0.5", s)
+	}
+	return v, checkFraction(v)
+}
+
+func checkFraction(v float64) error {
+	if v < MinDrawerHeight || v > MaxDrawerHeight {
+		return fmt.Errorf("%s is outside %s–%s", FractionText(v), FractionText(MinDrawerHeight), FractionText(MaxDrawerHeight))
+	}
+	return nil
+}
+
+// FractionText writes a drawer height as the file holds it: 0.5, 0.35.
+func FractionText(v float64) string {
+	return strconv.FormatFloat(v, 'f', -1, 64)
 }
 
 func checkInterval(d time.Duration) error {

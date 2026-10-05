@@ -31,6 +31,7 @@ view = "tree"
 [ui]
 refresh_interval = "30s"
 folded_lists = ["In progress", " backlog ", "Backlog"]
+drawer_height = 0.35
 `)
 	no := false
 	s, err := Resolve(fls(KeyUpdateCheck, &no, KeyDiffCommand, "git diff {base}"), getenv, noHunk)
@@ -55,6 +56,7 @@ folded_lists = ["In progress", " backlog ", "Backlog"]
 		KeyGitHubEnabled:   {Text: "true", Source: FromDefault},
 		KeyFigmaDesktop:    {Text: "true", Source: FromFile},
 		KeyRefreshInterval: {Text: "30s", Source: FromFile},
+		KeyDrawerHeight:    {Text: "0.35", Source: FromFile},
 		KeyProjectsRoot:    {Text: filepath.Join(home, ".herdr-projects"), Source: FromDefault},
 	}
 	for _, sp := range Specs {

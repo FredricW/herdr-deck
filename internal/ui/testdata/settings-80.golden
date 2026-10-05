@@ -1,10 +1,11 @@
  Admin rebuild                                               ◐ 2  ◇ 1  ○ 1  ✉ 0
 ────────────────────────────────────────────────────────────────────────────────
 ─ Settings · /home/ada/.config/herdr-deck/config.toml ──────────────────────────
- [ui] the list and how often it reloads
+ [ui] the list, the drawer and how often it reloads
  ▸ ui.refresh_interval     5s                                            default
      how often the deck reloads when no file change says to; 1s to 10m
    ui.folded_lists         Backlog, Resolved                             default
+   ui.drawer_height        0.5                                           default
 
  [projects] herdr-projects
    projects.root           /home/ada/.herdr-projects                     default
@@ -23,6 +24,5 @@
  [browser] web links
    browser.reuse_tabs      true                                          default
 
- [updates] new versions of the deck
 ────────────────────────────────────────────────────────────────────────────────
  ↵ edit  x remove  j k move  esc back  q quit                             v9.9.9

@@ -274,6 +274,45 @@ func TestResolveRefreshIntervalRange(t *testing.T) {
 	}
 }
 
+func TestResolveDrawerHeight(t *testing.T) {
+	getenv, home := env(t, map[string]string{EnvDrawerHeight: "1.5"})
+	path := filepath.Join(home, ".config", "herdr-deck", "config.toml")
+	write(t, path, "[ui]\ndrawer_height = 0.1\n")
+	s, err := Resolve(Flags{}, getenv, noHunk)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if s.DrawerHeight != DefaultDrawerHeight {
+		t.Errorf("DrawerHeight = %v, want the default", s.DrawerHeight)
+	}
+	if len(s.Problems) != 2 || !strings.Contains(s.Problems[0], EnvDrawerHeight) || !strings.Contains(s.Problems[1], "0.1 is outside 0.2–0.8") {
+		t.Errorf("problems = %q, want the env value then the file value", s.Problems)
+	}
+	if _, err := Resolve(fls(KeyDrawerHeight, "big"), getenv, noHunk); err == nil {
+		t.Error("a bad --ui-drawer-height must be an error")
+	}
+	if s, err := Resolve(fls(KeyDrawerHeight, "0.3"), getenv, noHunk); err != nil || s.DrawerHeight != 0.3 {
+		t.Errorf("--ui-drawer-height 0.3 = %v, %v", s.DrawerHeight, err)
+	}
+
+	// The settings page writes a TOML float, which reads back.
+	if err := Save(path, KeyDrawerHeight, ptr(" .65 ")); err != nil {
+		t.Fatal(err)
+	}
+	if b, _ := os.ReadFile(path); !strings.Contains(string(b), "drawer_height = 0.65\n") {
+		t.Errorf("file = %q", b)
+	}
+	noEnv := func(k string) string {
+		if k == "HOME" {
+			return home
+		}
+		return ""
+	}
+	if s, err := Resolve(Flags{}, noEnv, noHunk); err != nil || s.DrawerHeight != 0.65 || s.Values[KeyDrawerHeight].Text != "0.65" {
+		t.Errorf("after saving 0.65: %v, %+v, %v", s.DrawerHeight, s.Values[KeyDrawerHeight], err)
+	}
+}
+
 func TestResolveProgramDefaults(t *testing.T) {
 	getenv, _ := env(t, nil)
 	s, err := Resolve(Flags{}, getenv, withHunk)

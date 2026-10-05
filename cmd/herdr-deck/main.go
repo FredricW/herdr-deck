@@ -116,12 +116,13 @@ func run(args []string) error {
 			df := cur.Load().Diff
 			return runner.Run(df, launch.CommitArgv(df, path, sha, files...), path)
 		},
-		DiffTree:    cfg.DiffView == config.DiffViewTree,
-		DiffSplit:   cfg.DiffLayout == config.DiffLayoutSplit,
-		FoldedLists: cfg.FoldedLists,
-		Tick:        cfg.RefreshInterval,
-		Version:     shortVersionString(),
-		Changelog:   ownChangelog,
+		DiffTree:     cfg.DiffView == config.DiffViewTree,
+		DiffSplit:    cfg.DiffLayout == config.DiffLayoutSplit,
+		FoldedLists:  cfg.FoldedLists,
+		DrawerHeight: cfg.DrawerHeight,
+		Tick:         cfg.RefreshInterval,
+		Version:      shortVersionString(),
+		Changelog:    ownChangelog,
 		Settings: &ui.SettingsHooks{
 			Resolve: func() (config.Settings, error) { return config.Resolve(fl, os.Getenv, exec.LookPath) },
 			Save:    config.Save,
@@ -131,6 +132,11 @@ func run(args []string) error {
 	// The sample deck notes an update too, so `make demo` can show it.
 	if dir := config.StateDir(os.Getenv); dir != "" {
 		opt.Updated = changelog.Seen(filepath.Join(dir, changelog.SeenFile), opt.Version)
+		// The drawer keeps its dragged height across restarts, in the
+		// state folder: dragging never writes the config file.
+		drawerFile := filepath.Join(dir, config.DrawerFile)
+		opt.DrawerKept, _ = config.ReadDrawerHeight(drawerFile)
+		opt.KeepDrawer = func(v float64) error { return config.WriteDrawerHeight(drawerFile, v) }
 	}
 	if *demo {
 		slug := *slugFlag
@@ -277,6 +283,7 @@ func run(args []string) error {
 		// Keep what the settings page saved since the start.
 		opt.Tick, opt.FigmaDesktop = cur.Load().RefreshInterval, cur.Load().FigmaDesktop
 		opt.FoldedLists = cur.Load().FoldedLists
+		opt.DrawerHeight, opt.DrawerKept = cur.Load().DrawerHeight, m.DrawerHeight()
 		opt.Updated = ""
 		model = ui.New(m.Snapshot(), opt)
 	}

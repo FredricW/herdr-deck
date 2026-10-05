@@ -49,6 +49,13 @@ Made by the user on 2026-10-03.
 - The six open questions, answered as proposed:
   1. **Drawer height:** the drawer takes **50 %** of the pane (was 40 %).
      In a 28-row pane that leaves eight lines for the tab's content.
+     Since 2026-10-05 that is the default (`ui.drawer_height`): the rule
+     above the drawer can be dragged with the mouse (it turns into a blue
+     `━━━` line while it moves), and `+` / `-` move it a line. The list
+     keeps its column titles and three rows, the drawer its rule, the card,
+     the tab bar with its blank lines and two lines of content; a pane too
+     small for both splits in half as before. The height is kept as a share
+     of the pane, across resizes and restarts, and `z` cycles back to it.
   2. **Section order:** *Next*, *PR*, *Note*, *Links*, *Dev*, *Thread*.
   3. **Tab memory:** the tab stays as you move through the list; the
      needs-you jump shows Overview, and a row without a thread shows

@@ -2,6 +2,7 @@ package ui
 
 import (
 	"fmt"
+	"math"
 	"strings"
 
 	tea "charm.land/bubbletea/v2"
@@ -63,9 +64,36 @@ func (m Model) headSize() int {
 	return 5
 }
 
-// layout works out the frame for the current size and state. The drawer
-// takes half of the pane below the header at its normal size: the rule
-// above it, the card, the tab bar and the tab's content.
+// Limits on a dragged drawer: the list keeps its column titles and three
+// rows, the drawer its rule, a row's card and tab bar (with their blank
+// lines) and two lines of content.
+const (
+	minListRows   = 3
+	minDrawerRows = 1 + 5 + 2
+)
+
+// drawerBlocks are how many lines the drawer takes at its normal size,
+// its rule included, and the fewest and most a drag can give it; ok is
+// false when the pane is too small for both limits, and the drawer then
+// takes half of it.
+func (m Model) drawerBlocks() (block, lo, hi int, ok bool) {
+	body := max(m.height, 8) - 4 // header, rule, footer rule, footer
+	lo, hi = minDrawerRows, body-1-minListRows
+	if hi < lo {
+		return max(body/2, 6), 0, 0, false
+	}
+	return clamp(int(math.Round(m.frac*float64(body))), lo, hi), lo, hi, true
+}
+
+func (m Model) drawerBlock() int {
+	b, _, _, _ := m.drawerBlocks()
+	return b
+}
+
+// layout works out the frame for the current size and state. At its normal
+// size the drawer takes its share of the pane below the header (m.frac,
+// half unless set or dragged): the rule above it, the card, the tab bar and
+// the tab's content.
 func (m Model) layout() frame {
 	h := max(m.height, 8)
 	f := frame{listTop: 3, sepY: -1, tabY: -1}
@@ -87,7 +115,7 @@ func (m Model) layout() frame {
 		f.drawerTop = f.headTop + f.headN
 		f.drawerH = h - 2 - f.drawerTop
 	default:
-		block := max(body/2, 6)
+		block := m.drawerBlock()
 		f.listH = max(body-1-block, 1)
 		block = body - 1 - f.listH
 		f.sepY = f.listTop + f.listH
@@ -160,6 +188,10 @@ func (m Model) render() string {
 	}
 	if f.drawer != nil {
 		switch {
+		case m.dragging && f.drawer.title != "":
+			lines = append(lines, dragRule(f.drawer.title, w))
+		case m.dragging && f.sepY >= 0:
+			lines = append(lines, dragRule("", w))
 		case f.drawer.title != "":
 			lines = append(lines, drawerRule(f.drawer.title, w))
 		case f.sepY >= 0:
@@ -183,6 +215,17 @@ func (m Model) render() string {
 func drawerRule(title string, w int) string {
 	t := "─ " + ansi.Truncate(title, max(w-4, 1), "…") + " "
 	return bold.Render(t) + dim.Render(strings.Repeat("─", max(w-ansi.StringWidth(t), 0)))
+}
+
+// dragRule is the rule above the drawer while it is dragged: blue, with
+// the drawer's title when it has one.
+func dragRule(title string, w int) string {
+	t := ""
+	if title != "" {
+		t = "━ " + ansi.Truncate(title, max(w-4, 1), "…") + " "
+	}
+	st := lipgloss.NewStyle().Foreground(colBlue)
+	return st.Bold(true).Render(t) + st.Render(strings.Repeat("━", max(w-ansi.StringWidth(t), 0)))
 }
 
 // header is the project's name and its counts: needs you, working, review,

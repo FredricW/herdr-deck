@@ -160,6 +160,11 @@ lists what the user chose.
 - **Drawer.** It shows the selected row, and takes half of the pane below
   the header (the list keeps the rest; it scrolls to keep the cursor in
   view). `z` cycles the drawer through that height, full height and hidden.
+  Dragging the rule above it with the mouse, or `+` / `-`, resizes it
+  (2026-10-05): the list keeps three rows, the drawer its card, tab bar and
+  two lines. The height is a share of the pane, kept in the state folder
+  (`drawer-height`), never in the config file; `ui.drawer_height` (default
+  0.5, 0.2–0.8) is the height until the first drag.
   From the top:
   - **Header card**, two lines. Line 1: the row's title (bold); at the right
     a status pill, the status glyph plus a word (`● needs you`, `◐ working`,
@@ -521,7 +526,8 @@ default (`internal/config`). Only the settings page writes the file, and
 never a secret.
 
 - One TOML table per area (user, 2026-10-04): `[ui]` refresh_interval (Go
-  duration, 1s–10m, default 5s), folded_lists; `[projects]` root;
+  duration, 1s–10m, default 5s), folded_lists, drawer_height (0.2–0.8,
+  default 0.5); `[projects]` root;
   `[linear]` workspace, status, api_key_command; `[figma]` desktop;
   `[browser]` reuse_tabs (default true); `[updates]` check, auto_restart;
   `[editor]` command, terminal; `[diff]` command, terminal, view (list or

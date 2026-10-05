@@ -8,6 +8,15 @@ and versions follow [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+
+- Drag the rule between the list and the drawer to resize the drawer, or
+  press `+` and `-`. The list keeps at least three rows and the drawer its
+  card, tab bar and two lines. The height is a share of the pane, so it
+  follows a resize, and it is kept for the next start (in the deck's state
+  folder); `z` cycles back to it. The new `ui.drawer_height` setting
+  (default `0.5`) is the height until you drag.
+
 ## [0.1.6] - 2026-10-05
 
 ### Changed

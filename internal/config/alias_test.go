@@ -14,6 +14,7 @@ import (
 var samples = map[string]struct{ text, lit, shown, otherLit, other string }{
 	KeyRefreshInterval:     {"30s", `"30s"`, "30s", `"20s"`, "20s"},
 	KeyFoldedLists:         {"Later", `["Later"]`, "Later", `["Icebox"]`, "Icebox"},
+	KeyDrawerHeight:        {"0.4", "0.4", "0.4", "0.6", "0.6"},
 	KeyProjectsRoot:        {"/work/projects", `"/work/projects"`, "/work/projects", `"/file/root"`, "/file/root"},
 	KeyLinearWorkspace:     {"acme", `"acme"`, "acme", `"globex"`, "globex"},
 	KeyLinearStatus:        {"false", "false", "false", "true", "true"},

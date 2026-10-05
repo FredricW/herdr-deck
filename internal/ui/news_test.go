@@ -116,7 +116,7 @@ func TestNewsKey(t *testing.T) {
 		t.Errorf("w again: mode %d, want the row", m.mode)
 	}
 	m, _ = press(m, keys("?z")...)
-	m, _ = press(m, tea.KeyPressMsg{Code: tea.KeyPgDown}, tea.KeyPressMsg{Code: tea.KeyPgDown})
+	m, _ = press(m, tea.KeyPressMsg{Code: tea.KeyPgDown}, tea.KeyPressMsg{Code: tea.KeyPgDown}, tea.KeyPressMsg{Code: tea.KeyPgDown})
 	if sc := screen(m); !strings.Contains(sc, "what's new") {
 		t.Errorf("help does not list w:\n%s", sc)
 	}
