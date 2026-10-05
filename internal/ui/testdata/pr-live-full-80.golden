@@ -2,7 +2,9 @@
 ────────────────────────────────────────────────────────────────────────────────
  Document select for summary                                           ◇ review
  t-0004 · Summary select documents · pane w21:p1              #2320 ✕ 1 failing
- Overview   Files   Commits   Log 6
+
+  Overview   Files   Commits   Log 6                                   ↓ 2 more
+
  ── PR ──
  [5 #2320] open · review required · 2 comments (sam, alex)
  ✕ 1 failing: [lint]  ◌ 1 running: test (macos-latest) 6m  ✓ 2 passed
@@ -22,7 +24,5 @@
  [6 Frontend ●] [7 API docs ○]
  ── Thread ──
  pane     w21:p1
- branch   hp/admin-rebuild/t-0004-summary
- base     origin/main
 ────────────────────────────────────────────────────────────────────────────────
  1-9 link  l f n g o first  ↵ pane  [ ] tab  z drawer  ? help             v9.9.9

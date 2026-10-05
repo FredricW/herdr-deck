@@ -47,19 +47,20 @@ func (m Model) effectiveSize() drawerSize {
 }
 
 // headSize is how many lines the drawer draws above its scrolling
-// content: a row's card and tab bar (or the report's line), a list
-// heading's card, or none for a full view under its title rule.
+// content: a row's card and tab bar (or the report's line) with a blank
+// line on either side of it, a list heading's card, or none for a full
+// view under its title rule.
 func (m Model) headSize() int {
 	r, ok := m.selected()
 	switch {
 	case (m.mode == modeReport || m.mode == modeCheck) && ok:
-		return 3
+		return 5
 	case m.mode != modeRow && m.mode != modeReport && m.mode != modeCheck:
 		return 0
 	case !ok || r.kind == rowHeading:
 		return 2
 	}
-	return 3
+	return 5
 }
 
 // layout works out the frame for the current size and state. The drawer
@@ -93,8 +94,8 @@ func (m Model) layout() frame {
 		f.drawerTop = f.headTop + f.headN
 		f.drawerH = block - 1 - f.headN
 	}
-	if head == 3 && f.headN == 3 && m.mode == modeRow {
-		f.tabY = f.headTop + 2
+	if head == 5 && f.headN >= 4 && m.mode == modeRow {
+		f.tabY = f.headTop + 3
 	}
 	// Other projects' needs take the list's last line while it has two.
 	if f.listH >= 2 && m.otherNeeds() > 0 {

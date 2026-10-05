@@ -691,12 +691,12 @@ func TestEditorPaneAndReport(t *testing.T) {
 func TestDrawerSizes(t *testing.T) {
 	m, _ := newModel(t, calm(), 80, 28)
 	// Half of the pane: the list keeps 11 rows; the drawer its rule, the
-	// card, the tab bar and 8 lines of content.
-	if l := m.layout(); l.drawerH != 8 || l.listH != 11 || l.headN != 3 {
+	// card, the tab bar between blank lines and 6 lines of content.
+	if l := m.layout(); l.drawerH != 6 || l.listH != 11 || l.headN != 5 || l.tabY != l.headTop+3 {
 		t.Fatalf("normal: list %d, head %d, drawer %d", l.listH, l.headN, l.drawerH)
 	}
 	m, _ = press(m, keys("z")...)
-	if l := m.layout(); l.listH != 0 || l.drawerH != 21 {
+	if l := m.layout(); l.listH != 0 || l.drawerH != 19 {
 		t.Fatalf("full: list %d, drawer %d", l.listH, l.drawerH)
 	}
 	m, _ = press(m, keys("z")...)
@@ -791,7 +791,7 @@ func TestDrawerScrollStaysInContent(t *testing.T) {
 	s.Threads[1].Report = strings.Repeat("line\n\n", 60)
 	m, _ := newModel(t, s, 80, 28)
 	m, _ = press(m, keys("r")...)
-	for range 10 {
+	for range 20 {
 		m, _ = press(m, tea.KeyPressMsg{Code: tea.KeyPgDown})
 	}
 	l := m.layout()

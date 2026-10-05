@@ -15,14 +15,14 @@
 ────────────────────────────────────────────────────────────────────────────────
  Document select for summary                                           ◇ review
  t-0004 · Summary select documents · pane w21:p1              #2320 ✕ 2 failing
- Overview   Files   Commits   Log 7                                    ↓ Thread
+
+  Overview   Files   Commits   Log 7                             ↓ Dev · Thread
+
  ✉ 1 update · see Log
  ── PR ──
  [5 #2320] open · review required · 2 comments (sam, alex)
  ✕ 2 failing: lint, test (ubuntu-latest)
  ── Links ──
  [1 ABC-1191] [2 Figma 598-48083] [3 1138-88367] [4 635-76529]
- ── Dev ──
- :5174 frontend ●   :8002 api ○
 ────────────────────────────────────────────────────────────────────────────────
  1-9 link  l f n g o first  ↵ pane  [ ] tab  z drawer  ? help             v9.9.9

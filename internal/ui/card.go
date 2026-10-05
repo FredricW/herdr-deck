@@ -92,11 +92,11 @@ func tabStyle(active, enabled, light bool) lipgloss.Style {
 
 // tabBar is the tab bar's line and its clickable tabs: each label with one
 // space of padding on its background, one space apart, and the hint at
-// the right.
+// the right, the whole bar one column in from either edge.
 func (m Model) tabBar(r row, hasThread bool, active tabKind, hint string, width int) (string, []zone) {
 	var b strings.Builder
 	var zones []zone
-	x := 0
+	x := 1
 	for tab := range numTabs {
 		enabled := m.tabEnabled(r, tab)
 		label := tab.String()
@@ -134,9 +134,9 @@ func (m Model) tabBar(r row, hasThread bool, active tabKind, hint string, width 
 	}
 	right := ""
 	if hint != "" {
-		right = dim.Render(hint) + " "
+		right = dim.Render(hint)
 	}
-	return spread(b.String(), right, width), zones
+	return " " + spread(b.String(), right, max(width-2, 1)) + " ", zones
 }
 
 // tabEnabled says whether the row has something behind tab: Files needs a

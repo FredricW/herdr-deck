@@ -15,14 +15,14 @@
 ────────────────────────────────────────────────────────────────────────────────
  Users page                                                     ◐ working  ~60%
  t-0002 · Members /admin/users · Building overview · pane w1Z:p1     ▰▰▰▰▰▰▱▱▱▱
- Overview   Files 11   Commits 4   Log 7                               ↓ 2 more
- ● uncommitted · 2 files                                                → Files
+
+  Overview   Files 11   Commits 4   Log 7                              ↓ 3 more
+
  1 ▾ c3a91f0 Show the overview cards above the users table        12m  +214 −12
        M  apps/admin/src/pages/users/UsersOverviewPage.tsx             +166 −12
        A  apps/admin/src/pages/users/overview.ts                            +48
        R  apps/admin/src/pages/{members → users}/index.ts
        D  apps/admin/src/old.ts                                              −9
 ▸2 ▾ 8be2d41 Add the users columns                                 2h    +48 −0
-       A  apps/admin/src/pages/users/columns.ts                             +48
 ────────────────────────────────────────────────────────────────────────────────
  j k move  ↵ preview  space files  d diff tool  esc list  ? help          v9.9.9

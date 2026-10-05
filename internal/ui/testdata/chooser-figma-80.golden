@@ -15,14 +15,14 @@
 ────────────────────────────────────────────────────────────────────────────────
  Document select for summary                                           ◇ review
  t-0004 · Summary select documents · pane w21:p1                        #2320 ✓
- Overview   Files   Commits   Log 6                                    ↓ Thread
+
+  Overview   Files   Commits   Log 6                                   ↓ Thread
+
  ── PR ──
  [5 #2320] open · review required · 2 comments (sam, alex)
  ✓ no failing checks
  ── Links ──
  [1 ABC-1191] [2 Figma 598-48083] [3 1138-88367] [4 635-76529]
  ── Dev ──
- :5174 frontend ●   :8002 api ○
- [6 Frontend ●] [7 API docs ○]
 ────────────────────────────────────────────────────────────────────────────────
  Figma: 2-4 open  d desktop  a all  f first  esc cancel                   v9.9.9

@@ -2,7 +2,9 @@
 ────────────────────────────────────────────────────────────
  Users page                                 ◐ working  ~60%
  t-0002 · Building overview                      ▰▰▰▰▰▰▱▱▱▱
- Overview   Files 11   Commits 39   Log 7
+
+  Overview   Files 11   Commits 39   Log 7
+
  ● uncommitted · 2 files                            → Files
  1 ▸ c3a91f0 Show the overview cards above …  12m  +214 −12
  2 ▸ 8be2d41 Add the users columns             2h    +48 −0
@@ -21,8 +23,6 @@
  · ▸ 000000a Step 11 of the table              1d    +10 −1
  · ▸ 000000b Step 12 of the table              1d    +11 −1
      +23 more
-
-
 
 ────────────────────────────────────────────────────────────
  1-9 commit  v preview  tab focus  [ ] tab            v9.9.9

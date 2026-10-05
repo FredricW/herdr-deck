@@ -2,7 +2,9 @@
 ────────────────────────────────────────────────────────────
  Document select for summary                       ◇ review
  t-0004                                             #2320 ✓
- Overview   Files   Commits   Log 6
+
+  Overview   Files   Commits   Log 6
+
 
  ── PR ──
  [5 #2320] open · review required · 2c
@@ -20,8 +22,6 @@
  ── Thread ──
  pane    w21:p1
  branch  hp/admin-rebuild/t-0004-summary
-
-
 
 
 ────────────────────────────────────────────────────────────

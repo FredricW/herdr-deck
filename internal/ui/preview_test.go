@@ -103,7 +103,7 @@ func TestPreviewGolden(t *testing.T) {
 
 func TestPreviewShowsAndFollowsFile(t *testing.T) {
 	var calls []string
-	m, o := previewModel(t, 80, 28, &calls)
+	m, o := previewModel(t, 80, 32, &calls)
 	m, _ = press(m, keys("dv")...)
 	if !m.preview || !strings.Contains(screen(m), "UsersOverviewPage.tsx  +214 −12") {
 		t.Fatalf("no preview:\n%s", screen(m))
