@@ -25,6 +25,19 @@ type frame struct {
 	bang                       zone // the header's `! N`, if shown
 	// attn is the screen line saying other projects need the user, or 0.
 	attn int
+	// barred says the drawer's lines overflow it and leave the last
+	// column to a scrollbar: a full view's (a report, What's new, …).
+	barred bool
+}
+
+// drawerBar is the scrollbar of a full view's lines, scrolled to off.
+func (f frame) drawerBar(off int) scrollbar {
+	if f.drawer == nil {
+		return scrollbar{}
+	}
+	s := scrollbar{total: len(f.drawer.lines), h: f.drawerH}
+	s.off = clamp(off, 0, s.most())
+	return s
 }
 
 func (m Model) View() tea.View {
@@ -134,6 +147,14 @@ func (m Model) layout() frame {
 	}
 	if f.drawerH > 0 {
 		f.drawer = m.drawerFor(m.width, f.drawerH)
+		// A full view that overflows is laid out again two columns
+		// narrower: a blank one, so right-aligned text keeps clear of
+		// it, and its scrollbar. A row's drawer keeps its width and
+		// says what is below in its tab bar.
+		if m.mode != modeRow && len(f.drawer.lines) > f.drawerH && m.width >= barMinWidth {
+			f.drawer = m.drawerFor(m.width-2, f.drawerH)
+			f.barred = true
+		}
 	}
 	f.bang = m.bangZone()
 	return f
@@ -200,13 +221,16 @@ func (m Model) render() string {
 		lines = append(lines, f.drawer.headLines(f.headN)...)
 		dl := f.drawer.lines
 		off := clamp(m.drawerOff, 0, max(len(dl)-f.drawerH, 0))
-		for i := range f.drawerH {
+		body := make([]string, f.drawerH)
+		for i := range body {
 			if j := off + i; j < len(dl) {
-				lines = append(lines, dl[j].text)
-			} else {
-				lines = append(lines, "")
+				body[i] = dl[j].text
 			}
 		}
+		if bar := f.drawerBar(off); f.barred && bar.shown() {
+			body = withBar(body, bar, w, m.bar == barDrawer, m.light)
+		}
+		lines = append(lines, body...)
 	}
 	lines = append(lines, rule, m.footer(w))
 	return strings.Join(lines, "\n")

@@ -204,6 +204,8 @@ type Model struct {
 	frac      float64       // the drawer's share of the pane at its normal size
 	dragging  bool          // the rule above the drawer is being dragged
 	dragFrom  float64       // frac when the drag started
+	bar       barKind       // the scrollbar whose thumb is being dragged
+	barGrab   int           // the row of the thumb the drag holds
 	choosing  deck.LinkKind // the link chooser's kind, or noKind
 	tab       tabKind       // the drawer tab chosen; curTab is the one shown
 	dfocus    bool          // the drawer has the focus (tab), not the list
@@ -574,7 +576,11 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if m.dragging {
 			m.dragTo(msg.Mouse().Y)
 		}
+		if m.bar != barNone {
+			m.barTo(msg.Mouse().Y)
+		}
 	case tea.MouseReleaseMsg:
+		m.bar = barNone
 		if m.dragging {
 			m.dragging = false
 			if m.frac != m.dragFrom {
@@ -1286,6 +1292,15 @@ func (m *Model) handleClick(mouse tea.Mouse) (tea.Model, tea.Cmd) {
 		return *m, m.pickClick(mouse.Y)
 	}
 	l := m.layout()
+	if k, s, top := m.barAt(l, mouse); k != barNone {
+		// A scrollbar: a press grabs the thumb, or jumps there on the
+		// track, and a drag goes on scrolling.
+		var off int
+		m.barGrab, off = s.grab(mouse.Y - top)
+		m.bar = k
+		m.setBarOff(k, off)
+		return *m, nil
+	}
 	switch {
 	case l.sepY >= 0 && mouse.Y == l.sepY && m.effectiveSize() == sizeNormal:
 		// The rule above the drawer: a press starts a drag, and does
@@ -1347,6 +1362,51 @@ func (m *Model) handleClick(mouse tea.Mouse) (tea.Model, tea.Cmd) {
 		}
 	}
 	return *m, nil
+}
+
+// barAt is the scrollbar under the pointer, if any, with its place and
+// its track's first screen line.
+func (m Model) barAt(l frame, mouse tea.Mouse) (barKind, scrollbar, int) {
+	if mouse.X != m.width-1 {
+		return barNone, scrollbar{}, 0
+	}
+	if s := m.previewBar(m.width, l.listH); m.preview && s.shown() && mouse.Y >= l.listTop && mouse.Y < l.listTop+l.listH {
+		return barPreview, s, l.listTop
+	}
+	if s := l.drawerBar(m.drawerOff); l.barred && s.shown() && mouse.Y >= l.drawerTop && mouse.Y < l.drawerTop+l.drawerH {
+		return barDrawer, s, l.drawerTop
+	}
+	return barNone, scrollbar{}, 0
+}
+
+// barTo drags the held scrollbar's thumb to screen line y, keeping the
+// row of it the press took hold of under the pointer.
+func (m *Model) barTo(y int) {
+	l := m.layout()
+	switch m.bar {
+	case barPreview:
+		if s := m.previewBar(m.width, l.listH); m.preview && s.shown() {
+			m.setBarOff(barPreview, s.offsetAt(y-l.listTop-m.barGrab))
+			return
+		}
+	case barDrawer:
+		if s := l.drawerBar(m.drawerOff); l.barred && s.shown() {
+			m.setBarOff(barDrawer, s.offsetAt(y-l.drawerTop-m.barGrab))
+			return
+		}
+	}
+	m.bar = barNone // the view went away
+}
+
+func (m *Model) setBarOff(k barKind, off int) {
+	switch k {
+	case barPreview:
+		m.prevOff = off
+		m.scrollPreview(0)
+	case barDrawer:
+		m.drawerOff = off
+		m.scrollDrawer(0)
+	}
 }
 
 // dragTo moves the rule above the drawer to screen line y, within the

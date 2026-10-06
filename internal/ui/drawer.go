@@ -483,7 +483,7 @@ var helpLines = [][2]string{
 	{"w", "what's new: the changelog, newest first; with ↑ in the header, also what the newer version brings"},
 	{"?", "this help; esc returns"},
 	{"q", "quit"},
-	{"mouse", "click a row, tab, chip, file, Log event, list heading, ! N or the other-projects line; drag the rule above the drawer to resize it; the wheel moves the list or scrolls the drawer"},
+	{"mouse", "click a row, tab, chip, file, Log event, list heading, ! N or the other-projects line; drag the rule above the drawer to resize it, or a scrollbar's thumb to scroll (a press on its track jumps there); the wheel moves the list or scrolls the drawer"},
 }
 
 // tilde shortens a path under the home folder to ~/….

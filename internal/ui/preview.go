@@ -382,6 +382,10 @@ func (m Model) previewLines(w, h int) []string {
 		head = m.previewHeader(f, "", ok, w, h)
 	}
 	lines := []string{head}
+	bar := m.previewBar(w, h)
+	if bar.shown() {
+		w-- // the scrollbar's column
+	}
 	if !ok {
 		lines = append(lines, dim.Render("  reading the diff…"))
 	} else {
@@ -424,7 +428,20 @@ func (m Model) previewLines(w, h int) []string {
 	for len(lines) < h+1 {
 		lines = append(lines, "")
 	}
-	return lines[:h+1]
+	lines = lines[:h+1]
+	if bar.shown() {
+		copy(lines[1:], withBar(lines[1:], bar, w+1, m.bar == barPreview, m.light))
+	}
+	return lines
+}
+
+// previewBar is the preview's scrollbar in a view of w columns and h
+// lines; it shows once the diff is read and overflows.
+func (m Model) previewBar(w, h int) scrollbar {
+	if _, ok := m.patches[m.prevKey]; !ok || w < barMinWidth {
+		return scrollbar{}
+	}
+	return scrollbar{total: m.previewTotal(), h: h, off: m.prevOff}
 }
 
 // previewHeader names the file (after the short sha of the commit it is

@@ -1,28 +1,28 @@
  Admin rebuild                           ◐ 2  ◇ 1  ○ 1  ✉ 0
 ────────────────────────────────────────────────────────────
 ─ What's new ───────────────────────────────────────────────
- Unreleased · ● this build
-
- ### Added
-
- • A view that is not released yet.
-
- v0.2.0 · 2026-09-30
-
- ### Added
-
- • Tasks fold under their list heading, and space unfolds
- them again when the list is long.
- • ABC-123 style IDs open in Linear.
-
- ### Fixed
-
- • The drawer no longer flickers on reload.
-
- v0.1.0 · 2026-09-01
-
- The first release.
-
- ### Added
+ Unreleased · ● this build                                 ┃
+                                                           ┃
+ ### Added                                                 ┃
+                                                           ┃
+ • A view that is not released yet.                        ┃
+                                                           ┃
+ v0.2.0 · 2026-09-30                                       ┃
+                                                           ┃
+ ### Added                                                 ┃
+                                                           ┃
+ • Tasks fold under their list heading, and space unfolds  ┃
+ them again when the list is long.                         ┃
+ • ABC-123 style IDs open in Linear.                       ┃
+                                                           ┃
+ ### Fixed                                                 ┃
+                                                           ┃
+ • The drawer no longer flickers on reload.                ┃
+                                                           ┃
+ v0.1.0 · 2026-09-01                                       ┃
+                                                           ┃
+ The first release.                                        ┃
+                                                           │
+ ### Added                                                 │
 ────────────────────────────────────────────────────────────
  esc back  pgup pgdn scroll  z drawer  ? help  q quit
