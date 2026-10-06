@@ -298,8 +298,9 @@ which has the rest:
   with the same scrollbar at the right edge.
 - The description and comments are read only while the PR tab shows the
   PR: at once when the tab opens, then with the PR's own reads every 45
-  seconds, in the same request (about 3 more GraphQL points), and kept when
-  you leave the tab. A merged or closed PR's are read once.
+  seconds (about 3 more GraphQL points), and kept when you leave the tab.
+  A merged or closed PR's are read once. Until they arrive, or when they
+  cannot be read, the tab lists the unresolved review threads.
 
 The deck never sees a token: `gh` holds it. Reads run in the background,
 one GraphQL request per host for all of a project's open PRs, and are

@@ -22,9 +22,9 @@ type key struct {
 
 // maxCached bounds the cache; past it the cache starts over. A deck shows a
 // handful of documents at a couple of widths, plus the PR tab's comments,
-// up to about a hundred, each rendered on its own; this leaves room for a
-// few PRs of those at two widths.
-const maxCached = 512
+// up to 150 (comments, reviews, threads), each rendered on its own at up
+// to two widths; this leaves room for three busy PRs.
+const maxCached = 1024
 
 var (
 	mu    sync.Mutex

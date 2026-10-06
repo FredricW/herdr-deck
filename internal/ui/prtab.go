@@ -2,6 +2,7 @@ package ui
 
 import (
 	"fmt"
+	"regexp"
 	"strings"
 
 	tea "charm.land/bubbletea/v2"
@@ -72,6 +73,17 @@ func (m Model) prTab(d *drawer, r row, links []deck.Link) {
 	d.flow(title)
 	if det == nil {
 		d.flow(m.detailMissing(pr))
+		// The regular read has the unresolved review threads already.
+		if len(pr.Threads) > 0 {
+			heading("Review threads", fmt.Sprintf("%d unresolved", len(pr.Threads)))
+			for i, t := range pr.Threads {
+				if i > 0 {
+					d.line("")
+				}
+				m.comment(d, pr, deck.PRComment{Kind: deck.CommentThread, Author: t.Author, Body: t.Body, URL: t.URL,
+					At: t.At, Path: t.Path, Line: t.Line, Outdated: t.Outdated, Replies: t.Replies}, threadComment+i)
+			}
+		}
 		return
 	}
 	who := group{sep: " ", items: []item{span(det.Author, plain)}}
@@ -123,6 +135,10 @@ func (m Model) prTab(d *drawer, r row, links []deck.Link) {
 		m.comment(d, pr, c, i)
 	}
 }
+
+// threadComment offsets the indexes of review threads shown before the
+// detail is read (pr.Threads), so actComment tells them from comments.
+const threadComment = 1 << 20
 
 // prStateGroup is the PR's state, review decision and auto-merge in
 // words: `open · review required · auto-merge on`.
@@ -248,8 +264,8 @@ func commentKey(pr deck.PullRequest, c deck.PRComment, i int) string {
 
 // comment adds comment i: a line with who, what and when that opens it on
 // GitHub, then its body as Markdown. An app's comment and a resolved
-// thread fold to one dim line, `▸` in its second column, with the start
-// of the body.
+// thread fold to one dim line, `▸` in its third column (clear of the
+// cursor's), with the start of the body.
 func (m Model) comment(d *drawer, pr deck.PullRequest, c deck.PRComment, i int) {
 	foldable, folded := m.folded(pr, c, i)
 	when := ""
@@ -291,12 +307,12 @@ func (m Model) comment(d *drawer, pr deck.PullRequest, c deck.PRComment, i int) 
 	open := action{kind: actComment, n: i}
 	var zones []zone
 	if foldable {
-		glyph := "▾ "
+		glyph := " ▾ "
 		if folded {
-			glyph = "▸ "
+			glyph = " ▸ "
 		}
 		text += dim.Render(glyph)
-		zones = append(zones, zone{x0: 1, x1: 3, act: action{kind: actFold, n: i}})
+		zones = append(zones, zone{x0: 1, x1: 4, act: action{kind: actFold, n: i}})
 	}
 	x0 := ansi.StringWidth(text)
 	if folded {
@@ -320,12 +336,20 @@ func (m Model) comment(d *drawer, pr deck.PullRequest, c deck.PRComment, i int) 
 	}
 }
 
-// firstText is the first line of Markdown src with words, plain.
+// linkDef is a Markdown link definition, `[vc]: #…`, which apps put on
+// top of their comments.
+var linkDef = regexp.MustCompile(`^\[[^\]]+\]:`)
+
+// firstText is the first line of Markdown src with words, plain: HTML,
+// tables and link definitions, which apps' comments start with, left out.
 func firstText(src string) string {
 	for _, l := range strings.Split(src, "\n") {
-		if l = strings.TrimSpace(strings.TrimLeft(l, "#>-*")); l != "" {
-			return l
+		l = strings.TrimSpace(strings.TrimLeft(strings.TrimSpace(l), "#>-*"))
+		switch {
+		case l == "", strings.HasPrefix(l, "<"), strings.HasPrefix(l, "|"), linkDef.MatchString(l):
+			continue
 		}
+		return l
 	}
 	return ""
 }
@@ -334,6 +358,14 @@ func firstText(src string) string {
 // comment has no link.
 func (m *Model) openComment(i int) tea.Cmd {
 	pr, ok := m.prOf()
+	if ok && i >= threadComment && i-threadComment < len(pr.Threads) {
+		t := pr.Threads[i-threadComment]
+		url := t.URL
+		if url == "" {
+			url = pr.URL + "/files"
+		}
+		return m.openURL(url, "the review thread on "+t.Path)
+	}
 	if !ok || pr.Detail == nil || i < 0 || i >= len(pr.Detail.Comments) {
 		return nil
 	}

@@ -69,15 +69,18 @@ type Reader struct {
 	// Now is the clock; nil means time.Now.
 	Now func() time.Time
 
-	mu      sync.Mutex
-	cache   map[string]*entry
-	focus   string
-	detail  string
-	queue   []prRef
-	queued  map[string]bool
-	running bool
-	retryAt time.Time
-	fails   int
+	mu     sync.Mutex
+	cache  map[string]*entry
+	focus  string
+	detail string
+	// inflight are the PRs a running read asks about, true for those
+	// asked with their detail, so a second ask waits for that answer.
+	inflight map[string]bool
+	queue    []prRef
+	queued   map[string]bool
+	running  bool
+	retryAt  time.Time
+	fails    int
 	// off says why gh cannot be used at all (missing, logged out), for
 	// a Sources note; problem why the last read failed otherwise.
 	off, problem string
@@ -144,9 +147,11 @@ func (r *Reader) Apply(snap *deck.Snapshot) {
 				e.stale = true
 			}
 		}
-		if ref.URL == r.detail && t.PR.Detail == nil {
-			t.PR.DetailNote = r.detailNote(e)
-			if e == nil || e.pr != nil {
+		if ref.URL == r.detail {
+			if t.PR.Detail == nil {
+				t.PR.DetailNote = r.detailNote(e)
+			}
+			if r.needDetail(e, ref.URL) {
 				want = append(want, ref)
 				continue
 			}
@@ -168,6 +173,20 @@ func (r *Reader) Apply(snap *deck.Snapshot) {
 		snap.Missing = append(snap.Missing, "GitHub: "+r.problem)
 	}
 	r.want(want)
+}
+
+// needDetail says whether url's detail should be read: it has none, or
+// an open PR's is older than the PR's own refresh. The caller holds r.mu.
+func (r *Reader) needDetail(e *entry, url string) bool {
+	switch {
+	case e == nil:
+		return true
+	case e.pr == nil:
+		return false
+	case e.pr.Detail == nil:
+		return true
+	}
+	return e.pr.State == "OPEN" && r.now().Sub(e.pr.DetailAt) >= r.ttl(url)
 }
 
 // detailNote says why the PR tab's PR has no detail yet: "" while it is
@@ -243,8 +262,8 @@ func (r *Reader) Focus(url string) {
 
 // Detail says the PR tab shows url's PR now ("" for none), so its
 // description and conversation are read with it: at once when the cache
-// has none, and after that with the PR's own reads, which Focus keeps
-// fresh. A merged or closed PR is read once.
+// has none or an old one, and after that with the PR's own reads, which
+// Focus keeps fresh. A merged or closed PR's is read once.
 func (r *Reader) Detail(url string) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
@@ -253,7 +272,7 @@ func (r *Reader) Detail(url string) {
 	if !ok {
 		return
 	}
-	if e := r.cache[url]; e == nil || e.pr != nil && e.pr.Detail == nil {
+	if r.needDetail(r.cache[url], url) {
 		r.want([]prRef{ref})
 	}
 }
@@ -265,6 +284,10 @@ func (r *Reader) want(refs []prRef) {
 		r.queued = map[string]bool{}
 	}
 	for _, ref := range refs {
+		// A running read answers it, unless it lacks the detail wanted.
+		if d, ok := r.inflight[ref.URL]; ok && (d || ref.URL != r.detail) {
+			continue
+		}
 		if !r.queued[ref.URL] {
 			r.queued[ref.URL] = true
 			r.queue = append(r.queue, ref)
@@ -309,18 +332,28 @@ func (r *Reader) take() []prRef {
 	if i := slices.IndexFunc(r.queue, func(p prRef) bool { return p.URL == r.focus }); i > 0 {
 		r.queue[0], r.queue[i] = r.queue[i], r.queue[0]
 	}
+	// The PR the tab shows goes alone, with its detail: a large or
+	// failing answer for it then never costs the other PRs their read.
 	host := r.queue[0].Host
+	alone := r.queue[0].URL == r.detail
 	var batch, rest []prRef
 	for _, ref := range r.queue {
-		if ref.Host == host && len(batch) < batchSize {
-			ref.Detail = ref.URL == r.detail
+		switch {
+		case ref.Host == host && len(batch) < batchSize && (alone && len(batch) == 0 || !alone && ref.URL != r.detail):
+			ref.Detail = alone
 			batch = append(batch, ref)
 			delete(r.queued, ref.URL)
-		} else {
+		default:
 			rest = append(rest, ref)
 		}
 	}
 	r.queue = rest
+	if r.inflight == nil {
+		r.inflight = map[string]bool{}
+	}
+	for _, ref := range batch {
+		r.inflight[ref.URL] = ref.Detail
+	}
 	return batch
 }
 
@@ -356,6 +389,13 @@ func (r *Reader) read(ctx context.Context, batch []prRef) ([]*pullData, error) {
 	for _, e := range resp.Errors {
 		if e.Type == "RATE_LIMITED" {
 			return nil, r.rateLimited(resp)
+		}
+	}
+	// A PR asked with its detail that came back null with errors failed
+	// on those fields; it is not a PR GitHub lacks.
+	for i, ref := range batch {
+		if prs != nil && ref.Detail && prs[i] == nil && len(resp.Errors) > 0 {
+			return nil, &readError{msg: oneLine(resp.Errors[0].Message)}
 		}
 	}
 	if prs == nil {
@@ -413,14 +453,19 @@ func (r *Reader) store(batch []prRef, prs []*pullData, err error) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	now := r.now()
+	for _, ref := range batch {
+		delete(r.inflight, ref.URL)
+	}
 	if err == nil {
 		if r.cache == nil {
 			r.cache = map[string]*entry{}
 		}
 		for i, ref := range batch {
 			// A read without the detail keeps the one read before.
-			if old := r.cache[ref.URL]; prs[i] != nil && prs[i].Detail == nil && old != nil && old.pr != nil {
-				prs[i].Detail = old.pr.Detail
+			if prs[i] != nil && prs[i].Detail != nil {
+				prs[i].DetailAt = now
+			} else if old := r.cache[ref.URL]; prs[i] != nil && old != nil && old.pr != nil {
+				prs[i].Detail, prs[i].DetailAt = old.pr.Detail, old.pr.DetailAt
 			}
 			r.cache[ref.URL] = &entry{pr: prs[i], at: now}
 		}

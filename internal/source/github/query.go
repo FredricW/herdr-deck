@@ -299,8 +299,10 @@ type pullData struct {
 	Requests   []string
 	Checks     []deck.Check
 	Threads    []deck.ReviewThread
-	// Detail is the description and conversation, when asked for.
-	Detail *deck.PRDetail
+	// Detail is the description and conversation, when asked for, and
+	// DetailAt when they were read.
+	Detail   *deck.PRDetail
+	DetailAt time.Time
 }
 
 // Failing names the failed checks, the way herdr-projects' ticker does.
@@ -405,10 +407,19 @@ func (g *gqlPR) detail(open, resolved []deck.ReviewThread) *deck.PRDetail {
 				continue
 			}
 			who, bot := n.Author.login()
-			d.Comments = append(d.Comments, deck.PRComment{Kind: deck.CommentReview, Author: who, Bot: bot,
-				Body: strings.TrimSpace(n.Body), URL: n.URL, At: n.SubmittedAt, State: n.State, Inline: n.Comments.TotalCount})
-			// A later comment-only review keeps an approval or a request
-			// for changes, as on GitHub.
+			body := strings.TrimSpace(n.Body)
+			// GitHub makes an empty comment-only review for every reply in
+			// a review thread: the thread shows those.
+			if n.State != "COMMENTED" || body != "" {
+				d.Comments = append(d.Comments, deck.PRComment{Kind: deck.CommentReview, Author: who, Bot: bot,
+					Body: body, URL: n.URL, At: n.SubmittedAt, State: n.State, Inline: n.Comments.TotalCount})
+			}
+			// The author is no reviewer of their own PR. A later
+			// comment-only review keeps an approval or a request for
+			// changes, as on GitHub.
+			if who == d.Author {
+				continue
+			}
 			i, seen := at[who]
 			switch {
 			case !seen:

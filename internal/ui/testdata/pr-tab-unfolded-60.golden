@@ -14,13 +14,13 @@
  Design: Figma 598-48083.                                  │
                                                            ┃
  ── Comments ──  8 · 3 unresolved                          ┃
-▸▾ deploy-preview · bot · 2d ago                           ┃
+▸ ▾ deploy-preview · bot · 2d ago                          ┃
    Preview deployed to https://preview.example.com/2320    ┃
                                                            ┃
  alex · 5h ago                                             ┃
    Can we keep the old picker behind a flag for a week?    ┃
                                                            ┃
- ▸ src/pages/summary/picker.tsx:18 · kim · +1 reply · res… │
+  ▸ src/pages/summary/picker.tsx:18 · kim · +1 reply · re… │
                                                            │
  src/api/users.ts:7 · sam · outdated · 3h ago              │
    Drop the  any  here.                                    │

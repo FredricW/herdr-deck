@@ -198,13 +198,15 @@ func (m *Model) watchPR() tea.Cmd {
 			detail = pr.URL
 		}
 	}
-	if m.opt.FocusPR != nil && focus != m.watched {
-		m.watched = focus
-		m.opt.FocusPR(focus)
-	}
+	// The detail first: Focus may start a read, which then asks for the
+	// detail too rather than reading the PR twice.
 	if m.opt.DetailPR != nil && detail != m.detailed {
 		m.detailed = detail
 		m.opt.DetailPR(detail)
+	}
+	if m.opt.FocusPR != nil && focus != m.watched {
+		m.watched = focus
+		m.opt.FocusPR(focus)
 	}
 	return nil
 }

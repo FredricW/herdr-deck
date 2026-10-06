@@ -816,8 +816,13 @@ G1 (why the PR is not merging), G2 (a failed check's log tail) and G3
   and conversation (`deck.PRDetail`, `detailFields`: title, body, labels,
   `comments(last: 50)`, `reviews(last: 50)`) are asked for only for the PR
   the tab shows (`Reader.Detail`), as a second fragment in the same
-  batched request, so they refresh with the PR's own FocusTTL reads and
-  share its back-off; a read without them keeps the last ones. A click on
+  request, alone (a large or failing answer never costs the other PRs
+  their read), so they refresh with the PR's own FocusTTL reads and share
+  its back-off; a read without them keeps the last ones, and the tab
+  coming back reads them again once older than FocusTTL. Empty
+  comment-only reviews (GitHub makes one per thread reply) and the
+  author's own review state are left out. Before the detail arrives, the
+  tab lists the regular read's unresolved threads. A click on
   the list's PR number shows the tab, a second click opens GitHub; `g`
   still opens GitHub from anywhere. Overview's *Review* section moved into
   the tab. Settings: `[github] enabled`

@@ -16,11 +16,11 @@
  Document select for summary                       ◇ review
  webshop · t-0004-summary                         #2320 ✕ 1
 
-  Overview   Files   Commits   PR   Log 6          ↓ 5 more
+  Overview   Files   Commits   PR   Log 6         ↓ 15 more
 
  ── Status ──                                              ┃
  open · review required                                    ┃
- ✕ blocked: checks failing, checks running, review         ┃
+ ✕ blocked: checks failing, checks running, review         │
  required (sam)                                            │
  ✕ 1 failing: [lint]  ◌ 1 running: test (macos-latest) 6m  │
  ✓ 2 passed                                                │

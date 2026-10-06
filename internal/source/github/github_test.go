@@ -477,15 +477,18 @@ func TestDetailParse(t *testing.T) {
 	}
 	// Time order; the pending review is the viewer's own draft and left
 	// out; a deleted account is "ghost".
+	// sam's empty comment-only review (a reply in a thread) is left out;
+	// the author's own review with text stays.
 	want := []string{"issue:vercel:bot", "issue:alex", "review:sam:CHANGES_REQUESTED", "issue:ghost", "thread:alex:resolved",
-		"thread:sam", "review:sam:COMMENTED", "thread:sam", "thread:alex", "review:alex:APPROVED"}
+		"thread:sam", "thread:sam", "thread:alex", "review:alex:APPROVED", "review:robin:COMMENTED"}
 	if !slices.Equal(got, want) {
 		t.Errorf("comments = %q\nwant %q", got, want)
 	}
-	if c := d.Comments[6]; c.Inline != 1 || c.URL == "" {
-		t.Errorf("the comment-only review = %+v", c)
+	if c := d.Comments[2]; c.Inline != 2 || c.URL == "" || c.Body != "A few things first." {
+		t.Errorf("the review = %+v", c)
 	}
-	// sam's later comment-only review keeps the request for changes.
+	// sam's later comment-only review keeps the request for changes; the
+	// author is no reviewer.
 	if !slices.Equal(d.Reviewers, []deck.Reviewer{{Login: "sam", State: "CHANGES_REQUESTED"}, {Login: "alex", State: "APPROVED"}}) {
 		t.Errorf("reviewers = %+v", d.Reviewers)
 	}
@@ -600,4 +603,64 @@ func TestDetailNotes(t *testing.T) {
 		t.Errorf("note for a PR GitHub does not know = %q", note)
 	}
 	r3.Wait()
+}
+
+func TestDetailReadAlone(t *testing.T) {
+	// The tab's PR is read on its own, with its detail; the others go in
+	// a batch of their own. Focus right after Detail does not read it
+	// twice.
+	f := &fakeGh{out: fixture(t, "prs-detail.json")}
+	clock := now
+	r := newReader(f, &clock)
+	r.Detail(prURL)
+	r.Focus(prURL)
+	r.Wait()
+	if f.n() != 1 {
+		t.Fatalf("%d calls; Focus after Detail read the PR again", f.n())
+	}
+	f.mu.Lock()
+	f.out = fixture(t, "prs.json")
+	f.mu.Unlock()
+	clock = now.Add(FocusTTL + time.Second)
+	s := snap(time.Time{})
+	r.Apply(&s)
+	r.Wait()
+	for _, c := range f.calls[1:] {
+		args := strings.Join(c, " ")
+		if strings.Contains(args, "deckDetail") && strings.Contains(args, "n1=") {
+			t.Errorf("the detail PR shared a batch: %s", args)
+		}
+	}
+	if f.n() < 3 {
+		t.Errorf("%d calls; want the stale detail PR alone and the others", f.n())
+	}
+
+	// An old detail is read again when the tab comes back.
+	f.mu.Lock()
+	n := len(f.calls)
+	f.out = fixture(t, "prs-detail.json")
+	f.mu.Unlock()
+	r.Detail("")
+	clock = now.Add(time.Hour)
+	r.Detail(prURL)
+	r.Wait()
+	if f.n() != n+1 || !strings.Contains(strings.Join(f.calls[n], " "), "deckDetail") {
+		t.Errorf("an hour-old detail was not read again (%d calls)", f.n()-n)
+	}
+}
+
+func TestDetailFieldsFail(t *testing.T) {
+	// The PR comes back null with an error on the detail fields: a failed
+	// read, not a PR GitHub lacks.
+	f := &fakeGh{out: []byte(`{"data":{"rateLimit":{"remaining":4000,"resetAt":"2026-10-02T15:00:00Z"},"p0":{"pullRequest":null}},"errors":[{"type":"INTERNAL","message":"Something went wrong","path":["p0","pullRequest","comments"]}]}`)}
+	clock := now
+	r := newReader(f, &clock)
+	r.Detail(prURL)
+	r.Wait()
+	s := snap(time.Time{})
+	r.Apply(&s)
+	r.Wait()
+	if note := s.Threads[0].PR.DetailNote; !strings.Contains(note, "Something went wrong") {
+		t.Errorf("note = %q", note)
+	}
 }

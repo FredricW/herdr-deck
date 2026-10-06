@@ -291,3 +291,32 @@ func TestPRTabScrollbar(t *testing.T) {
 		t.Error("Overview got a scrollbar")
 	}
 }
+
+// Before the detail is read (or when it fails), the PR tab still lists
+// the unresolved review threads the regular read has.
+func TestPRTabThreadsWithoutDetail(t *testing.T) {
+	s := livePR(func(pr *deck.PullRequest) { pr.Detail, pr.DetailNote = nil, "could not read it: gh timed out" })
+	m, o := newModelWith(t, s, 80, 28, func(opt *Options) { opt.DetailPR = func(string) {} })
+	m, _ = press(m, keys(prTabKeys+"z")...)
+	m = scrollTo(t, m, "src/pages/users/table.tsx:12")
+	if !strings.Contains(screen(m), "── Review threads ──  3 unresolved") {
+		t.Fatalf("no review threads:\n%s", screen(m))
+	}
+	x, y := find(t, m, "src/pages/users/table.tsx:12")
+	_, _ = press(m, click(x, y))
+	if len(o.urls) != 1 || o.urls[0] != prURL2320+"#discussion_r102" {
+		t.Errorf("a click on a thread opened %q", o.urls)
+	}
+}
+
+func TestFirstText(t *testing.T) {
+	for src, want := range map[string]string{
+		"[vc]: #abc:eyJ\n<!-- hidden -->\n## Deploy preview ready\nmore": "Deploy preview ready",
+		"<img src=x>\n| a | b |\n|---|---|\nCoverage: 81%":               "Coverage: 81%",
+		"- one\n- two": "one",
+	} {
+		if got := firstText(src); got != want {
+			t.Errorf("firstText(%q) = %q, want %q", src, got, want)
+		}
+	}
+}

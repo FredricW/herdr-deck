@@ -12,12 +12,12 @@
  Design: Figma 598-48083.                                                      │
                                                                                │
  ── Comments ──  8 · 3 unresolved                                              │
- ▸ deploy-preview · bot · 2d ago: Preview deployed to https://preview.example… │
+  ▸ deploy-preview · bot · 2d ago: Preview deployed to https://preview.exampl… │
                                                                                ┃
  alex · 5h ago                                                                 ┃
    Can we keep the old picker behind a flag for a week?                        ┃
                                                                                ┃
- ▸ src/pages/summary/picker.tsx:18 · kim · +1 reply · resolved · 4h ago: Typo… ┃
+  ▸ src/pages/summary/picker.tsx:18 · kim · +1 reply · resolved · 4h ago: Typ… ┃
                                                                                ┃
  src/api/users.ts:7 · sam · outdated · 3h ago                                  ┃
    Drop the  any  here.                                                        ┃
