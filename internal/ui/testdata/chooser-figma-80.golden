@@ -16,13 +16,13 @@
  Document select for summary                                           ◇ review
  webshop · t-0004-summary                                               #2320 ✓
 
-  Overview   Files   Commits   Log 6                                   ↓ Thread
+  Overview   Files   Commits   PR   Log 6                        ↓ Dev · Thread
 
  ── PR ──
  [5 #2320] open · review required · 2 comments (sam, alex)
  ✓ no failing checks
+ → PR tab: description and comments
  ── Links ──
  [1 ABC-1191] [2 Figma 598-48083] [3 1138-88367] [4 635-76529]
- ── Dev ──
 ────────────────────────────────────────────────────────────────────────────────
  Figma: 2-4 open  d desktop  a all  f first  esc cancel                   v9.9.9

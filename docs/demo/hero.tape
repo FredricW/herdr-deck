@@ -24,6 +24,17 @@ Type "]"
 Sleep 1s
 Down
 Sleep 2.2s
+# Its PR tab: status, what it is, then its description and comments.
+Type "["
+Sleep 0.4s
+Type "["
+Sleep 2.2s
+PageDown
+Sleep 1.4s
+PageDown
+Sleep 2s
+Type "]]"
+Sleep 0.6s
 Down 3
 Sleep 1s
 Space

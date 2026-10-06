@@ -5,24 +5,24 @@
 
   Overview   Files   Commits   PR   Log 6
 
- ── PR ──
- [5 #2320] open · review required · 2c
+ ── Status ──
+ open · review required
+ ✕ blocked: checks failing, checks running, review required
  ✕ 1 failing: [lint]  ◌ 1 running: test (macos-latest) 6m
  ✓ 2 passed
- ✕ blocked: checks failing, checks running, review required
- (sam)
- → PR tab: 3 unresolved
- ── Links ──
- [1 ABC-1191] [2 Figma 598-48083] [3 1138-88367]
- [4 635-76529]
- ── Dev ──
- ● Frontend :5174
- ○ API :8002 exited
-   /var/state/dev-manifest/logs/t-0004-summary-1a2b3c4d/ser…
- [6 Frontend ●] [7 API docs ○]
- ── Thread ──
- thread  t-0004 · Summary select documents
- pane    w21:p1
- branch  hp/admin-rebuild/t-0004-summary
+ checked just now
+
+ ── About ──
+ [5 #2320] Document select for summary
+ author  robin · opened 2d ago · updated 20m ago
+ branch  t-0004-summary → main
+ changes +214 −12 · 11 files
+
+ ── Description ──
+ No description.
+
+ ── Comments ──
+ No comments yet.
+
 ────────────────────────────────────────────────────────────
- 1-9 link  o open  ↵ pane  [ ] tab  z drawer  ? help  v9.9.9
+ g GitHub  c log  tab focus  [ ] tab  z drawer        v9.9.9

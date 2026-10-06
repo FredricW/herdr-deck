@@ -192,7 +192,7 @@ func TestGolden(t *testing.T) {
 		{name: "log-full", snap: fakeSnap(), keys: keys("]z")},
 		{name: "review-full", snap: calm(), keys: keys("jjz")},
 		{name: "tinted", snap: tinted, keys: keys("jj")},
-		{name: "tinted-log", snap: tinted, keys: keys("jj]")},
+		{name: "tinted-log", snap: tinted, keys: keys("jj[")},
 		{name: "inbox-only", snap: inboxOnly},
 		{name: "no-thread", snap: calm(), keys: keys("jjjjjj jjj")},
 		{name: "drawer-focus", snap: calm(), keys: append([]tea.Msg{tea.KeyPressMsg{Code: tea.KeyTab}}, keys("j")...)},

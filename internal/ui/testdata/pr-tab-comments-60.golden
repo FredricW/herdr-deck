@@ -1,0 +1,28 @@
+ Admin rebuild                           ◐ 2  ◇ 1  ○ 1  ✉ 0
+────────────────────────────────────────────────────────────
+ Document select for summary                       ◇ review
+ webshop · t-0004-summary                         #2320 ✕ 1
+
+  Overview   Files   Commits   PR   Log 6         ↓ 10 more
+
+
+ Adds the document picker to the summary page (ABC-1191).
+
+ [✓] picker with search
+ [ ] empty state
+
+ Design: Figma 598-48083.
+
+ ── Comments ──  8 · 3 unresolved
+ ▸ deploy-preview · bot · 2d ago: Preview deployed to https…
+
+ alex · 5h ago
+   Can we keep the old picker behind a flag for a week?
+
+ ▸ src/pages/summary/picker.tsx:18 · kim · +1 reply · resol…
+
+ src/api/users.ts:7 · sam · outdated · 3h ago
+   Drop the  any  here.
+
+────────────────────────────────────────────────────────────
+ g GitHub  c log  tab focus  [ ] tab  z drawer        v9.9.9

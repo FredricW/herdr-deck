@@ -1,4 +1,4 @@
- Admin rebuild                                               ◐ 2  ◇ 1  ○ 1  ✉ 1
+ Admin rebuild                                               ◐ 2  ◇ 1  ○ 1  ✉ 0
 ────────────────────────────────────────────────────────────────────────────────
     WORK                         THREAD  STATUS              PR      LINKS  DEV
   In progress
@@ -14,15 +14,15 @@
 
 ────────────────────────────────────────────────────────────────────────────────
  Document select for summary                                           ◇ review
- webshop · t-0004-summary                                     #2320 ✕ 2 failing
+ webshop · t-0004-summary                                     #2320 ✕ 1 failing
 
-  Overview   Files   Commits   PR   Log 7                              ↓ 1 more
+  Overview   Files   Commits   PR   Log 6                               ↓ About
 
-   2m  ✕ checks failing: lint, test (ubuntu-latest)                     14:39 ✉
-  25m  ◇ [5 #2320] updated · open · 2 comments                          14:16
-   3h  ◇ [5 #2320] opened                                               11:03
-   4h  ● waiting on you · pane w21:p1                                   10:12
-   5h  » prompted by routine pr-followup · checks-failed                09:30
-   5h  ▶ launched in pane w21:p1                                        08:55
+ ── Status ──
+ open · review required
+ ✕ blocked: checks failing, checks running, review required (sam)
+ ✕ 1 failing: [lint]  ◌ 1 running: test (macos-latest) 6m  ✓ 2 passed
+ checked just now
+
 ────────────────────────────────────────────────────────────────────────────────
- 1-9 link  g PR  r report  [ ] tab  z drawer  ? help                      v9.9.9
+ g on GitHub  c check log  pgdn scroll  tab focus  [ ] tab  ? help        v9.9.9

@@ -11,7 +11,6 @@ import (
 	"github.com/charmbracelet/x/ansi"
 
 	"github.com/FredricW/herdr-deck/internal/deck"
-	"github.com/FredricW/herdr-deck/internal/markdown"
 )
 
 // checkLog is a failed check's log as the log view shows it: read, being
@@ -171,61 +170,6 @@ func threadCounts(pr deck.PullRequest) (current, outdated int) {
 	return
 }
 
-// reviewNote is the Review section's heading note: "3 unresolved · 1 outdated".
-func reviewNote(pr deck.PullRequest) string {
-	current, outdated := threadCounts(pr)
-	note := fmt.Sprintf("%d unresolved", current)
-	if outdated > 0 {
-		note += fmt.Sprintf(" · %d outdated", outdated)
-	}
-	return note
-}
-
-// reviewSection lists the PR's unresolved review threads: a line with the
-// file, line and author that opens the thread on GitHub, then the first
-// comment rendered as Markdown, a few lines of it.
-func (m Model) reviewSection(d *drawer, pr deck.PullRequest) {
-	maxBody := 2
-	if m.effectiveSize() == sizeFull {
-		maxBody = 4
-	}
-	for i, t := range pr.Threads {
-		where := t.Path
-		if t.Line > 0 {
-			where += fmt.Sprintf(":%d", t.Line)
-		}
-		meta := t.Author
-		if t.Replies > 0 {
-			noun := "replies"
-			if t.Replies == 1 {
-				noun = "reply"
-			}
-			meta += fmt.Sprintf(" · +%d %s", t.Replies, noun)
-		}
-		if t.Outdated {
-			meta += " · outdated"
-		}
-		room := max(d.width-3-ansi.StringWidth(meta), 8)
-		pathStyle := plain
-		if t.Outdated {
-			pathStyle = dim
-		}
-		text := " " + pathStyle.Render(truncateLeft(where, room)) + "  " + dim.Render(meta)
-		act := action{kind: actThread, n: i}
-		d.stopLine(text, act, []zone{{x0: 1, x1: d.width, act: act}})
-		body := markdown.Render(t.Body, d.width-4, !d.light)
-		for j, l := range body {
-			if j == maxBody {
-				break
-			}
-			if j == maxBody-1 && len(body) > maxBody {
-				l = ansi.Truncate(l, d.width-5, "") + dim.Render(" …")
-			}
-			d.lines = append(d.lines, dline{text: "   " + ansi.Truncate(l, d.width-3, "…")})
-		}
-	}
-}
-
 // prOf is the selected row's thread PR, when it has one.
 func (m Model) prOf() (deck.PullRequest, bool) {
 	r, ok := m.selected()
@@ -239,23 +183,29 @@ func (m Model) prOf() (deck.PullRequest, bool) {
 	return *t.PR, true
 }
 
-// watchPR tells the GitHub reader which PR the drawer shows, when that
-// changed, so it keeps that PR fresher. It calls FocusPR at once, not as a
-// command: commands run in no set order, and an older PR's call landing
-// last would keep the reader on it. FocusPR never waits on the network.
+// watchPR tells the GitHub reader which PR the drawer shows, and which
+// the PR tab shows, when that changed: it keeps the first fresher and
+// reads the second's description and conversation. It calls FocusPR and
+// DetailPR at once, not as a command: commands run in no set order, and
+// an older PR's call landing last would keep the reader on it. Neither
+// waits on the network.
 func (m *Model) watchPR() tea.Cmd {
-	if m.opt.FocusPR == nil {
-		return nil
+	pr, ok := m.prOf()
+	focus, detail := "", ""
+	if ok && m.size != sizeHidden {
+		focus = pr.URL
+		if m.mode == modeRow && m.curTab() == tabPR {
+			detail = pr.URL
+		}
 	}
-	url := ""
-	if pr, ok := m.prOf(); ok && m.size != sizeHidden {
-		url = pr.URL
+	if m.opt.FocusPR != nil && focus != m.watched {
+		m.watched = focus
+		m.opt.FocusPR(focus)
 	}
-	if url == m.watched {
-		return nil
+	if m.opt.DetailPR != nil && detail != m.detailed {
+		m.detailed = detail
+		m.opt.DetailPR(detail)
 	}
-	m.watched = url
-	m.opt.FocusPR(url)
 	return nil
 }
 
@@ -331,20 +281,6 @@ func (m *Model) setCheckLog(msg checkLogMsg) {
 		}
 	}
 	m.logs[msg.job] = l
-}
-
-// openThread opens review thread i of the selected PR on GitHub.
-func (m *Model) openThread(i int) tea.Cmd {
-	pr, ok := m.prOf()
-	if !ok || i < 0 || i >= len(pr.Threads) {
-		return nil
-	}
-	t := pr.Threads[i]
-	url := t.URL
-	if url == "" {
-		url = pr.URL + "/files"
-	}
-	return m.openURL(url, "the review thread on "+t.Path)
 }
 
 // checkDrawer is a failed check's log tail, full height under the card,

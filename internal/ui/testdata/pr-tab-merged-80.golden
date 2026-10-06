@@ -1,10 +1,10 @@
- Admin rebuild                                               ◐ 2  ◇ 1  ○ 1  ✉ 1
+ Admin rebuild                                               ◐ 2  ◇ 1  ○ 1  ✉ 0
 ────────────────────────────────────────────────────────────────────────────────
     WORK                         THREAD  STATUS              PR      LINKS  DEV
   In progress
   ◐ Users page                   t-0002  Building overview           L4
   ◐ Templates page               t-0003  Writing tests               L F    ●●●
- ▸◇ Document select for summary  t-0004  review required     #2320✕  L F3   ●○
+ ▸◇ Document select for summary  t-0004  merged              #2320   L F3   ●○
 
   On hold until Monday 2026-10-05
   ○ Subscriptions list           t-0001  idle                        L N    ~○
@@ -14,15 +14,15 @@
 
 ────────────────────────────────────────────────────────────────────────────────
  Document select for summary                                           ◇ review
- webshop · t-0004-summary                                     #2320 ✕ 2 failing
+ webshop · t-0004-summary                                               #2320 ✓
 
-  Overview   Files   Commits   PR   Log 7                              ↓ 1 more
+  Overview   Files   Commits   PR   Log 6              ↓ Description · Comments
 
-   2m  ✕ checks failing: lint, test (ubuntu-latest)                     14:39 ✉
-  25m  ◇ [5 #2320] updated · open · 2 comments                          14:16
-   3h  ◇ [5 #2320] opened                                               11:03
-   4h  ● waiting on you · pane w21:p1                                   10:12
-   5h  » prompted by routine pr-followup · checks-failed                09:30
-   5h  ▶ launched in pane w21:p1                                        08:55
+ ── Status ──
+ merged
+ checked just now
+
+ ── About ──
+ [5 #2320] Document select for summary
 ────────────────────────────────────────────────────────────────────────────────
- 1-9 link  g PR  r report  [ ] tab  z drawer  ? help                      v9.9.9
+ g on GitHub  c check log  pgdn scroll  tab focus  [ ] tab  ? help        v9.9.9

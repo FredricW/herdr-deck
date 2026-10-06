@@ -9,7 +9,9 @@
 // network: Apply shows what the cache holds and starts a read for the PRs
 // it lacks or holds for too long. The PR the drawer shows (Focus) is read
 // again after FocusTTL, the other open PRs after TTL; resolved threads and
-// merged or closed PRs are left alone. After an error the reader backs off,
+// merged or closed PRs are left alone. The PR tab's description and
+// conversation (Detail) are asked for only while the tab shows the PR,
+// in the same request as the PR's own fields, and refreshed with them. After an error the reader backs off,
 // and after a rate limit it waits for the reset.
 //
 // herdr-projects' ticker reads the same PRs every couple of minutes. The
@@ -70,6 +72,7 @@ type Reader struct {
 	mu      sync.Mutex
 	cache   map[string]*entry
 	focus   string
+	detail  string
 	queue   []prRef
 	queued  map[string]bool
 	running bool
@@ -141,6 +144,13 @@ func (r *Reader) Apply(snap *deck.Snapshot) {
 				e.stale = true
 			}
 		}
+		if ref.URL == r.detail && t.PR.Detail == nil {
+			t.PR.DetailNote = r.detailNote(e)
+			if e == nil || e.pr != nil {
+				want = append(want, ref)
+				continue
+			}
+		}
 		if t.Status == deck.StatusDone && ref.URL != r.focus || !open(t.PR) {
 			continue
 		}
@@ -160,6 +170,20 @@ func (r *Reader) Apply(snap *deck.Snapshot) {
 	r.want(want)
 }
 
+// detailNote says why the PR tab's PR has no detail yet: "" while it is
+// being read. The caller holds r.mu.
+func (r *Reader) detailNote(e *entry) string {
+	switch {
+	case e != nil && e.pr == nil:
+		return "GitHub has no such pull request, or gh's account cannot see it"
+	case r.off != "":
+		return "GitHub: " + r.off
+	case r.problem != "" && !r.running:
+		return "could not read it: " + r.problem
+	}
+	return ""
+}
+
 // open reports whether pr is still open as far as anyone knows.
 func open(pr *deck.PullRequest) bool {
 	return pr.State == "" || pr.State == "OPEN"
@@ -176,6 +200,7 @@ func merge(pr *deck.PullRequest, d *pullData, at time.Time) (disagrees bool) {
 	pr.ReviewRequests = d.Requests
 	pr.Threads = d.Threads
 	pr.Checks = d.Checks
+	pr.Detail = d.Detail
 	if pr.CheckedAt.IsZero() || !at.Before(pr.CheckedAt) {
 		pr.State, pr.Review, pr.FailingChecks = d.State, d.Review, d.Failing()
 		pr.CheckedAt = at
@@ -212,6 +237,23 @@ func (r *Reader) Focus(url string) {
 		return
 	}
 	if e == nil || e.stale || r.now().Sub(e.at) >= r.ttl(url) {
+		r.want([]prRef{ref})
+	}
+}
+
+// Detail says the PR tab shows url's PR now ("" for none), so its
+// description and conversation are read with it: at once when the cache
+// has none, and after that with the PR's own reads, which Focus keeps
+// fresh. A merged or closed PR is read once.
+func (r *Reader) Detail(url string) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	r.detail = url
+	ref, ok := parsePR(url)
+	if !ok {
+		return
+	}
+	if e := r.cache[url]; e == nil || e.pr != nil && e.pr.Detail == nil {
 		r.want([]prRef{ref})
 	}
 }
@@ -271,6 +313,7 @@ func (r *Reader) take() []prRef {
 	var batch, rest []prRef
 	for _, ref := range r.queue {
 		if ref.Host == host && len(batch) < batchSize {
+			ref.Detail = ref.URL == r.detail
 			batch = append(batch, ref)
 			delete(r.queued, ref.URL)
 		} else {
@@ -375,6 +418,10 @@ func (r *Reader) store(batch []prRef, prs []*pullData, err error) {
 			r.cache = map[string]*entry{}
 		}
 		for i, ref := range batch {
+			// A read without the detail keeps the one read before.
+			if old := r.cache[ref.URL]; prs[i] != nil && prs[i].Detail == nil && old != nil && old.pr != nil {
+				prs[i].Detail = old.pr.Detail
+			}
 			r.cache[ref.URL] = &entry{pr: prs[i], at: now}
 		}
 		r.off, r.problem, r.fails = "", "", 0

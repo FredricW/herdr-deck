@@ -3,6 +3,7 @@ package fake
 import (
 	"context"
 	"errors"
+	"slices"
 	"time"
 
 	"github.com/FredricW/herdr-deck/internal/deck"
@@ -38,7 +39,41 @@ func GitHub(snap *deck.Snapshot, now time.Time) {
 			{Path: "src/api/users.ts", Line: 7, Outdated: true, Author: "sam", Body: "Drop the `any` here.",
 				URL: pr.URL + "#discussion_r103", At: now.Add(-3 * time.Hour)},
 		}
+		pr.Detail = gitHubDetail(pr, now)
 	}
+}
+
+// gitHubDetail is the sample PR's description and conversation, for the
+// PR tab: a deploy bot, a question, a request for changes, the review
+// threads (one of them resolved) and an approval.
+func gitHubDetail(pr *deck.PullRequest, now time.Time) *deck.PRDetail {
+	d := &deck.PRDetail{
+		Title: "Document select for summary", Author: "robin",
+		Head: "hp/admin-rebuild/t-0004-summary", Base: "main",
+		Body: "## Summary\n\nAdds the document picker to the summary page (ABC-1191).\n\n" +
+			"- [x] picker with search\n- [ ] empty state\n\nDesign: Figma 598-48083.",
+		Created: now.Add(-50 * time.Hour), Updated: now.Add(-20 * time.Minute),
+		Labels:    []string{"frontend", "needs-review"},
+		Additions: 214, Deletions: 12, ChangedFiles: 11,
+		Reviewers: []deck.Reviewer{{Login: "alex", State: "COMMENTED"}, {Login: "kim", State: "APPROVED"}},
+	}
+	c := func(c deck.PRComment) { d.Comments = append(d.Comments, c) }
+	c(deck.PRComment{Kind: deck.CommentIssue, Author: "deploy-preview", Bot: true, At: now.Add(-49 * time.Hour),
+		Body: "Preview deployed to https://preview.example.com/2320", URL: pr.URL + "#issuecomment-201"})
+	c(deck.PRComment{Kind: deck.CommentIssue, Author: "alex", At: now.Add(-5 * time.Hour),
+		Body: "Can we keep the old picker behind a flag for a week?", URL: pr.URL + "#issuecomment-202"})
+	c(deck.PRComment{Kind: deck.CommentThread, Author: "kim", At: now.Add(-4 * time.Hour), Resolved: true,
+		Path: "src/pages/summary/picker.tsx", Line: 18, Replies: 1, Body: "Typo in the label.", URL: pr.URL + "#discussion_r100"})
+	for _, t := range pr.Threads {
+		c(deck.PRComment{Kind: deck.CommentThread, Author: t.Author, At: t.At, Path: t.Path, Line: t.Line,
+			Outdated: t.Outdated, Replies: t.Replies, Body: t.Body, URL: t.URL})
+	}
+	c(deck.PRComment{Kind: deck.CommentReview, Author: "alex", State: "COMMENTED", Inline: 1, At: now.Add(-90 * time.Minute),
+		URL: pr.URL + "#pullrequestreview-301"})
+	c(deck.PRComment{Kind: deck.CommentReview, Author: "kim", State: "APPROVED", At: now.Add(-time.Hour),
+		Body: "Looks good once **lint** passes.", URL: pr.URL + "#pullrequestreview-302"})
+	slices.SortStableFunc(d.Comments, func(a, b deck.PRComment) int { return a.At.Compare(b.At) })
+	return d
 }
 
 // CheckLog is the sample's failing lint job's log tail.

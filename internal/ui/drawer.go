@@ -35,6 +35,7 @@ const (
 	tabOverview tabKind = iota
 	tabFiles
 	tabCommits
+	tabPR
 	tabLog
 	numTabs
 )
@@ -45,6 +46,8 @@ func (t tabKind) String() string {
 		return "Files"
 	case tabCommits:
 		return "Commits"
+	case tabPR:
+		return "PR"
 	case tabLog:
 		return "Log"
 	}
@@ -65,7 +68,8 @@ const (
 	actExpand             // expand or collapse commit n (1-based)
 	actCommitFile         // preview file f (0-based, in display order) of commit n
 	actCheck              // show the log of the PR's check n
-	actThread             // open the PR's review thread n on GitHub
+	actComment            // open the PR tab's comment n on GitHub
+	actFold               // expand or collapse the PR tab's comment n
 )
 
 type action struct {
@@ -493,7 +497,7 @@ func (m Model) helpDrawer(width int) *drawer {
 var helpLines = [][2]string{
 	{"j k", "move; the drawer follows"},
 	{"space", "fold or unfold the list under the cursor"},
-	{"[ ]", "previous / next tab: Overview, Files, Commits, Log"},
+	{"[ ]", "previous / next tab: Overview, Files, Commits, PR, Log"},
 	{"tab", "focus the drawer: j k move in it, ↵ opens, tab switches tabs, esc returns"},
 	{"1-9", "open the numbered link; on Files and Commits, preview that file or commit"},
 	{"l f n g", "open the first Linear, Figma, Notion or PR link; with several, pick one: a digit, a all, d Figma desktop app, the letter again the first, esc cancels"},
@@ -509,6 +513,7 @@ var helpLines = [][2]string{
 	{"space → l", "in the focused Commits tab: expand the commit to the files it changed (space again, ← or h collapses it; a click on ▸ / ▾ too); ↵ or a click on a file previews its change in that commit, d opens it in the diff tool"},
 	{"J K", "scroll the preview a line; pgup pgdn a page, the wheel over it three lines"},
 	{"S", "switch the preview between unified and split (old on the left, new on the right); diff.layout picks the start; a pane under 100 columns shows unified"},
+	{"PR", "the thread PR's status, what it is, its description and its conversation; ↵ or a click opens a comment on GitHub; space, → l or a click on ▸ unfolds an app's comment or a resolved thread, ← h folds it"},
 	{"r", "the thread's report, full height"},
 	{"c", "a failed check's log, full height (or click its chip); c again the next"},
 	{"z", "drawer: normal, full height, hidden"},
@@ -520,7 +525,7 @@ var helpLines = [][2]string{
 	{"w", "what's new: the changelog, newest first; with ↑ in the header, also what the newer version brings"},
 	{"?", "this help; esc returns"},
 	{"q", "quit"},
-	{"mouse", "click a row, tab, chip, file, Log event, list heading, ! N or the other-projects line; drag the rule above the drawer to resize it, or a scrollbar's thumb to scroll (a press on its track jumps there); the wheel moves the list or scrolls the drawer"},
+	{"mouse", "click a row, tab, chip, file, comment, Log event, list heading, ! N or the other-projects line; a click on a row's PR number shows its PR tab, and a second click opens the PR on GitHub; drag the rule above the drawer to resize it, or a scrollbar's thumb to scroll (a press on its track jumps there); the wheel moves the list or scrolls the drawer"},
 }
 
 // tilde shortens a path under the home folder to ~/….

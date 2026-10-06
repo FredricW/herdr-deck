@@ -52,9 +52,6 @@ func (m Model) overview(d *drawer, r row, links []deck.Link, h int) {
 	}
 	if hasThread && t.PR != nil {
 		secs = append(secs, sec{name: "PR", style: bold, body: func() { m.prSection(d, *t.PR, links, prLink, narrow) }})
-		if t.PR.Live && t.PR.State == "OPEN" && len(t.PR.Threads) > 0 {
-			secs = append(secs, sec{name: "Review", style: bold, note: reviewNote(*t.PR), body: func() { m.reviewSection(d, *t.PR) }})
-		}
 	}
 	if r.task != nil && r.task.Notes != "" {
 		secs = append(secs, sec{name: "Note", style: bold, body: func() {
@@ -298,8 +295,9 @@ func chipStyle(k deck.LinkKind) lipgloss.Style {
 	return plain
 }
 
-// prSection is the PR's chip with its state, review and comments, then
-// its checks; at full height also when herdr-projects last looked.
+// prSection is a short summary of the PR: its chip with its state, review
+// and comments, its checks, why it is not merging, and a line pointing to
+// the PR tab, which has the rest.
 func (m Model) prSection(d *drawer, pr deck.PullRequest, links []deck.Link, prLink int, narrow bool) {
 	var g group
 	g.sep = " "
@@ -347,9 +345,18 @@ func (m Model) prSection(d *drawer, pr deck.PullRequest, links []deck.Link, prLi
 	if text, st := mergeReason(pr); text != "" {
 		d.flow(words(text, st))
 	}
-	if m.effectiveSize() == sizeFull && !pr.CheckedAt.IsZero() {
-		d.flow(words("checked "+ago(m.opt.Now().Sub(pr.CheckedAt)), dim))
+	text := "→ PR tab: description and comments"
+	if current, outdated := threadCounts(pr); pr.Live && pr.State == "OPEN" && current+outdated > 0 {
+		text = fmt.Sprintf("→ PR tab: %d unresolved review %s, description and comments", current+outdated, plural(current+outdated, "thread"))
+		if narrow {
+			text = fmt.Sprintf("→ PR tab: %d unresolved", current+outdated)
+		}
+	} else if narrow {
+		text = "→ PR tab"
 	}
+	it := item{text: text, style: dim, act: action{kind: actTab, n: int(tabPR)}, stop: true}
+	it.sel = d.nextStop()
+	d.flow(group{items: []item{it}})
 }
 
 // reviewTextStyle colours a review decision: required magenta, approved

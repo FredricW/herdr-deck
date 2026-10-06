@@ -4,7 +4,7 @@
   In progress
   ◐ Users page                  Building overv…  L4
   ◐ Templates page              Writing tests    L F    ●●●
- ▸◇ Document select for summa…  #2320 approved   L F3   ●○
+ ▸◇ Document select for summa…  #2320 review     L F3   ●○
 
   On hold until Monday 2026-10-05
   ○ Subscriptions list          idle             L N    ~○
@@ -14,15 +14,15 @@
 
 ────────────────────────────────────────────────────────────
  Document select for summary                       ◇ review
- webshop · t-0004-summary                           #2320 ✓
+ webshop · t-0004-summary                         #2320 ✕ 1
 
-  Overview   Files   Commits   PR   Log 6         ↓ 12 more
+  Overview   Files   Commits   PR   Log 6          ↓ 5 more
 
- ── PR ──
- [5 #2320] open · approved · auto-merge on · 2c
- ✓ all 2 checks passed
- ⚠ behind main: update the branch before it can merge;
- auto-merge merges it once that is done
- → PR tab
+ ── Status ──
+ open · review required
+ ✕ blocked: checks failing, checks running, review required
+ (sam)
+ ✕ 1 failing: [lint]  ◌ 1 running: test (macos-latest) 6m
+ ✓ 2 passed
 ────────────────────────────────────────────────────────────
- 1-9 link  o open  ↵ pane  [ ] tab  z drawer  ? help  v9.9.9
+ g GitHub  c log  tab focus  [ ] tab  z drawer        v9.9.9

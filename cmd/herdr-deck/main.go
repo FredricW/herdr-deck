@@ -223,6 +223,11 @@ func run(args []string) error {
 			gh.Focus(url)
 		}
 	}
+	opt.DetailPR = func(url string) {
+		if cur.Load().GitHubEnabled {
+			gh.Detail(url)
+		}
+	}
 	opt.CheckLog = gh.Log
 	opt.OpenProject = func(slug string) error {
 		return projects.New(root, slug).Open(context.Background())

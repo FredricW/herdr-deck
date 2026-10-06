@@ -16,7 +16,7 @@
  j k        move; the drawer follows                       ┃
  space      fold or unfold the list under the cursor       ┃
  [ ]        previous / next tab: Overview, Files, Commits, │
-            Log                                            │
+            PR, Log                                        │
  tab        focus the drawer: j k move in it, ↵ opens, tab │
             switches tabs, esc returns                     │
  1-9        open the numbered link; on Files and Commits,  │

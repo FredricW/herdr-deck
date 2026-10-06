@@ -441,3 +441,163 @@ func TestTailWriter(t *testing.T) {
 		t.Errorf("tail = %q, want the last whole line", got)
 	}
 }
+
+func TestDetailParse(t *testing.T) {
+	prs, _, err := parseResponse(fixture(t, "prs-detail.json"), 2)
+	if err != nil {
+		t.Fatal(err)
+	}
+	d := prs[0].Detail
+	if d == nil {
+		t.Fatal("no detail parsed")
+	}
+	if d.Title != "Document select for summary" || d.Author != "robin" || d.Head != "hp/admin-rebuild/t-0004-summary" || d.Base != "main" ||
+		d.Additions != 214 || d.Deletions != 12 || d.ChangedFiles != 11 || !strings.HasPrefix(d.Body, "## Summary") {
+		t.Errorf("detail = %+v", d)
+	}
+	if !slices.Equal(d.Labels, []string{"frontend", "needs-review"}) {
+		t.Errorf("labels = %q", d.Labels)
+	}
+	// 53 comments, 3 read; 4 reviews, all read.
+	if d.Earlier != 50 {
+		t.Errorf("Earlier = %d, want 50", d.Earlier)
+	}
+	var got []string
+	for _, c := range d.Comments {
+		s := []string{"issue", "review", "thread"}[c.Kind] + ":" + c.Author
+		switch {
+		case c.Bot:
+			s += ":bot"
+		case c.Kind == deck.CommentReview:
+			s += ":" + c.State
+		case c.Resolved:
+			s += ":resolved"
+		}
+		got = append(got, s)
+	}
+	// Time order; the pending review is the viewer's own draft and left
+	// out; a deleted account is "ghost".
+	want := []string{"issue:vercel:bot", "issue:alex", "review:sam:CHANGES_REQUESTED", "issue:ghost", "thread:alex:resolved",
+		"thread:sam", "review:sam:COMMENTED", "thread:sam", "thread:alex", "review:alex:APPROVED"}
+	if !slices.Equal(got, want) {
+		t.Errorf("comments = %q\nwant %q", got, want)
+	}
+	if c := d.Comments[6]; c.Inline != 1 || c.URL == "" {
+		t.Errorf("the comment-only review = %+v", c)
+	}
+	// sam's later comment-only review keeps the request for changes.
+	if !slices.Equal(d.Reviewers, []deck.Reviewer{{Login: "sam", State: "CHANGES_REQUESTED"}, {Login: "alex", State: "APPROVED"}}) {
+		t.Errorf("reviewers = %+v", d.Reviewers)
+	}
+	// Without the detail fields there is no detail.
+	plain, _, _ := parseResponse(fixture(t, "prs.json"), 2)
+	if plain[0].Detail != nil {
+		t.Error("a read without the detail fields has a detail")
+	}
+}
+
+func TestDetailOnDemand(t *testing.T) {
+	f := &fakeGh{out: fixture(t, "prs.json")}
+	clock := now
+	r := newReader(f, &clock)
+	s := snap(time.Time{})
+	r.Apply(&s)
+	r.Wait()
+	if args := strings.Join(f.calls[0], " "); strings.Contains(args, "deckDetail") {
+		t.Errorf("the detail was asked for before the PR tab showed: %s", args)
+	}
+
+	// The PR tab opens: the PR is read at once, with its detail, though
+	// the cache is fresh.
+	r.Focus(prURL)
+	f.mu.Lock()
+	f.out = fixture(t, "prs-detail.json")
+	f.mu.Unlock()
+	r.Detail(prURL)
+	r.Wait()
+	if f.n() != 2 {
+		t.Fatalf("%d calls; opening the tab did not read the detail", f.n())
+	}
+	args := strings.Join(f.calls[1], " ")
+	if !strings.Contains(args, "...deckPR ...deckDetail") || !strings.Contains(args, "fragment deckDetail on PullRequest") {
+		t.Errorf("the detail read lacks the fragment: %s", args)
+	}
+	s = snap(time.Time{})
+	r.Apply(&s)
+	if d := s.Threads[0].PR.Detail; d == nil || d.Title == "" || s.Threads[0].PR.DetailNote != "" {
+		t.Fatalf("detail = %+v, note %q", d, s.Threads[0].PR.DetailNote)
+	}
+	r.Wait()
+	if f.n() != 2 {
+		t.Errorf("%d calls; a cached detail was read again", f.n())
+	}
+
+	// The PR's own refresh reads the detail too.
+	clock = now.Add(FocusTTL + time.Second)
+	r.Focus(prURL)
+	r.Wait()
+	if f.n() != 3 || !strings.Contains(strings.Join(f.calls[2], " "), "deckDetail") {
+		t.Errorf("%d calls; the focused refresh did not ask for the detail", f.n())
+	}
+
+	// The tab closes: later reads leave the detail out, but keep the one
+	// read before.
+	r.Detail("")
+	f.mu.Lock()
+	f.out = fixture(t, "prs.json")
+	f.mu.Unlock()
+	clock = now.Add(2*FocusTTL + 2*time.Second)
+	r.Focus(prURL)
+	r.Wait()
+	if f.n() != 4 || strings.Contains(strings.Join(f.calls[3], " "), "deckDetail") {
+		t.Errorf("%d calls; the detail was asked for with the tab closed", f.n())
+	}
+	s = snap(time.Time{})
+	r.Apply(&s)
+	if s.Threads[0].PR.Detail == nil {
+		t.Error("a read without the detail dropped the one read before")
+	}
+}
+
+func TestDetailNotes(t *testing.T) {
+	// A merged PR's detail is read once, though merged PRs are left alone.
+	f := &fakeGh{out: fixture(t, "prs-detail.json")}
+	clock := now
+	r := newReader(f, &clock)
+	merged := "https://github.com/acme/webshop/pull/8"
+	r.Detail(merged)
+	r.Wait()
+	if f.n() != 1 {
+		t.Fatalf("%d calls for a merged PR's detail", f.n())
+	}
+
+	// A failed read says why, and the reader backs off.
+	f2 := &fakeGh{err: &RunError{Code: 1, Stderr: "error connecting to api.github.com"}}
+	r2 := newReader(f2, &clock)
+	r2.Detail(prURL)
+	r2.Wait()
+	s := snap(time.Time{})
+	r2.Apply(&s)
+	r2.Wait()
+	if note := s.Threads[0].PR.DetailNote; !strings.Contains(note, "could not read it: gh: error connecting") {
+		t.Errorf("note = %q", note)
+	}
+	if f2.n() != 1 {
+		t.Errorf("%d calls; no back-off for the detail", f2.n())
+	}
+
+	// GitHub does not know the PR.
+	f3 := &fakeGh{out: fixture(t, "prs.json")}
+	r3 := newReader(f3, &clock)
+	s = snap(time.Time{})
+	r3.Apply(&s)
+	r3.Wait()
+	r3.Detail(goneURL)
+	r3.Wait()
+	s = snap(time.Time{})
+	r3.Apply(&s)
+	if note := s.Threads[1].PR.DetailNote; !strings.Contains(note, "no such pull request") {
+		t.Errorf("note for a PR GitHub does not know = %q", note)
+	}
+	r3.Wait()
+}

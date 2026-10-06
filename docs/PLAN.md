@@ -802,8 +802,23 @@ G1 (why the PR is not merging), G2 (a failed check's log tail) and G3
   200 lines. A finished job's tail is cached by job ID. Checks outside
   Actions open their page instead.
 - The UI: the *PR* section's checks line and merge-state line
-  (`mergeReason`), the *Review* section after it, and the log view
-  (`modeCheck`, full height like the report). Settings: `[github] enabled`
+  (`mergeReason`) with a line to the PR tab, the PR tab, and the log view
+  (`modeCheck`, full height like the report).
+- The PR tab (2026-10-06), after Commits and only for a thread with a PR:
+  *Status* (state, review decision, auto-merge, `mergeReason`, checks,
+  `checked`), *About* (title chip, author, opened and updated, head → base,
+  labels, reviewers and requests, additions/deletions/files),
+  *Description* (the body through internal/markdown) and *Comments* (issue
+  comments, reviews and review threads, resolved ones included, in time
+  order; apps' comments and resolved threads fold to one line). The body
+  and conversation (`deck.PRDetail`, `detailFields`: title, body, labels,
+  `comments(last: 50)`, `reviews(last: 50)`) are asked for only for the PR
+  the tab shows (`Reader.Detail`), as a second fragment in the same
+  batched request, so they refresh with the PR's own FocusTTL reads and
+  share its back-off; a read without them keeps the last ones. A click on
+  the list's PR number shows the tab, a second click opens GitHub; `g`
+  still opens GitHub from anywhere. Overview's *Review* section moved into
+  the tab. Settings: `[github] enabled`
   (default true); the intervals are constants.
 - Tests use a fake gh runner with made-up fixtures (`testdata/`); they never
   call GitHub.

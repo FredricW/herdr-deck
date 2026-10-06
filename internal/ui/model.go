@@ -32,6 +32,10 @@ type Options struct {
 	// check's log tail, of the PR at prURL. Nil leaves them out.
 	FocusPR  func(url string)
 	CheckLog func(ctx context.Context, prURL string, c deck.Check) (deck.CheckLog, error)
+	// DetailPR tells the GitHub reader which PR the PR tab shows ("" for
+	// none), so it reads that PR's description and conversation. Nil
+	// leaves them out.
+	DetailPR func(url string)
 	// OpenURL opens a link; OpenEditor opens a worktree folder. Tests
 	// replace both so nothing is ever opened.
 	OpenURL    func(url string) error
@@ -267,6 +271,8 @@ type Model struct {
 	// checks' logs read, by job ID, and logCheck (of the PR logPR) the
 	// one the log view shows.
 	watched  string
+	detailed string // the PR last given to DetailPR
+	unfolded map[string]bool
 	logs     map[int64]checkLog
 	logCheck deck.Check
 	logPR    string
@@ -300,6 +306,7 @@ func New(snap deck.Snapshot, opt Options) Model {
 		filesReading:   map[string]bool{},
 		patches:        map[string]preview{},
 		logs:           map[int64]checkLog{},
+		unfolded:       map[string]bool{},
 		choosing:       noKind,
 		tree:           opt.DiffTree,
 		split:          opt.DiffSplit,
@@ -844,8 +851,10 @@ func (m *Model) act(a action) tea.Cmd {
 		if pr, ok := m.prOf(); ok {
 			return m.openCheck(pr, a.n)
 		}
-	case actThread:
-		return m.openThread(a.n)
+	case actComment:
+		return m.openComment(a.n)
+	case actFold:
+		m.toggleComment(a.n)
 	}
 	return nil
 }
@@ -910,6 +919,9 @@ func (m Model) handleKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	}
 	if cmd, done := m.commitsOnlyKey(msg); done {
 		return m, cmd
+	}
+	if m.prOnlyKey(msg) {
+		return m, nil
 	}
 	if m.previewKey(msg) {
 		return m, nil
@@ -1364,6 +1376,9 @@ func (m *Model) handleClick(mouse tea.Mouse) (tea.Model, tea.Cmd) {
 		if i >= len(m.rows) || m.rows[i].kind == rowGap {
 			break
 		}
+		if x0, x1, ok := m.prCell(m.rows[i]); ok && mouse.X >= x0 && mouse.X < x1 {
+			return *m, m.showPRTab(i)
+		}
 		if i != m.cursor {
 			m.dcur = 0
 		}
@@ -1398,10 +1413,19 @@ func (m *Model) handleClick(mouse tea.Mouse) (tea.Model, tea.Cmd) {
 				continue
 			}
 			m.choosing = noKind
+			// The cursor goes to the stop clicked, or for a part of a
+			// line that is not a stop itself (a fold's ▸), the line's.
+			at := -1
 			for k, st := range l.drawer.stops {
-				if st.line == i && st.act == z.act {
-					m.dcur = k
+				if st.line == i && (st.act == z.act || at < 0) {
+					at = k
 				}
+				if st.line == i && st.act == z.act {
+					break
+				}
+			}
+			if at >= 0 {
+				m.dcur = at
 			}
 			return *m, m.act(z.act)
 		}
