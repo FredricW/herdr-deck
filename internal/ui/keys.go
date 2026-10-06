@@ -11,6 +11,7 @@ type keyMap struct {
 	Pane, Editor   key.Binding
 	DevUp, Diff    key.Binding
 	Report, Drawer key.Binding
+	Grow, Shrink   key.Binding
 	Sources, Help  key.Binding
 	Settings       key.Binding
 	News           key.Binding
@@ -40,6 +41,8 @@ func defaultKeys() keyMap {
 		Diff:      key.NewBinding(key.WithKeys("d")),
 		Report:    key.NewBinding(key.WithKeys("r")),
 		Drawer:    key.NewBinding(key.WithKeys("z")),
+		Grow:      key.NewBinding(key.WithKeys("+", "=")),
+		Shrink:    key.NewBinding(key.WithKeys("-")),
 		Sources:   key.NewBinding(key.WithKeys("!")),
 		Help:      key.NewBinding(key.WithKeys("?")),
 		Settings:  key.NewBinding(key.WithKeys("s")),

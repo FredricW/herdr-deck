@@ -233,6 +233,13 @@ func (m *Model) settingsSaved(msg settingsSavedMsg) tea.Cmd {
 		// A saved view applies now; d t alone never writes the file.
 		m.tree = msg.cfg.DiffView == config.DiffViewTree
 	}
+	if msg.key == config.KeyDrawerHeight {
+		// A saved height applies now and replaces the dragged one.
+		m.opt.DrawerHeight = msg.cfg.DrawerHeight
+		m.frac = m.opt.DrawerHeight
+		m.relayoutDrawer()
+		cmd = tea.Batch(cmd, m.keepDrawer())
+	}
 	if msg.key == config.KeyDiffLayout {
 		// Likewise a saved layout; S alone never writes the file.
 		m.split = msg.cfg.DiffLayout == config.DiffLayoutSplit

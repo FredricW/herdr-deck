@@ -475,6 +475,7 @@ var helpLines = [][2]string{
 	{"r", "the thread's report, full height"},
 	{"c", "a failed check's log, full height (or click its chip); c again the next"},
 	{"z", "drawer: normal, full height, hidden"},
+	{"+ -", "grow or shrink the drawer a line (or drag the rule above it); the height is kept for the next start"},
 	{"pgup pgdn", "scroll the drawer, or the preview while it shows"},
 	{"!", "sources: what could not be read"},
 	{"s", "settings: every setting with its value and source; ↵ edits, toggles or cycles one in the config file"},
@@ -482,7 +483,7 @@ var helpLines = [][2]string{
 	{"w", "what's new: the changelog, newest first; with ↑ in the header, also what the newer version brings"},
 	{"?", "this help; esc returns"},
 	{"q", "quit"},
-	{"mouse", "click a row, tab, chip, file, Log event, list heading, ! N or the other-projects line; the wheel moves the list or scrolls the drawer"},
+	{"mouse", "click a row, tab, chip, file, Log event, list heading, ! N or the other-projects line; drag the rule above the drawer to resize it; the wheel moves the list or scrolls the drawer"},
 }
 
 // tilde shortens a path under the home folder to ~/….

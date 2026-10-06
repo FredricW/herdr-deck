@@ -45,6 +45,9 @@ func Save(path, key string, value *string) error {
 		case KindList:
 			l, _ := ParseList(v)
 			lit = tomlArray(l)
+		case KindFraction:
+			f, _ := strconv.ParseFloat(v, 64)
+			lit = FractionText(f) // in range, so never an integer
 		default:
 			lit = tomlString(v)
 		}

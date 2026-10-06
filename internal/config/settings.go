@@ -78,6 +78,9 @@ func (f File) values() map[string]string {
 		if t.FoldedLists != nil {
 			out[KeyFoldedLists] = ListText(*t.FoldedLists)
 		}
+		if t.DrawerHeight != nil {
+			out[KeyDrawerHeight] = FractionText(*t.DrawerHeight)
+		}
 	}
 	if t := f.Projects; t != nil {
 		str(KeyProjectsRoot, t.Root)
@@ -124,6 +127,7 @@ const (
 	KindCommand              // a command line, split without a shell
 	KindChoice               // one of Spec.Choices; the page cycles them
 	KindList                 // names, written as a TOML array; edited comma-separated
+	KindFraction             // a share such as 0.5, written as a TOML float
 )
 
 // Setting keys, as Spec.Key and Settings.Values name them: the dotted
@@ -131,6 +135,7 @@ const (
 const (
 	KeyRefreshInterval     = "ui.refresh_interval"
 	KeyFoldedLists         = "ui.folded_lists"
+	KeyDrawerHeight        = "ui.drawer_height"
 	KeyProjectsRoot        = "projects.root"
 	KeyLinearWorkspace     = "linear.workspace"
 	KeyLinearStatus        = "linear.status"
@@ -186,7 +191,7 @@ func (sp Spec) Table() string {
 // Tables are the file's tables in the settings page's order, with a few
 // words about each for its heading.
 var Tables = []struct{ Name, Title string }{
-	{"ui", "the list and how often it reloads"},
+	{"ui", "the list, the drawer and how often it reloads"},
 	{"projects", "herdr-projects"},
 	{"linear", "Linear links and status"},
 	{"github", "pull requests"},
@@ -206,6 +211,9 @@ var Specs = []Spec{
 	{Key: KeyFoldedLists, Kind: KindList, Flag: "--ui-folded-lists", Env: EnvFoldedLists,
 		Default: ListText(DefaultFoldedLists),
 		Help:    "list headings that start folded, any case, comma-separated; " + NoLists + " folds none. The deck's own groups are Resolved and Other threads"},
+	{Key: KeyDrawerHeight, Kind: KindFraction, Flag: "--ui-drawer-height", Env: EnvDrawerHeight,
+		Default: FractionText(DefaultDrawerHeight),
+		Help:    "the drawer's share of the pane, " + FractionText(MinDrawerHeight) + " to " + FractionText(MaxDrawerHeight) + ", until you drag the rule above it or press + -; the dragged height is kept"},
 	{Key: KeyProjectsRoot, Kind: KindPath, Flag: "--projects-root", Env: EnvProjectsRoot, Old: "projects_root", Restart: true,
 		Default: "~/.herdr-projects",
 		Help:    "the herdr-projects root; ~/ is your home folder"},
@@ -322,6 +330,10 @@ func Check(key, text string) error {
 		return checkChoice(text, sp.Choices)
 	case KindList:
 		if _, err := ParseList(text); err != nil {
+			return err
+		}
+	case KindFraction:
+		if _, err := parseFraction(text); err != nil {
 			return err
 		}
 	}

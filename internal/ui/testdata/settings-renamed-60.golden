@@ -1,9 +1,10 @@
  Admin rebuild                           ◐ 2  ◇ 1  ○ 1  ✉ 0
 ────────────────────────────────────────────────────────────
 ─ Settings · /home/ada/.config/herdr-deck/config.toml ──────
- [ui] the list and how often it reloads
+ [ui] the list, the drawer and how often it reloads
    ui.refresh_interval     5s                        default
    ui.folded_lists         Backlog, Resolved         default
+   ui.drawer_height        0.5                       default
 
  [projects] herdr-projects
    projects.root           /home/ada/.herdr-projec…  default
@@ -23,6 +24,5 @@
  [figma] Figma links
    figma.desktop           false                     default
 
- [browser] web links
 ────────────────────────────────────────────────────────────
  ↵ edit  x remove  j k move  esc back  q quit         v9.9.9

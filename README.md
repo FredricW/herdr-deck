@@ -331,6 +331,9 @@ refresh_interval = "5s"
 # The lists that start folded, by heading, in any case: TASKS.md's lists
 # and the deck's own groups (Resolved, Other threads). [] folds none.
 folded_lists = ["Backlog", "Resolved"]
+# The drawer's share of the pane, 0.2 to 0.8, until you drag the rule
+# above it (or press + -); the dragged height is kept in the state folder.
+drawer_height = 0.5
 
 [projects]
 # The herdr-projects root; ~ is your home folder.
@@ -393,6 +396,7 @@ it).
 |---|---|---|---|---|
 | `ui.refresh_interval` | `--ui-refresh-interval` | `HERDR_DECK_UI_REFRESH_INTERVAL` | `5s` | `refresh_interval`, `--refresh-interval`, `HERDR_DECK_REFRESH_INTERVAL` |
 | `ui.folded_lists` | `--ui-folded-lists` | `HERDR_DECK_UI_FOLDED_LISTS` | `["Backlog", "Resolved"]` |  |
+| `ui.drawer_height` | `--ui-drawer-height` | `HERDR_DECK_UI_DRAWER_HEIGHT` | `0.5` |  |
 | `projects.root` | `--projects-root` | `HERDR_PROJECTS_ROOT` | `~/.herdr-projects` | `projects_root` |
 | `linear.workspace` | `--linear-workspace` | `HERDR_DECK_LINEAR_WORKSPACE` | none | `linear_workspace` |
 | `linear.status` | `--linear-status` | `HERDR_DECK_LINEAR_STATUS` | `true` | `linear_status` |
@@ -644,6 +648,15 @@ tabs; `tab` moves the focus into the drawer, where `j`/`k` move a cursor
 over its chips, files, commits or events, `↵` opens the one under it, `tab` and
 `shift+tab` switch tabs and `esc` returns to the list.
 
+Drag the rule above the drawer with the mouse, or press `+` / `-`, to make
+the drawer taller or shorter; the list keeps at least three rows and the
+drawer its card, tab bar and two lines. The deck keeps that height, as a
+share of the pane, for the next start (in
+`$XDG_STATE_HOME/herdr-deck/drawer-height`, else
+`~/.local/state/herdr-deck/drawer-height`; dragging never writes the
+config file), and `z` cycles back to it. `ui.drawer_height` sets the
+height before any drag.
+
 Inbox items are news for the coordinator, not needs: a thread with
 unhandled items gets a yellow title in the list and a `✉ N updates · see
 Log` line on Overview, and its Log marks them. Items about no thread
@@ -675,6 +688,7 @@ only threads waiting on you. The deck never marks an item handled.
 | `r` | the thread's report, full height, rendered as Markdown |
 | `c` | the PR's failed check: its failing step's log, full height; `c` again the next one, `↵` opens the job on GitHub (see GitHub pull requests) |
 | `z` | drawer: normal, full height, hidden |
+| `+` / `-` | grow / shrink the drawer a line (`=` works as `+`); the height is kept for the next start |
 | `pgup` / `pgdn` | scroll the drawer, or the diff preview while it shows |
 | `!` | sources the deck could not read |
 | `s` | settings: every setting, its value and source; `↵` edits, toggles or cycles, `x` removes it from the file (see Configuration) |
@@ -691,7 +705,7 @@ it, a chip to open its link, a changed file or a commit to preview it (the
 total line opens the whole diff in the diff tool), a Log event to act on it (a report shows it, a PR
 event opens the PR, the rest focus the pane), `! N` for the sources, the
 other-projects line for the project picker. A click in the drawer gives it
-the focus. The wheel moves the list or scrolls the tab under the pointer.
+the focus. Drag the rule between the list and the drawer to resize them. The wheel moves the list or scrolls the tab under the pointer.
 The wheel over the diff preview scrolls it.
 
 ## Other projects
