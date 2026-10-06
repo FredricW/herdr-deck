@@ -57,6 +57,7 @@ func newPlan(t deck.Thread) (*plan, error) {
 		pending:  map[string]string{},
 		vars:     manifest.Vars{Worktree: wt, Repo: repo, Branch: t.Branch, Ports: map[string]int{}},
 	}
+	// state.file may use $env(…); the env files may use the ports.
 	p.vars.Env = p.m.LoadEnv(p.vars)
 
 	var state map[string]any
@@ -78,6 +79,7 @@ func newPlan(t deck.Thread) (*plan, error) {
 			}
 		}
 	}
+	p.vars.Env = p.m.LoadEnv(p.vars)
 	switch {
 	case errors.Is(stateErr, fs.ErrNotExist):
 		p.stateMissing = true
@@ -89,10 +91,15 @@ func newPlan(t deck.Thread) (*plan, error) {
 }
 
 // resolved is a path with its symlinks resolved, as $WORKTREE and $REPO
-// are; the path itself when that fails.
+// are.
 func resolved(path string) string {
 	if r, err := filepath.EvalSymlinks(path); err == nil {
 		return r
+	}
+	// A worktree that is gone: resolve the nearest folder that exists, so
+	// its run records keep their key.
+	if parent := filepath.Dir(path); parent != path {
+		return filepath.Join(resolved(parent), filepath.Base(path))
 	}
 	return path
 }
@@ -179,6 +186,16 @@ func (p *plan) mainPort(s *manifest.Service) (name string, n int, pending string
 	}
 	name = s.Ports[0]
 	return name, p.vars.Ports[name], p.pending[name]
+}
+
+// anyMainPort reports whether some service's main port has a number.
+func (p *plan) anyMainPort() bool {
+	for i := range p.m.Services {
+		if _, n, _ := p.mainPort(&p.m.Services[i]); n > 0 {
+			return true
+		}
+	}
+	return false
 }
 
 // logOf is a service's log: its log field, else the shared state folder's.

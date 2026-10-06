@@ -73,7 +73,11 @@ func ParseLegacy(b []byte) (*Manifest, error) {
 		return nil, errors.New("state.file is empty, but state.ports names keys in it")
 	}
 	if f := l.State.File; f != "" {
-		if !filepath.IsAbs(f) && !strings.HasPrefix(f, "$") {
+		absolute := filepath.IsAbs(f)
+		for _, v := range []string{"$REPO", "${REPO}", "$WORKTREE", "${WORKTREE}"} {
+			absolute = absolute || strings.HasPrefix(f, v)
+		}
+		if !absolute {
 			f = "$REPO/" + f
 		}
 		m.StateFile = f

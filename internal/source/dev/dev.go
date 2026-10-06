@@ -37,14 +37,48 @@ type Reader struct {
 	Signal func(pid int, force bool) error
 	Alive  func(pid int, started time.Time) bool
 
-	mu   sync.Mutex
-	busy map[string]bool // worktrees with a dev or stop running
+	mu    sync.Mutex
+	busy  map[string]bool // worktrees with a dev or stop running
+	alive map[aliveKey]probe
 }
 
 // NewReader returns a Reader that probes real ports.
 func NewReader() *Reader { return &Reader{} }
 
 func (r *Reader) store() Store { return Store{Dir: r.State, Alive: r.Alive} }
+
+// aliveTTL is how long a refresh reuses a process check: each one runs ps.
+const aliveTTL = 2 * time.Second
+
+// cachedStore is store() with process checks remembered for aliveTTL, for
+// Apply's refreshes; starting and stopping ask afresh.
+func (r *Reader) cachedStore() Store {
+	st := r.store()
+	alive := st.IsAlive
+	st.Alive = func(pid int, started time.Time) bool {
+		k := aliveKey{pid, started.Unix()}
+		r.mu.Lock()
+		c, ok := r.alive[k]
+		r.mu.Unlock()
+		if ok && time.Since(c.at) < aliveTTL {
+			return c.up
+		}
+		up := alive(Record{PID: pid, Started: started.UTC().Format(time.RFC3339)})
+		r.mu.Lock()
+		if r.alive == nil {
+			r.alive = map[aliveKey]probe{}
+		}
+		r.alive[k] = probe{up: up, at: time.Now()}
+		r.mu.Unlock()
+		return up
+	}
+	return st
+}
+
+type aliveKey struct {
+	pid     int
+	started int64
+}
 
 // Apply sets DevServers, DevNote, DevUp and localhost links on every open
 // thread with a worktree. Without a manifest (or a port), the thread's
@@ -72,6 +106,7 @@ func (r *Reader) Apply(ctx context.Context, snap *deck.Snapshot) {
 		if t.Status == deck.StatusDone || t.Worktree == "" {
 			continue
 		}
+		r.devUp(t)
 		if fi, err := os.Stat(t.Worktree); err != nil || !fi.IsDir() {
 			t.DevNote = "worktree not found"
 			continue
@@ -85,7 +120,7 @@ func (r *Reader) Apply(ctx context.Context, snap *deck.Snapshot) {
 				checks = append(checks, p.readyCheck(&p.m.Services[i]))
 			}
 		}
-		if t.PortToken > 0 && (p == nil || len(p.vars.Ports) == 0) {
+		if t.PortToken > 0 && (p == nil || !p.anyMainPort()) {
 			ports = append(ports, t.PortToken) // the fallback when the manifest gives no port
 		}
 		todo = append(todo, pending{t, p})
@@ -106,6 +141,18 @@ func (r *Reader) Apply(ctx context.Context, snap *deck.Snapshot) {
 			x.t.Links = deck.AppendLink(x.t.Links, deck.Link{Kind: deck.LinkLocalhost, Label: fmt.Sprintf("~:%d", port), URL: localURL(port), Down: !up[port]})
 			x.t.DevNote = ""
 		}
+	}
+}
+
+// devUp sets DevUp from the dev command's run record, also when the
+// worktree is gone.
+func (r *Reader) devUp(t *deck.Thread) {
+	if r.State == "" {
+		return
+	}
+	st := r.cachedStore()
+	if rec, ok := st.Record(Key(resolved(t.Worktree)), "dev."+DefaultGroup); ok {
+		t.DevUp = &deck.DevUp{Log: rec.Log, Alive: st.IsAlive(rec)}
 	}
 }
 
@@ -151,12 +198,7 @@ func (r *Reader) read(t *deck.Thread, snap *deck.Snapshot, once func(*[]string, 
 // fill sets a thread's dev servers, DevUp and links from its plan and the
 // probes' answers.
 func (r *Reader) fill(t *deck.Thread, p *plan, up map[int]bool, httpOK map[check]bool) {
-	st := r.store()
-	if r.State != "" {
-		if rec, ok := st.Record(p.key, "dev.default"); ok {
-			t.DevUp = &deck.DevUp{Log: rec.Log, Alive: st.IsAlive(rec)}
-		}
-	}
+	st := r.cachedStore()
 	ready := map[string]bool{}
 	known, records := false, false
 	var servers []deck.DevServer
@@ -236,13 +278,11 @@ func (r *Reader) fill(t *deck.Thread, p *plan, up map[int]bool, httpOK map[check
 		if err != nil {
 			continue // a port that is not known yet
 		}
-		label := l.URL
+		label := strings.TrimPrefix(strings.TrimPrefix(url, "http://"), "https://")
 		if l.Title != "" {
 			if title, err := p.vars.Expand(l.Title); err == nil {
 				label = title
 			}
-		} else {
-			label = strings.TrimPrefix(strings.TrimPrefix(url, "http://"), "https://")
 		}
 		needs := l.Needs
 		if len(needs) == 0 {

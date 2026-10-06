@@ -350,6 +350,9 @@ func devGroups(t deck.Thread) []group {
 	if u := t.DevUp; u != nil {
 		all, some := true, false
 		for _, s := range t.DevServers {
+			if s.Port == 0 && !s.Running && !s.Starting && !s.Exited {
+				continue // no port to ask, or not known: it cannot get ready here
+			}
 			all = all && s.Running
 			some = some || s.Running
 		}

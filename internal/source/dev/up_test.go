@@ -11,6 +11,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -514,5 +515,63 @@ func TestStopOrderKeepsUnknownLast(t *testing.T) {
 	}
 	if want := []string{"dev.default", "service.web", "service.cache", "service.db", "service.zzz"}; !slices.Equal(got, want) {
 		t.Errorf("order %q, want %q", got, want)
+	}
+}
+
+// Findings from review: a stop command that cannot be built still stops
+// the recorded processes; env files may use ports; a gone worktree keeps
+// its records and its dev command's state.
+func TestStopWhenStopCommandCannotRun(t *testing.T) {
+	main, wt := repo(t)
+	write(t, filepath.Join(wt, manifest.Path), `{"version": 1, "ports": {"db": {"base": 5400}},
+	  "commands": {"stop": "down -p x-$PORT_db"}}`)
+	w := newWorld()
+	r := w.reader(t)
+	w.alive[100] = true
+	if err := r.store().writeRecord(Key(wt), Record{Version: 1, Name: "dev.default", PID: 100}); err != nil {
+		t.Fatal(err)
+	}
+	msg, err := r.Stop(context.Background(), deck.Thread{ID: "t-0003", Worktree: wt, Repo: main})
+	if err != nil || !strings.Contains(msg, "commands.stop not run: port db: port store not supported yet") || !strings.Contains(msg, "stopped dev.default") {
+		t.Errorf("stop: %q, %v", msg, err)
+	}
+}
+
+func TestEnvFilesUsePorts(t *testing.T) {
+	main, wt := repo(t)
+	write(t, filepath.Join(wt, manifest.Path), `{"version": 1, "env": {"files": [".env.$PORT_web"]}, "ports": {"web": 3000},
+	  "links": [{"title": "$env(NAME|none)", "url": "http://localhost:$PORT_web"}]}`)
+	write(t, filepath.Join(wt, ".env.3000"), "NAME=Shop\n")
+	r := &Reader{Prober: Prober{Dial: fakeDial(new(atomic.Int32))}}
+	snap := deck.Snapshot{Threads: []deck.Thread{{ID: "t-0003", Worktree: wt, Repo: main}}}
+	r.Apply(context.Background(), &snap)
+	if l := snap.Threads[0].Links; len(l) != 1 || l[0].Label != "Shop" {
+		t.Errorf("links %+v", l)
+	}
+}
+
+func TestGoneWorktreeKeepsDevUp(t *testing.T) {
+	main, wt := repo(t)
+	w := newWorld()
+	r := w.reader(t)
+	w.alive[100] = true
+	if err := r.store().writeRecord(Key(wt), Record{Version: 1, Name: "dev.default", PID: 100, Log: "/x.log"}); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.RemoveAll(wt); err != nil {
+		t.Fatal(err)
+	}
+	if got := resolved(wt); got != wt {
+		t.Errorf("resolved gone path %q, want %q", got, wt)
+	}
+	snap := deck.Snapshot{Threads: []deck.Thread{{ID: "t-0003", Worktree: wt, Repo: main}}}
+	r.Apply(context.Background(), &snap)
+	th := snap.Threads[0]
+	if th.DevNote != "worktree not found" || th.DevUp == nil || !th.DevUp.Alive {
+		t.Errorf("thread note %q, DevUp %+v", th.DevNote, th.DevUp)
+	}
+	msg, _ := r.Stop(context.Background(), deck.Thread{ID: "t-0003", Worktree: wt, Repo: main})
+	if msg != "t-0003: stopped dev.default" {
+		t.Errorf("stop in a gone worktree: %q", msg)
 	}
 }

@@ -488,23 +488,27 @@ func (r *Reader) Stop(ctx context.Context, t deck.Thread) (string, error) {
 
 	st := r.store()
 	var parts []string
-	if c, ok := p.m.Command("stop"); ok && !c.Null && c.Run != nil {
+	// In a worktree that is gone, nothing can run; the signals still go.
+	if c, ok := p.m.Command("stop"); ok && !c.Null && c.Run != nil && exists(p.worktree) {
+		// A stop command that cannot run does not keep the recorded
+		// processes running.
 		cmd, err := r.command(p, "command.stop", nil, c.Run, nil)
 		if err != nil {
-			return "", fmt.Errorf("commands.stop: %w", err)
-		}
-		cmd.Log = st.Log(p.key, cmd.Name)
-		run := r.Run
-		if run == nil {
-			run = runLogged
-		}
-		cctx, cancel := context.WithTimeout(ctx, stopCommandWait)
-		err = run(cctx, cmd)
-		cancel()
-		if err != nil {
-			parts = append(parts, fmt.Sprintf("%q failed: %v (log: %s)", cmd.Text(), err, tilde(cmd.Log)))
+			parts = append(parts, fmt.Sprintf("commands.stop not run: %v", err))
 		} else {
-			parts = append(parts, fmt.Sprintf("ran %q", cmd.Text()))
+			cmd.Log = st.Log(p.key, cmd.Name)
+			run := r.Run
+			if run == nil {
+				run = runLogged
+			}
+			cctx, cancel := context.WithTimeout(ctx, stopCommandWait)
+			err = run(cctx, cmd)
+			cancel()
+			if err != nil {
+				parts = append(parts, fmt.Sprintf("%q failed: %v (log: %s)", cmd.Text(), err, tilde(cmd.Log)))
+			} else {
+				parts = append(parts, fmt.Sprintf("ran %q", cmd.Text()))
+			}
 		}
 	}
 

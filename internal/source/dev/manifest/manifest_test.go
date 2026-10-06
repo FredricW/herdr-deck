@@ -239,6 +239,10 @@ func TestLegacy(t *testing.T) {
 	if c, ok := m.Command("dev"); !ok || c.Run.Shell != "scripts/dev-up --name $DIRNAME" {
 		t.Errorf("dev %+v", c)
 	}
+	m, err = ParseLegacy([]byte(`{"state": {"file": "$DIRNAME.json", "ports": {"a": "a"}}}`))
+	if err != nil || m.StateFile != "$REPO/$DIRNAME.json" {
+		t.Errorf("state file %q, %v: a variable first is still relative", m.StateFile, err)
+	}
 	for _, c := range []struct{ file, want string }{
 		{`{"state": {"file": "s.json"}}`, "names no servers"},
 		{`{"state": {"ports": {"api": "api_port"}}}`, "state.file is empty"},
