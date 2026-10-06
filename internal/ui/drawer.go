@@ -340,11 +340,12 @@ func agentName(a string) string {
 	return a
 }
 
-// devGroup is the drawer's Dev line: each server's port, name and dot; a
-// fallback port is marked ~. Without servers it says why. While an `up`
-// command the deck started runs and a port does not answer yet, it says
-// "starting…"; when the command ended with no port answering, "up exited".
-func devGroup(t deck.Thread) group {
+// devGroups are the drawer's Dev lines: one per service, with its dot,
+// title, port and log; a fallback port is marked ~. Without servers it
+// says why. While a dev command a tool started runs and a server is not
+// ready yet, it says "starting…"; when the command ended with none ready,
+// "dev exited".
+func devGroups(t deck.Thread) []group {
 	var state item
 	if u := t.DevUp; u != nil {
 		all, some := true, false
@@ -356,36 +357,68 @@ func devGroup(t deck.Thread) group {
 		case u.Alive && (!all || len(t.DevServers) == 0):
 			state = span("starting…", warnStyle)
 		case !u.Alive && !some:
-			state = span("up exited · see the log", dim)
+			state = span("dev exited · see the log", dim)
 		}
 	}
 	if len(t.DevServers) == 0 {
 		// While the command starts, "not started" is old news; a
 		// problem (invalid manifest, no worktree) still shows.
 		if state.text == "starting…" && (t.DevNote == "" || strings.HasPrefix(t.DevNote, "not started") || strings.HasPrefix(t.DevNote, "the state file")) {
-			return group{items: []item{state}}
+			return []group{{items: []item{state}}}
 		}
 		g := words(t.DevNote, dim)
 		if state.text != "" {
 			g.items = append(g.items, span("·", dim), state)
 		}
-		return g
+		return []group{g}
 	}
-	g := group{sep: "   "}
+	if s := t.DevServers[0]; s.Fallback {
+		g := group{sep: "   ", items: []item{
+			span(fmt.Sprintf("~:%d %s %s", s.Port, s.Name, devDot(s.Running)), plain),
+			span("herdr port token", dim),
+		}}
+		return []group{g}
+	}
+	var out []group
 	for _, s := range t.DevServers {
-		text := fmt.Sprintf(":%d %s %s", s.Port, s.Name, devDot(s.Running))
-		if s.Fallback {
-			text = "~" + text
+		g := group{sep: " ", hang: 2}
+		g.items = append(g.items, span(serverDot(s)+" "+s.Label(), plain))
+		switch {
+		case s.Port > 0:
+			g.items = append(g.items, span(fmt.Sprintf(":%d", s.Port), plain))
+		case s.Pending != "":
+			g.items = append(g.items, span(s.Pending, dim))
 		}
-		g.items = append(g.items, span(text, plain))
-	}
-	if t.DevServers[0].Fallback {
-		g.items = append(g.items, span("herdr port token", dim))
+		switch {
+		case s.Starting:
+			g.items = append(g.items, span("starting…", warnStyle))
+		case s.Exited:
+			g.items = append(g.items, span("exited", warnStyle))
+		}
+		if s.Log != "" {
+			g.items = append(g.items, span(tilde(s.Log), dim))
+		}
+		out = append(out, g)
 	}
 	if state.text != "" {
-		g.items = append(g.items, state)
+		out = append(out, group{items: []item{span("dev command", dim), span(" "+state.text, state.style)}})
 	}
-	return g
+	return out
+}
+
+// serverDot is a server's dot: green ● ready, yellow ◐ starting, dim ○
+// stopped, and a dim · for a service without a port that nothing started,
+// whose state the deck cannot know.
+func serverDot(s deck.DevServer) string {
+	switch {
+	case s.Running:
+		return okStyle.Render("●")
+	case s.Starting:
+		return warnStyle.Render("◐")
+	case s.Port == 0 && s.Pending == "" && !s.Exited:
+		return dim.Render("·")
+	}
+	return dim.Render("○")
 }
 
 // devDot is green ● for a listening port, dim ○ otherwise.
@@ -464,7 +497,8 @@ var helpLines = [][2]string{
 	{"o", "open the first localhost link whose dev server is running"},
 	{"↵", "focus the thread's herdr pane"},
 	{"e", "open the thread's worktree in the editor"},
-	{"u", "start the thread's dev servers: the dev manifest's up command, detached"},
+	{"u", "start the thread's dev servers, detached: the dev manifest's dev command, else its services"},
+	{"U U", "stop them: the manifest's stop command, then what has a run record"},
 	{"d", "focus the Files tab: a digit previews that file; d again opens the file under the cursor in the diff tool; t list or tree"},
 	{"v", "on Files and Commits: preview the file or commit under the cursor in the list's place, coloured by its language; j k pick another, v or esc returns to the list"},
 	{"Files", "↵, a digit or a click previews a file; in the focused drawer d opens it in the diff tool; a opens the whole diff there"},

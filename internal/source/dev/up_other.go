@@ -3,12 +3,15 @@
 package dev
 
 import (
+	"context"
 	"errors"
 	"time"
 )
 
-func startDetached(Command) (int, error) {
-	return 0, errors.New("starting dev servers needs a Unix system")
-}
+var errUnix = errors.New("starting dev servers needs a Unix system")
 
-func processAlive(int, time.Time) bool { return false }
+func startDetached(Command) (int, error)       { return 0, errUnix }
+func runLogged(context.Context, Command) error { return errUnix }
+func signalGroup(int, bool) error              { return errUnix }
+func pidExists(int) bool                       { return false }
+func processAlive(int, time.Time) bool         { return false }

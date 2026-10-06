@@ -20,6 +20,27 @@ and versions follow [Semantic Versioning](https://semver.org/).
   pane, and of a full view that overflows (a report, What's new, help,
   settings). Drag its thumb to scroll, or press on the track to jump there;
   it follows the keys and the wheel too.
+- The deck reads the shared dev manifest, `.config/dev.json`
+  ([spec](docs/dev-manifest.md)): the worktree's own, else the main
+  checkout's. Ports come from fixed numbers or the project's state file,
+  links and commands can use `$WORKTREE`, `$REPO`, `$DIRNAME`, `$BRANCH`,
+  `$PORT_<name>` and `$env(…)`, and the drawer's *Dev* section shows each
+  service on its own line with its dot, port, state and log.
+- `u` runs the manifest's `dev` command, or starts the default group's
+  services in `needs` order, waiting for what each one needs to get ready.
+  `U` pressed twice stops them: the `stop` command, then every process with
+  a run record, dependents first. Run records and logs live in the shared
+  `~/.local/state/dev-manifest/` folder, so other tools see what the deck
+  started.
+
+### Changed
+
+- The deck now prefers `.config/dev.json` to `.herdr-deck/dev.json`. A
+  legacy file still works, with a note in the `!` sources view, but any
+  `.config/dev.json` (the worktree's or the main checkout's) comes first,
+  and a broken manifest is reported instead of falling back to another
+  file. Logs of what `u` starts moved from the deck's own state folder to
+  the shared one.
 
 ## [0.1.6] - 2026-10-05
 

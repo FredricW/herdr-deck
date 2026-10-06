@@ -526,79 +526,133 @@ a refusal. To change your answer, use System Settings → Privacy & Security
 ## Dev servers
 
 The deck shows the dev servers of each open thread's worktree: one dot per
-server in the list's DEV column (green `●` when something listens on the
-port, dim `○` when not), and in the drawer's Overview tab a *Dev* section
-with each port and the numbered localhost links as chips. A port is running when a TCP
-connect to `127.0.0.1:<port>` or `[::1]:<port>` succeeds within 400 ms. Ports are probed in
-parallel and each answer is reused for 2 seconds.
+service in the list's DEV column (green `●` when it is ready, yellow `◐`
+while it starts, dim `○` when not), and in the drawer's Overview tab a *Dev*
+section with a line per service (its dot, title, main port, state and log)
+and the numbered localhost links as chips. `u` starts the worktree's dev
+servers and `U` `U` (twice in a row) stops them.
 
-A repository says where its worktrees' ports are in `.herdr-deck/dev.json`.
-The deck reads the worktree's own copy, else the one in the repository's main
-checkout:
+A repository describes its dev servers in a shared, tool-neutral dev
+manifest, `.config/dev.json`: [the spec](docs/dev-manifest.md), with JSON
+Schemas in [`schema/v1/`](schema/v1/dev.schema.json). Other tools (a
+launcher, an editor extension, a script) read the same file and see what the
+deck started. A small one:
 
 ```json
 {
-  "state": {
-    "file": ".dev/$DIRNAME/state.json",
-    "ports": { "frontend": "frontend_port", "api": "api_port", "docs": 6060 }
+  "$schema": "https://raw.githubusercontent.com/FredricW/herdr-deck/main/schema/v1/dev.schema.json",
+  "version": 1,
+  "state": { "file": "$REPO/.dev/$DIRNAME/state.json" },
+  "ports": {
+    "frontend": { "state": "frontend_port" },
+    "api": { "state": "api_port" },
+    "docs": 6060
+  },
+  "services": {
+    "api": { "title": "API", "log": "$REPO/.dev/$DIRNAME/logs/api.log" },
+    "frontend": { "title": "Frontend", "log": "$REPO/.dev/$DIRNAME/logs/frontend.log" }
+  },
+  "commands": {
+    "dev": ["scripts/dev", "up", "--name", "$DIRNAME"],
+    "stop": ["scripts/dev", "down", "--name", "$DIRNAME"]
   },
   "links": [
-    { "title": "Frontend", "url": "http://localhost:$PORT_frontend", "needs": "frontend" },
-    { "title": "API docs", "url": "http://localhost:$PORT_api/docs", "needs": ["api"] }
-  ],
-  "up": "scripts/dev-up --name $DIRNAME"
+    { "title": "Frontend", "url": "http://localhost:$PORT_frontend" },
+    { "title": "API docs", "url": "http://localhost:$PORT_api/docs", "needs": "api" }
+  ]
 }
 ```
 
-- `state.ports` names the servers, in the order the deck shows them. Each
-  maps to the key in the state file that holds its port (a number or a
-  numeric string), or to a fixed port number.
-- `state.file` is the per-worktree state file your dev scripts write when
-  they start the servers, e.g. `{"frontend_port": 5181, "api_port": 8011}`.
-  It may use `$DIRNAME` (the worktree's folder name), `$BRANCH`, `$WORKTREE`
-  and `$REPO` (absolute paths of the worktree and the main checkout), also as
-  `${…}`; write `$$` for a literal `$`. A relative path is under the main checkout. While the file does not
-  exist the drawer says the servers are not started.
-- `links` are URL templates with `$PORT_<name>` placeholders and the same
-  variables. `needs` is the server or servers that must run for the link to
-  work (default: the ports the URL uses); a link to a server that is down,
-  or has no port yet, shows `○`, and `o` skips it. A link whose URL uses a
-  port that is not known yet is left out until it is.
-  Without `links`, each server gets `http://localhost:<port>`.
-- `up` (optional) is a shell command that starts the worktree's dev
-  servers; `u` runs it for the selected thread. It runs in the worktree with
-  `/bin/sh -c`, after the deck fills in the same variables as `state.file`
-  (values go in as they are, so quote paths that may hold spaces). Every
-  other `$` is a mistake the deck reports, so write `$$` for one the shell
-  should see (`$$HOME`). The command runs detached, in its own process
-  group, so it keeps running when the deck quits or restarts; its output is
-  appended to `$XDG_STATE_HOME/herdr-deck/logs/<project>-<thread>.log`, else
-  `~/.local/state/herdr-deck/logs/…`. The drawer shows that log and
-  `starting…` until every port answers, or `up exited` when the command
-  ended with no port answering. `u` does not start it again while a port
-  answers or the command it started still runs. Without `up`, `u` says how
-  to add one.
+What the deck does with it:
+
+- **Lookup.** It reads the worktree's own `.config/dev.json`, else the main
+  checkout's, else the legacy `.herdr-deck/dev.json` (worktree, then main
+  checkout). The first file found is the manifest: when it is broken, the
+  `!` sources view says why and the deck does not fall back to the next one.
+  Keys the schema does not know are ignored and named there.
+- **Ports.** A number (or `{ "fixed": N }`) is the same in every worktree.
+  `{ "state": "key" }` reads the key from the project's own per-worktree
+  state file (`state.file`, which your dev scripts write); while it is not
+  there the drawer says the servers are not started. Ports from the shared
+  port store (`{ "base": N }`) are not supported yet: the sources view says
+  so, and the deck does not guess them.
+- **Variables.** `$WORKTREE`, `$REPO` (the main checkout), `$DIRNAME`,
+  `$BRANCH`, `$PORT_<name>` and `$env(NAME|fallback)` (from the manifest's
+  `env.files`), also as `${…}`; `$$` is a literal `$`. Relative paths are
+  under the worktree. A link with a port that is not known yet is left out.
+- **Running.** A service is ready when its main port (or `ready.port`)
+  answers a TCP connect to `127.0.0.1` or `[::1]` within 400 ms, or when
+  `ready.http` returns 200–399; a service without ports is ready while the
+  process the deck started for it runs. Ports are probed in parallel and
+  each answer is reused for 2 seconds. A port that no service lists counts
+  as a service of its own.
+- **`u`** runs `dev`: `commands.dev` once, in the background, if the
+  manifest has it (not while the process it started runs, or while the
+  default group is ready); else each service of the `default` group (or
+  every service) that has a `run`, plus what they `need`, waiting for each
+  need to get ready (up to its `ready.timeout`) before starting what needs
+  it. `"dev": null` says the repo has no dev server.
+- **`U` `U`** runs `commands.stop`, if there is one, and waits for it, then
+  stops every process with a run record in the worktree, the dev command
+  first and services before what they need: SIGTERM to its process group,
+  SIGKILL after 10 s.
+- **Logs and run records.** What the deck starts runs detached in its own
+  process group, with `PORT`, `PORT_<name>` and `DEV_*` set (spec section
+  9.3), so it keeps running when the deck quits or restarts. It gets a run
+  record and a log in the shared state folder,
+  `$XDG_STATE_HOME/dev-manifest/` (else `~/.local/state/dev-manifest/`, on
+  macOS too): `runs/<key>/<name>.json` and `logs/<key>/<name>.log`, or the
+  service's own `log`. The drawer shows each service's log and the dev
+  command's.
 
 When the manifest gives no port for a worktree, the deck falls back to the
 herdr workspace token `port` of the workspace opened on that worktree (a
 worktree plugin may set it), marked `~` in the list and drawer. A repository
-without a manifest is noted in the `!` sources view; a manifest or state file
-that cannot be read is listed there as missing, and the rest of the deck
+without a manifest is noted in the `!` sources view, and the rest of the deck
 carries on.
 
-### The shared dev manifest
+Not yet: the shared port store, `start`/`stop <service>`, a picker for the
+manifest's other commands, `herdr-deck dev init` and drift warnings.
 
-`.herdr-deck/dev.json` is being replaced by a shared, tool-neutral
-`.config/dev.json` ([the spec](docs/dev-manifest.md), schemas in
-`schema/v1/`); the deck does not read it yet. herdr-deck's own manifest is
-[`.config/dev.json`](.config/dev.json). The agent skill in
-[`skills/dev-manifest`](skills/dev-manifest/SKILL.md) writes one for a repo,
-or for a folder of repos: it reads their task runners, scripts, compose
-files and framework settings without running anything, migrates a legacy
-`.herdr-deck/dev.json`, validates the result against `schema/v1` and lists
-what it could not work out as questions. Install it for Claude Code by
-linking the folder from your checkout (a link keeps it current and lets it
-reach the spec and its validator):
+### Legacy `.herdr-deck/dev.json`
+
+The deck's earlier manifest still works, with a "legacy" note in the
+sources view. It reads as the spec's section 15 converts it: `state.ports`
+become `ports` (a state-file key or a fixed number), `state.file` is
+relative to the main checkout, and `up` is `commands.dev`. To move it, write
+the converted file to `.config/dev.json` (the skill below does it):
+
+```json
+{"state": {"file": ".dev/$DIRNAME/state.json",
+           "ports": {"frontend": "frontend_port", "docs": 6060}},
+ "up": "scripts/dev-up --name $DIRNAME"}
+```
+
+becomes
+
+```json
+{
+  "version": 1,
+  "state": { "file": "$REPO/.dev/$DIRNAME/state.json" },
+  "ports": { "frontend": { "state": "frontend_port" }, "docs": 6060 },
+  "commands": { "dev": "scripts/dev-up --name $DIRNAME" }
+}
+```
+
+The deck no longer writes `$XDG_STATE_HOME/herdr-deck/logs/`; an `up` it
+started before this version keeps running, but the drawer does not show it.
+
+### Writing a manifest
+
+herdr-deck's own manifest is [`.config/dev.json`](.config/dev.json). The
+agent skill in [`skills/dev-manifest`](skills/dev-manifest/SKILL.md) writes
+one for a repo, or for a folder of repos: it reads their task runners,
+scripts, compose files and framework settings without running anything,
+migrates a legacy `.herdr-deck/dev.json`, validates the result against
+`schema/v1` and lists what it could not work out as questions. Its validator
+uses the deck's own checks. Install it for Claude Code by linking the folder
+from your checkout (a link keeps it current and lets it reach the spec and
+its validator):
 
 ```sh
 ln -s "$PWD/skills/dev-manifest" ~/.claude/skills/dev-manifest
@@ -676,7 +730,8 @@ only threads waiting on you. The deck never marks an item handled.
 | `o` | open the row's first localhost link whose dev server is running |
 | `enter` | focus the thread's herdr pane |
 | `e` | open the thread's worktree in the editor (VS Code unless configured) |
-| `u` | start the thread's dev servers: the dev manifest's `up` command, detached (see Dev servers) |
+| `u` | start the thread's dev servers, detached: the dev manifest's `dev` command, else its services (see Dev servers) |
+| `U` `U` | stop them: the manifest's `stop` command, then every process with a run record |
 | `d` | focus the Files tab, so a digit previews that file; in the focused Files or Commits tab, `d` opens the file or commit under the cursor in the diff tool (`d d` from the list: the first file) |
 | `a` | on Files or Commits: open the whole diff in the diff tool |
 | `t` | on Files: switch between list and folder tree (see Changed files) |
@@ -954,7 +1009,8 @@ to the repository.
 - `internal/source/*`: produces snapshots and never imports the UI.
   `projects` reads herdr-projects' files and thread list, `tasks` parses
   TASKS.md and scrapes links, `herdr` reads herdr's live panes and events,
-  `dev` reads dev-server manifests and probes ports, `diff` reads a
+  `dev` reads dev manifests (its `manifest` package parses and checks them,
+  for the skill's validator too), probes ports and runs `dev` and `stop`, `diff` reads a
   worktree's changed files and one file's diff with git, `projects.Roster` reads every
   project for the project picker, `live` combines them and
   watches the project folder, `fake` is sample data for tests and `--fake`.

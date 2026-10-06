@@ -582,8 +582,9 @@ func badgeCells(links []deck.Link, width int) []cell {
 	return cells
 }
 
-// devCells is the DEV column: one dot per dev server port, green when it
-// listens; a fallback port (herdr's port token) is marked ~.
+// devCells is the DEV column: one dot per dev server, green when it is
+// ready, yellow while it starts; a fallback port (herdr's port token) is
+// marked ~. A server without a port that nothing started has none.
 func devCells(r row, width int) []cell {
 	var cells []cell
 	used := 0
@@ -596,9 +597,14 @@ func devCells(r row, width int) []cell {
 			if used >= width {
 				break
 			}
-			if s.Running {
+			switch {
+			case s.Running:
 				cells = append(cells, cell{text: "●", style: okStyle})
-			} else {
+			case s.Starting:
+				cells = append(cells, cell{text: "◐", style: warnStyle})
+			case s.Port == 0 && s.Pending == "" && !s.Exited:
+				continue // no port and nothing started it: no state to show
+			default:
 				cells = append(cells, cell{text: "○", style: dim})
 			}
 			used++

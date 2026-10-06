@@ -147,13 +147,13 @@ type Thread struct {
 	Report     string       // the thread's report (threads/t-NNNN.md), or ""
 	Links      []Link
 	DevServers []DevServer
-	// DevNote says why DevServers is empty, e.g. "no .herdr-deck/dev.json".
+	// DevNote says why DevServers is empty, e.g. "no .config/dev.json".
 	DevNote string
 	// PortToken is the herdr workspace token `port` of the thread's
 	// worktree, or 0: the dev-server port used when the manifest gives none.
 	PortToken int
-	// DevUp is the dev manifest's `up` command the deck started for the
-	// worktree; nil when it started none.
+	// DevUp is the dev manifest's dev command a tool started for the
+	// worktree (it has a run record); nil when none did.
 	DevUp *DevUp
 
 	// What herdr-projects recorded of the thread's life; zero when not.
@@ -343,17 +343,38 @@ type CheckLog struct {
 	More int
 }
 
-// DevServer is one named port of a thread's worktree.
+// DevServer is one service of a thread's worktree, from its dev manifest:
+// a service the manifest declares, or a port that no service lists.
 type DevServer struct {
-	Name    string
+	Name  string
+	Title string // for display; "" means Name
+	// Port is the service's main port; 0 when it has none, or (with
+	// Pending set) when its number is not known yet.
 	Port    int
-	Running bool // something listens on 127.0.0.1:Port
+	Pending string // why Port is not known, e.g. "port store not supported yet"
+	// Running is set when the service is ready: its port answers (or its
+	// ready check passes), or, without ports, its process runs.
+	Running bool
+	// Starting: a tool started it and it runs, but is not ready yet.
+	// Exited: a tool started it, and it is gone without being ready.
+	Starting, Exited bool
+	// Log is the file holding the service's log, when there is one.
+	Log string
 	// Fallback is set when the port is herdr's workspace token, not the
 	// manifest's: a guess at where the worktree's server listens.
 	Fallback bool
 }
 
-// DevUp is an `up` command the deck started in a thread's worktree.
+// Label is the server's title, else its name.
+func (s DevServer) Label() string {
+	if s.Title != "" {
+		return s.Title
+	}
+	return s.Name
+}
+
+// DevUp is the dev manifest's dev command a tool started for a thread's
+// worktree.
 type DevUp struct {
 	Log   string // the file the command writes its output to
 	Alive bool   // the command's process still runs

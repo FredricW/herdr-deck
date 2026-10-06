@@ -61,7 +61,7 @@ All under the projects root (`$HERDR_PROJECTS_ROOT`, else
 | Thread brief / report | `<slug>/threads/t-NNNN.task.md`, `t-NNNN.md` | Free text. Scrape for links. Report may start with `PR: <url>` and has a `## Next` section. |
 | herdr live state | `session.snapshot` over the socket (the same JSON as `herdr api snapshot`) on every reload | Workspaces, panes, agents, tokens (`hp_project`, `hp_sub`, `hp_group`, `port`). A thread's pane has `hp_project` = slug and `hp_group` = `<slug>!1!<rank>!<thread id>`; the coordinator's `hp_group` is `<slug>!0!<pane id>`. Without tokens, the recorded `pane_id` counts when its `cwd` is the thread's worktree. |
 | herdr events | Unix socket `$HERDR_SOCKET_PATH` (else `~/.config/herdr/herdr.sock`), newline-delimited JSON `{id, method, params}`; `events.subscribe {subscriptions:[{type:"pane.agent_status_changed"}, …]}` | Verified in milestone 5 (herdr 0.9.3): after `subscription_started` the connection stays open and streams `{"event","data"}` lines (event names use `_`: `pane_updated`). `pane.updated` fires for every pane each time the herdr-projects ticker rewrites tokens (~15 s) and carries the whole pane. `pane.agent_status_changed` needs a `pane_id`, so the deck subscribes once per agent pane, and again when panes come or go. One unknown pane id fails the whole subscribe and closes the connection. When the subscribe is refused the deck polls every 2.5 s. Reference round-trip: herdr-projects `src/runner.rs:279-291`. Full method list: `herdr api schema --json`. |
-| Dev servers | herdr-deck's own manifest, `.herdr-deck/dev.json` in the worktree, else in the repo's main checkout (the thread's `repo`) | Tells the deck where a worktree's dev-server ports live: `state.file` is a path template per worktree (e.g. `.dev/$DIRNAME/state.json`; also `$BRANCH`, `$WORKTREE`, `$REPO`; relative to the main checkout), `state.ports` maps server names → JSON keys in that file (e.g. `api_port`, `frontend_port`) or fixed port numbers, and `links[]` are URL templates with `$PORT_<name>` placeholders and the servers they `need`. "Running" = TCP connect to 127.0.0.1:port or [::1]:port (Node dev servers may listen on IPv6 only), 400 ms timeout, probed in parallel, answers cached 2 s. Format in the README. A repo without a manifest is a note in Sources (not a missing source); a broken manifest or state file is missing. |
+| Dev servers | The shared dev manifest `.config/dev.json` (docs/dev-manifest.md), looked up in the worktree, then the main checkout (the thread's `repo`), then the legacy `.herdr-deck/dev.json` in the same order; the first file found is the manifest and a broken one never falls through. Parsed and checked by `internal/source/dev/manifest` (schema/v1 plus the spec's rules; the dev-manifest skill's validator uses the same package). Ports: fixed, or `{state}` from the project's state file; `{base}` (the port store) is a note, not guessed, until phase 2. Services (declared, plus one per port no service lists) get a dot each: ready = main port (or `ready.port`) answers a TCP connect to 127.0.0.1 or [::1] (400 ms, parallel, cached 2 s) or `ready.http` returns 200–399; without ports, its run record's process is alive. `u` runs `dev`, `U U` `stop`, with run records and logs in `$XDG_STATE_HOME/dev-manifest/` (spec section 10). A repo without a manifest, a legacy one and port-store ports are notes in Sources; a broken manifest or state file is missing. |
 | Fallback port | herdr workspace token `port` on the workspace whose `worktree.checkout_path` is the thread's worktree (set by a worktree plugin, e.g. from a hash of the branch) | Use only when no manifest port is found; marked `~`. |
 
 **Never** call `herdr-projects context <slug>` without `--peek`: without it
@@ -822,9 +822,20 @@ file. Detection from task runners only seeds a first manifest
 An agent skill, `skills/dev-manifest` (linked into `~/.claude/skills`), writes
 and validates manifests for existing repos until `herdr-deck dev init` and the
 drift check exist; the skill then uses them.
-The deck's implementation (reader, verb runner, store, seeding, drift) is next;
-until it lands, the Dev servers row above describes
-what the deck does.
+The deck implements it in phases:
+
+1. **Phase 1 (done).** Lookup with the legacy fallback, the parser and
+   checker shared with the skill's validator, fixed and state-file ports,
+   variables and `$env(…)`, services with readiness, `u` = `dev`
+   (`commands.dev`, else the default group's services in `needs` order),
+   `U U` = `stop` (`commands.stop`, then run records, dependents first),
+   run records, logs and the lock in the shared state folder, and a line
+   per service in the drawer.
+2. **Phase 2.** The shared port store (`{ "base": N }` ports), `start` and
+   `stop <service>`, and a picker for the manifest's other commands
+   (terminal commands in a herdr pane).
+3. **Phase 3.** `herdr-deck dev init` (seeding) and drift warnings in the
+   sources view.
 
 ## Milestones
 
@@ -872,7 +883,7 @@ marked parallel.
    (`background_agents_working`), and the snapshot has no field that says
    which rule fired, so a short `blocked` (a dialog that closes again) cannot
    be told from a real question in time. Hence the debounce.
-6. **Dev servers.** Reader for the `.herdr-deck/dev.json` manifest + port
+6. **Dev servers.** (Since replaced by the shared dev manifest, above.) Reader for the `.herdr-deck/dev.json` manifest + port
    probe; per-thread localhost links with running dots; `port` token fallback.
    Done: `internal/source/dev` runs after herdr's reader (which sets each
    thread's `PortToken`); localhost links carry `Down` when their server does

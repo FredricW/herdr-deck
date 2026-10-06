@@ -240,24 +240,23 @@ func Path(flag string, getenv func(string) string) (path string, named bool) {
 // version it last ran: $XDG_STATE_HOME/herdr-deck, else
 // ~/.local/state/herdr-deck. A relative $XDG_STATE_HOME is ignored. It
 // returns "" when no home is known.
-func StateDir(getenv func(string) string) string {
+func StateDir(getenv func(string) string) string { return stateDir(getenv, "herdr-deck") }
+
+// DevStateDir is the state folder every tool that reads dev manifests
+// shares, for run records and logs (docs/dev-manifest.md, section 10):
+// $XDG_STATE_HOME/dev-manifest, else ~/.local/state/dev-manifest (on macOS
+// too). It returns "" when no home is known.
+func DevStateDir(getenv func(string) string) string { return stateDir(getenv, "dev-manifest") }
+
+func stateDir(getenv func(string) string, name string) string {
 	if x := getenv("XDG_STATE_HOME"); x != "" && filepath.IsAbs(x) {
-		return filepath.Join(x, "herdr-deck")
+		return filepath.Join(x, name)
 	}
 	home := homeDir(getenv)
 	if home == "" {
 		return ""
 	}
-	return filepath.Join(home, ".local", "state", "herdr-deck")
-}
-
-// LogDir is where the deck keeps the logs of the commands it starts:
-// StateDir's logs folder. It returns "" when no home is known.
-func LogDir(getenv func(string) string) string {
-	if d := StateDir(getenv); d != "" {
-		return filepath.Join(d, "logs")
-	}
-	return ""
+	return filepath.Join(home, ".local", "state", name)
 }
 
 // CacheDir is where the deck keeps throwaway state, such as the last update

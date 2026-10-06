@@ -13,9 +13,10 @@ import (
 // scripts and task-runner targets the manifest names that do not exist in
 // root. It reads files only. A command it cannot read is skipped.
 type dryChecker struct {
-	*checker
-	root  string
-	warns []string
+	m        map[string]any
+	services map[string]map[string]any
+	root     string
+	warns    []string
 }
 
 func (d *dryChecker) warnf(id, format string, args ...any) {

@@ -5,24 +5,24 @@
 
   Overview   Files   Commits   Log 6
 
-
  ── PR ──
  [5 #2320] open · review required · 2c
  ✓ no failing checks
  checked 1m ago
-
  ── Links ──
  [1 ABC-1191] [2 Figma 598-48083] [3 1138-88367]
  [4 635-76529]
-
  ── Dev ──
- :5174 frontend ●  :8002 api ○
+ ● Frontend :5174
+ ○ API :8002 exited
+   /var/state/dev-manifest/logs/t-0004-summary-1a2b3c4d/ser…
  [6 Frontend ●] [7 API docs ○]
-
  ── Thread ──
  thread  t-0004 · Summary select documents
  pane    w21:p1
  branch  hp/admin-rebuild/t-0004-summary
+
+
 
 ────────────────────────────────────────────────────────────
  1-9 link  o open  ↵ pane  [ ] tab  z drawer  ? help  v9.9.9

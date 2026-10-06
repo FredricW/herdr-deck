@@ -179,7 +179,7 @@ func run(args []string) error {
 	src := live.New(root, slug, cfg.LinearWorkspace)
 	src.Herdr = herdr.NewReader(client.Socket)
 	devs := dev.NewReader()
-	devs.Logs = config.LogDir(os.Getenv)
+	devs.State = config.DevStateDir(os.Getenv)
 	src.Dev = devs
 	src.Roster = projects.NewRoster(root)
 	go plugin.MarkSelf(context.Background(), plugin.Socket{Client: client}, os.Getenv, slug)
@@ -234,7 +234,8 @@ func run(args []string) error {
 	opt.CommitPatch = diffs.ReadCommitPatch
 	opt.CommitFiles = diffs.ReadCommitFiles
 	opt.CommitFilePatch = diffs.ReadCommitFilePatch
-	opt.StartDev = func(t deck.Thread) (string, error) { return devs.Up(context.Background(), slug, t) }
+	opt.StartDev = func(t deck.Thread) (string, error) { return devs.Up(context.Background(), t) }
+	opt.StopDev = func(t deck.Thread) (string, error) { return devs.Stop(context.Background(), t) }
 	// Both switches can change while the deck runs, so the checks are
 	// always set up and ask cur each time.
 	hint := updateHint(config.CacheDir(os.Getenv))

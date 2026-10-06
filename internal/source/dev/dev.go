@@ -1,3 +1,8 @@
+// Package dev finds the dev servers of each thread's worktree from its dev
+// manifest (.config/dev.json, docs/dev-manifest.md; or the legacy
+// .herdr-deck/dev.json), probes their ports, and starts and stops them.
+// What it starts gets run records and logs in the shared state folder, so
+// other tools that read the manifest see it too.
 package dev
 
 import (
@@ -13,31 +18,40 @@ import (
 	"time"
 
 	"github.com/FredricW/herdr-deck/internal/deck"
+	"github.com/FredricW/herdr-deck/internal/source/dev/manifest"
 )
 
-// Reader fills in each thread's dev servers and localhost links.
+// Reader fills in each thread's dev servers and localhost links, and runs
+// the manifest's dev and stop.
 type Reader struct {
 	Prober Prober
-	// Logs is the folder for the logs and pid files of the `up` commands
-	// the deck starts; "" turns `up` off.
-	Logs string
-	// Start runs an `up` command detached and returns its pid; nil runs it
-	// for real. Alive tells whether a pid still runs; nil asks the system.
-	// Tests replace both, so no dev server is ever started.
-	Start func(Command) (int, error)
-	Alive func(pid int, started time.Time) bool
+	// State is the shared dev-manifest state folder; "" turns starting
+	// and stopping off.
+	State string
+	// Start runs a command detached and returns its pid; Run runs one and
+	// waits for it; Signal sends SIGTERM (SIGKILL when force is set) to a
+	// process group; Alive tells whether a pid still runs. nil does each
+	// for real. Tests replace them, so no dev server is ever started.
+	Start  func(Command) (int, error)
+	Run    func(context.Context, Command) error
+	Signal func(pid int, force bool) error
+	Alive  func(pid int, started time.Time) bool
 
-	upMu sync.Mutex // one Up at a time, so a key pressed twice starts once
+	mu   sync.Mutex
+	busy map[string]bool // worktrees with a dev or stop running
 }
 
 // NewReader returns a Reader that probes real ports.
 func NewReader() *Reader { return &Reader{} }
 
-// Apply sets DevServers, DevNote and localhost links on every open thread
-// with a worktree. Ports come from the worktree's manifest and state file,
-// else from the thread's PortToken (herdr's workspace token, so run it after
-// herdr's Apply). A broken manifest or state file is named in snap.Missing,
-// a repo without a manifest in snap.Notes; neither stops the rest.
+func (r *Reader) store() Store { return Store{Dir: r.State, Alive: r.Alive} }
+
+// Apply sets DevServers, DevNote, DevUp and localhost links on every open
+// thread with a worktree. Without a manifest (or a port), the thread's
+// PortToken (herdr's workspace token, so run it after herdr's Apply) is
+// the fallback. A broken manifest or state file is named in snap.Missing;
+// a repo without a manifest, a legacy one and ports the deck cannot know
+// yet in snap.Notes. None of them stops the rest.
 func (r *Reader) Apply(ctx context.Context, snap *deck.Snapshot) {
 	seen := map[string]bool{}
 	once := func(list *[]string, line string) {
@@ -47,167 +61,216 @@ func (r *Reader) Apply(ctx context.Context, snap *deck.Snapshot) {
 		}
 	}
 	type pending struct {
-		t     *deck.Thread
-		links []linkPlan
+		t *deck.Thread
+		p *plan
 	}
 	var todo []pending
 	var ports []int
+	var checks []check
 	for i := range snap.Threads {
 		t := &snap.Threads[i]
 		if t.Status == deck.StatusDone || t.Worktree == "" {
 			continue
 		}
-		r.applyUp(snap.Project.Slug, t)
 		if fi, err := os.Stat(t.Worktree); err != nil || !fi.IsDir() {
 			t.DevNote = "worktree not found"
 			continue
 		}
-		servers, links := r.servers(t, snap, once)
-		if len(servers) == 0 && t.PortToken > 0 {
-			servers = []deck.DevServer{{Name: "port", Port: t.PortToken, Fallback: true}}
-			links = []linkPlan{{label: fmt.Sprintf("~:%d", t.PortToken), url: localURL(t.PortToken), needs: []int{t.PortToken}}}
-			t.DevNote = ""
+		p := r.read(t, snap, once)
+		if p != nil {
+			for _, n := range p.vars.Ports {
+				ports = append(ports, n)
+			}
+			for i := range p.m.Services {
+				checks = append(checks, p.readyCheck(&p.m.Services[i]))
+			}
 		}
-		t.DevServers = servers
-		for _, s := range servers {
-			ports = append(ports, s.Port)
+		if t.PortToken > 0 && (p == nil || len(p.vars.Ports) == 0) {
+			ports = append(ports, t.PortToken) // the fallback when the manifest gives no port
 		}
-		todo = append(todo, pending{t: t, links: links})
+		todo = append(todo, pending{t, p})
 	}
 	if len(todo) == 0 {
 		return
 	}
 
 	up := r.Prober.Listening(ctx, ports)
-	for _, p := range todo {
-		for i := range p.t.DevServers {
-			p.t.DevServers[i].Running = up[p.t.DevServers[i].Port]
+	httpOK := r.Prober.Ready(ctx, checks)
+	for _, x := range todo {
+		if x.p != nil {
+			r.fill(x.t, x.p, up, httpOK)
 		}
-		for _, lp := range p.links {
-			down := false
-			for _, port := range lp.needs {
-				down = down || !up[port]
-			}
-			p.t.Links = deck.AppendLink(p.t.Links, deck.Link{Kind: deck.LinkLocalhost, Label: lp.label, URL: lp.url, Down: down})
+		if len(x.t.DevServers) == 0 && x.t.PortToken > 0 && x.t.DevUp == nil {
+			port := x.t.PortToken
+			x.t.DevServers = []deck.DevServer{{Name: "port", Port: port, Running: up[port], Fallback: true}}
+			x.t.Links = deck.AppendLink(x.t.Links, deck.Link{Kind: deck.LinkLocalhost, Label: fmt.Sprintf("~:%d", port), URL: localURL(port), Down: !up[port]})
+			x.t.DevNote = ""
 		}
 	}
 }
 
-// linkPlan is a localhost link before its ports are probed.
-type linkPlan struct {
-	label, url string
-	needs      []int // the ports that must listen
-}
-
-// servers reads the thread's manifest and state file.
-func (r *Reader) servers(t *deck.Thread, snap *deck.Snapshot, once func(*[]string, string)) ([]deck.DevServer, []linkPlan) {
+// read finds a thread's manifest and reads its ports; nil when the thread
+// has no usable manifest, with DevNote saying why.
+func (r *Reader) read(t *deck.Thread, snap *deck.Snapshot, once func(*[]string, string)) *plan {
+	p, err := newPlan(*t)
 	repo := t.Repo
 	if repo == "" {
 		repo = t.Worktree
 	}
-	path, m, err := FindManifest(t.Worktree, t.Repo)
 	switch {
 	case errors.Is(err, fs.ErrNotExist):
-		t.DevNote = "no " + ManifestPath
-		once(&snap.Notes, fmt.Sprintf("dev servers: %s has no %s; only herdr's port token, if any", filepath.Base(repo), ManifestPath))
-		return nil, nil
+		t.DevNote = "no " + manifest.Path
+		once(&snap.Notes, fmt.Sprintf("dev servers: %s has no %s; only herdr's port token, if any", filepath.Base(repo), manifest.Path))
+		return nil
 	case err != nil:
-		t.DevNote = ManifestPath + " is invalid (! shows why)"
-		once(&snap.Missing, fmt.Sprintf("dev servers: %s: %v", shortPath(path), err))
-		return nil, nil
+		t.DevNote = p.found.Rel + " is invalid (! shows why)"
+		once(&snap.Missing, fmt.Sprintf("dev servers: %s: %v", p.found.Short(), short(err)))
+		return nil
 	}
+	if p.found.Legacy {
+		once(&snap.Notes, fmt.Sprintf("dev servers: %s is legacy; move it to %s (docs/dev-manifest.md, section 15)", p.found.Short(), manifest.Path))
+	}
+	if len(p.m.Unknown) > 0 {
+		once(&snap.Notes, fmt.Sprintf("dev servers: %s: ignored unknown keys %s", p.found.Short(), strings.Join(p.m.Unknown, ", ")))
+	}
+	var store []string
+	for _, port := range p.m.Ports {
+		if port.Base > 0 {
+			store = append(store, port.Name)
+		}
+	}
+	if len(store) > 0 {
+		once(&snap.Notes, fmt.Sprintf("dev servers: %s: ports %s come from the shared port store, which the deck does not support yet", p.found.Short(), strings.Join(store, ", ")))
+	}
+	for _, pr := range p.problems {
+		once(&snap.Missing, "dev servers: "+pr)
+	}
+	return p
+}
 
-	v := vars{worktree: t.Worktree, repo: repo, branch: t.Branch, ports: map[string]int{}}
-	keyed := false
-	for _, p := range m.State.Ports {
-		if p.Fixed > 0 {
-			v.ports[p.Name] = p.Fixed
-		}
-		keyed = keyed || p.Key != ""
-	}
-	if keyed {
-		file, unknown := v.expand(m.State.File)
-		if len(unknown) > 0 {
-			once(&snap.Missing, fmt.Sprintf("dev servers: %s: state.file uses unknown $%s", shortPath(path), unknown[0]))
-			t.DevNote = ManifestPath + " is invalid (! shows why)"
-			return nil, nil
-		}
-		if !filepath.IsAbs(file) {
-			file = filepath.Join(repo, file)
-		}
-		got, err := readState(file, m.State.Ports)
-		switch {
-		case errors.Is(err, fs.ErrNotExist):
-			t.DevNote = "not started: no " + relTo(file, repo, t.Worktree)
-		case err != nil:
-			t.DevNote = "state file unreadable (! shows why)"
-			once(&snap.Missing, fmt.Sprintf("dev servers: %s: %v", relTo(file, repo, t.Worktree), short(err)))
-		}
-		for name, port := range got {
-			v.ports[name] = port
+// fill sets a thread's dev servers, DevUp and links from its plan and the
+// probes' answers.
+func (r *Reader) fill(t *deck.Thread, p *plan, up map[int]bool, httpOK map[check]bool) {
+	st := r.store()
+	if r.State != "" {
+		if rec, ok := st.Record(p.key, "dev.default"); ok {
+			t.DevUp = &deck.DevUp{Log: rec.Log, Alive: st.IsAlive(rec)}
 		}
 	}
-
+	ready := map[string]bool{}
+	known, records := false, false
 	var servers []deck.DevServer
-	for _, p := range m.State.Ports {
-		if port, ok := v.ports[p.Name]; ok {
-			servers = append(servers, deck.DevServer{Name: p.Name, Port: port})
+	for i := range p.m.Services {
+		s := &p.m.Services[i]
+		ds := deck.DevServer{Name: s.Name, Title: s.Title}
+		_, ds.Port, ds.Pending = p.mainPort(s)
+		known = known || ds.Port > 0
+		c := p.readyCheck(s)
+		var rec Record
+		hasRec, alive := false, false
+		if r.State != "" {
+			rec, hasRec = st.Record(p.key, "service."+s.Name)
+			alive = hasRec && st.IsAlive(rec)
+			records = records || hasRec
 		}
+		switch {
+		case c.Path != "":
+			ds.Running = httpOK[c]
+		case c.Port > 0:
+			ds.Running = up[c.Port]
+		case len(s.Ports) == 0:
+			ds.Running = alive
+		}
+		ds.Starting = alive && !ds.Running
+		ds.Exited = hasRec && !alive && !ds.Running
+		ready[s.Name] = ds.Running
+		if hasRec && rec.Log != "" {
+			ds.Log = rec.Log
+		} else if log, err := p.logOf(st, s); err == nil && exists(log) {
+			ds.Log = log
+		}
+		servers = append(servers, ds)
 	}
-	if len(servers) == 0 {
-		if t.DevNote == "" {
+	_, devCmd := p.m.Command("dev")
+	switch {
+	case len(p.m.Ports) > 0 && !known && !records:
+		// No port has a number yet: nothing has started.
+		switch {
+		case p.stateMissing:
+			t.DevNote = "not started: no " + p.rel(p.stateFile)
+		case p.m.StateFile != "" && len(p.pending) > 0 && allPending(p, "not in the state file yet"):
 			t.DevNote = "the state file names no ports yet"
+		default:
+			t.DevNote = "ports not known yet (! shows why)"
 		}
-		return nil, nil
+		servers = nil
+	case len(servers) == 0 && devCmd:
+		if c, _ := p.m.Command("dev"); !c.Null {
+			t.DevNote = "not started"
+		}
+	default:
+		t.DevNote = ""
 	}
-	t.DevNote = ""
+	t.DevServers = servers
 
-	var links []linkPlan
-	if len(m.Links) == 0 {
-		for _, s := range servers {
-			links = append(links, linkPlan{label: fmt.Sprintf(":%d %s", s.Port, s.Name), url: localURL(s.Port), needs: []int{s.Port}})
+	answers := func(name string) bool {
+		if _, ok := ready[name]; ok {
+			return ready[name]
 		}
-		return servers, links
+		n, ok := p.vars.Ports[name]
+		return ok && up[n]
 	}
-	for _, spec := range m.Links {
-		url, unknown := v.expand(spec.URL)
-		if len(unknown) > 0 {
-			continue // a $PORT_ of a server whose port is not known yet
+	if len(p.m.Links) == 0 {
+		for i := range p.m.Services {
+			s := &p.m.Services[i]
+			for _, name := range s.Ports {
+				if n, ok := p.vars.Ports[name]; ok {
+					t.Links = deck.AppendLink(t.Links, deck.Link{Kind: deck.LinkLocalhost, Label: fmt.Sprintf(":%d %s", n, name), URL: localURL(n), Down: !up[n]})
+				}
+			}
 		}
-		needs := spec.Needs
+		return
+	}
+	for _, l := range p.m.Links {
+		url, err := p.vars.Expand(l.URL)
+		if err != nil {
+			continue // a port that is not known yet
+		}
+		label := l.URL
+		if l.Title != "" {
+			if title, err := p.vars.Expand(l.Title); err == nil {
+				label = title
+			}
+		} else {
+			label = strings.TrimPrefix(strings.TrimPrefix(url, "http://"), "https://")
+		}
+		needs := l.Needs
 		if len(needs) == 0 {
-			needs = portRefs(spec.URL)
+			needs = manifest.PortRefs(l.URL)
 		}
-		lp := linkPlan{label: spec.Title, url: url}
-		if lp.label == "" {
-			lp.label = strings.TrimPrefix(strings.TrimPrefix(url, "http://"), "https://")
-		}
+		down := false
 		for _, n := range needs {
-			// A server without a port yet has not started: port 0
-			// never listens, so the link shows as down.
-			lp.needs = append(lp.needs, v.ports[n])
+			down = down || !answers(n)
 		}
-		links = append(links, lp)
+		t.Links = deck.AppendLink(t.Links, deck.Link{Kind: deck.LinkLocalhost, Label: label, URL: url, Down: down})
 	}
-	return servers, links
+}
+
+func allPending(p *plan, why string) bool {
+	for _, w := range p.pending {
+		if w != why {
+			return false
+		}
+	}
+	return true
+}
+
+func exists(path string) bool {
+	_, err := os.Stat(path)
+	return err == nil
 }
 
 func localURL(port int) string { return "http://localhost:" + strconv.Itoa(port) }
-
-// shortPath names a manifest by its repo folder: "webshop/.herdr-deck/dev.json".
-func shortPath(path string) string {
-	return filepath.Join(filepath.Base(filepath.Dir(filepath.Dir(path))), ManifestPath)
-}
-
-// relTo shows path relative to the repo or worktree when it is inside one.
-func relTo(path string, dirs ...string) string {
-	for _, d := range dirs {
-		if rel, err := filepath.Rel(d, path); err == nil && !strings.HasPrefix(rel, "..") {
-			return rel
-		}
-	}
-	return path
-}
 
 // short drops the path from a file error; the line already names the file.
 func short(err error) error {
