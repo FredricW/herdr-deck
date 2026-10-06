@@ -564,6 +564,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		// The drawer shows the log and that the servers are starting.
 		return m, m.refresh()
 	case tea.KeyPressMsg:
+		m.bar = barNone // a key may change the view under a held thumb
 		next, cmd := m.handleKey(msg)
 		return next.(Model).followDiff(cmd)
 	case tea.MouseClickMsg:
@@ -1364,38 +1365,49 @@ func (m *Model) handleClick(mouse tea.Mouse) (tea.Model, tea.Cmd) {
 	return *m, nil
 }
 
+// barOf is view k's scrollbar in frame l, if it shows, with its
+// track's first screen line.
+func (m Model) barOf(k barKind, l frame) (scrollbar, int, bool) {
+	switch k {
+	case barPreview:
+		s := m.previewBar(m.width, l.listH)
+		return s, l.listTop, m.preview && !m.pick.open && s.shown()
+	case barDrawer:
+		s := l.drawerBar(m.drawerOff)
+		return s, l.drawerTop, l.barred && !m.pick.open && s.shown()
+	}
+	return scrollbar{}, 0, false
+}
+
 // barAt is the scrollbar under the pointer, if any, with its place and
 // its track's first screen line.
 func (m Model) barAt(l frame, mouse tea.Mouse) (barKind, scrollbar, int) {
 	if mouse.X != m.width-1 {
 		return barNone, scrollbar{}, 0
 	}
-	if s := m.previewBar(m.width, l.listH); m.preview && s.shown() && mouse.Y >= l.listTop && mouse.Y < l.listTop+l.listH {
-		return barPreview, s, l.listTop
-	}
-	if s := l.drawerBar(m.drawerOff); l.barred && s.shown() && mouse.Y >= l.drawerTop && mouse.Y < l.drawerTop+l.drawerH {
-		return barDrawer, s, l.drawerTop
+	for _, k := range []barKind{barPreview, barDrawer} {
+		if s, top, ok := m.barOf(k, l); ok && mouse.Y >= top && mouse.Y < top+s.h {
+			return k, s, top
+		}
 	}
 	return barNone, scrollbar{}, 0
 }
 
 // barTo drags the held scrollbar's thumb to screen line y, keeping the
-// row of it the press took hold of under the pointer.
+// row of it the press took hold of under the pointer. While that row
+// stays where the thumb is drawn, the view stays put: the thumb's place
+// is rounded, so mapping it back could move the view a little.
 func (m *Model) barTo(y int) {
-	l := m.layout()
-	switch m.bar {
-	case barPreview:
-		if s := m.previewBar(m.width, l.listH); m.preview && s.shown() {
-			m.setBarOff(barPreview, s.offsetAt(y-l.listTop-m.barGrab))
-			return
-		}
-	case barDrawer:
-		if s := l.drawerBar(m.drawerOff); l.barred && s.shown() {
-			m.setBarOff(barDrawer, s.offsetAt(y-l.drawerTop-m.barGrab))
-			return
-		}
+	s, top, ok := m.barOf(m.bar, m.layout())
+	if !ok {
+		m.bar = barNone // the view went away
+		return
 	}
-	m.bar = barNone // the view went away
+	want := y - top - m.barGrab
+	if cur, _ := s.thumb(); want == cur {
+		return
+	}
+	m.setBarOff(m.bar, s.offsetAt(want))
 }
 
 func (m *Model) setBarOff(k barKind, off int) {

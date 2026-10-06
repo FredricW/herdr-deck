@@ -209,3 +209,34 @@ func TestFullViewScrollbar(t *testing.T) {
 		t.Error("a row's drawer got a scrollbar")
 	}
 }
+
+// A press on the thumb and a move that keeps its row under the pointer
+// leaves the view where it was, though the thumb's place is rounded.
+func TestScrollbarGrabHolds(t *testing.T) {
+	m, _ := previewModel(t, 80, 28, nil)
+	m, _ = press(m, append(keys("dv"), keys("jjjjjjjjJ")...)...)
+	l := m.layout()
+	s := m.previewBar(80, l.listH)
+	top, _ := s.thumb()
+	off := m.prevOff
+	if s.offsetAt(top) == off {
+		t.Fatalf("offset %d maps back exactly; pick one that does not", off)
+	}
+	m, _ = press(m, click(79, l.listTop+top), motion(78, l.listTop+top), motion(79, l.listTop+top))
+	if m.prevOff != off {
+		t.Errorf("a grab without a vertical move scrolled from %d to %d", off, m.prevOff)
+	}
+	// A key lets go: a later motion scrolls nothing.
+	m, _ = press(m, keys("K")...)
+	off = m.prevOff
+	m, _ = press(m, motion(79, l.listTop+l.listH-1))
+	if m.bar != barNone || m.prevOff != off {
+		t.Errorf("a key kept the thumb held: %v, offset %d want %d", m.bar, m.prevOff, off)
+	}
+}
+
+func TestScrollbarOneLine(t *testing.T) {
+	if (scrollbar{total: 50, h: 1}).shown() {
+		t.Error("a one-line view got a scrollbar")
+	}
+}

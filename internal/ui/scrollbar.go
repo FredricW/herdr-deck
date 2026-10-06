@@ -43,8 +43,9 @@ const (
 // off.
 type scrollbar struct{ total, h, off int }
 
-// shown says whether the view overflows, so it gets a scrollbar.
-func (s scrollbar) shown() bool { return s.h > 0 && s.total > s.h }
+// shown says whether the view overflows, so it gets a scrollbar. A view
+// of one line gets none: its thumb could only fill the track.
+func (s scrollbar) shown() bool { return s.h >= 2 && s.total > s.h }
 
 // most is the last offset: the one that shows the last line at the end.
 func (s scrollbar) most() int { return max(s.total-s.h, 0) }

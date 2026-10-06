@@ -146,14 +146,18 @@ func (m Model) layout() frame {
 		f.attn = f.listTop + f.listH
 	}
 	if f.drawerH > 0 {
-		f.drawer = m.drawerFor(m.width, f.drawerH)
-		// A full view that overflows is laid out again two columns
-		// narrower: a blank one, so right-aligned text keeps clear of
-		// it, and its scrollbar. A row's drawer keeps its width and
-		// says what is below in its tab bar.
-		if m.mode != modeRow && len(f.drawer.lines) > f.drawerH && m.width >= barMinWidth {
+		// A full view that overflows leaves two columns to its
+		// scrollbar: a blank one, so right-aligned text keeps clear of
+		// it, and the bar. It is laid out that narrow first, as most
+		// full views overflow, and again at the full width if it fits.
+		// A row's drawer keeps its width and says what is below in its
+		// tab bar.
+		if m.mode != modeRow && m.width >= barMinWidth {
 			f.drawer = m.drawerFor(m.width-2, f.drawerH)
-			f.barred = true
+			f.barred = f.drawerBar(0).shown()
+		}
+		if !f.barred {
+			f.drawer = m.drawerFor(m.width, f.drawerH)
 		}
 	}
 	f.bang = m.bangZone()

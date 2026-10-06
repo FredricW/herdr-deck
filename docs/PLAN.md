@@ -271,7 +271,8 @@ lists what the user chose.
   and `\ No newline` notes are dim. Tabs are four columns, control
   characters `�`, long lines cut with `…`. `J`/`K` scroll a line,
   `pgup`/`pgdn` and `ctrl+u`/`ctrl+d` a page, `home`/`end`, the wheel over
-  it three lines. The preview needs the Files tab focused at the normal
+  it three lines. A diff longer than the preview gets a scrollbar in its
+  last column (t-0067): see Mouse below. The preview needs the Files tab focused at the normal
   drawer height on the thread it started on: `v`, `esc`, another tab, row
   or full view, or `z` ends it, and the list shows again with its cursor
   and scroll untouched.
@@ -439,6 +440,15 @@ Mouse: a click selects a row, a click on a tab switches to it, a click on a
 chip, file or Log event opens it, and clicks on `! N` and on a list heading
 work like their keys. A click on the card does nothing. The wheel scrolls the
 list or the drawer's tab under the pointer.
+
+Scrollbars (t-0067): the diff preview and full views (report, What's new,
+help, settings, check logs) that overflow get a one-column scrollbar at the
+right edge: a `│` track and `┃` thumb in fixed 256-colour greys (like the
+split diff's line numbers; named colours have no shade this faint), the
+thumb blue while dragged. The preview gives up its last column; a full view
+two (a blank one, then the bar). A press on the thumb grabs it and a drag
+scrolls; a press on the track jumps there and the drag goes on; a key or the
+release lets go. A row's drawer tabs keep `↓ N more` instead (follow-up).
 
 Colours are named ANSI colours, so the terminal theme applies (full table in
 [docs/design/README.md](design/README.md#colours)). Needs you is bold red,
