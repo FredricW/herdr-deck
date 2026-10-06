@@ -1,17 +1,17 @@
  Admin rebuild                                               ◐ 2  ◇ 1  ○ 1  ✉ 0
 ────────────────────────────────────────────────────────────────────────────────
  c3a91f0 Show the overview cards ab…  +214 −12  split needs ≥ 100 cols  1–11/19
- Agent · 2026-10-02 14:29 · 12m ago
-
- The cards count active and invited users (ABC-1256).
-
- They read the table's query.
-
- ── apps/admin/src/pages/users/UsersOverviewPage.tsx ───────────────────────────
- @@ -1,4 +1,5 @@
-   import { useState } from "react";
- + import { overview } from "./overview";
-
+ Agent · 2026-10-02 14:29 · 12m ago                                            ┃
+                                                                               ┃
+ The cards count active and invited users (ABC-1256).                          ┃
+                                                                               ┃
+ They read the table's query.                                                  ┃
+                                                                               ┃
+ ── apps/admin/src/pages/users/UsersOverviewPage.tsx ──────────────────────────│
+ @@ -1,4 +1,5 @@                                                               │
+   import { useState } from "react";                                           │
+ + import { overview } from "./overview";                                      │
+                                                                               │
 ────────────────────────────────────────────────────────────────────────────────
  Users page                                                     ◐ working  ~60%
  webshop · t-0002-members-admin-users · Building overview            ▰▰▰▰▰▰▱▱▱▱

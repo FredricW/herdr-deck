@@ -328,7 +328,7 @@ func TestSplitToggle(t *testing.T) {
 // the sample file's second hunk.
 func atSecondHunk(s string) bool {
 	l := strings.Split(s, "\n")
-	return strings.TrimSpace(l[3]) == "" && strings.HasPrefix(l[4], " @@ -40,3")
+	return strings.Trim(l[3], " │┃") == "" && strings.HasPrefix(l[4], " @@ -40,3")
 }
 
 // A pane under splitMinWidth shows unified and says why; widening it

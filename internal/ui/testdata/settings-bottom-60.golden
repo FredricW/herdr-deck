@@ -1,28 +1,28 @@
  Admin rebuild                           ◐ 2  ◇ 1  ○ 1  ✉ 0
 ────────────────────────────────────────────────────────────
 ─ Settings · /home/ada/.config/herdr-deck/config.toml ──────
- [github] pull requests
-   github.enabled          true                      default
-
- [figma] Figma links
-   figma.desktop           false                     default
-
- [browser] web links
-   browser.reuse_tabs      true                      default
-
- [updates] new versions of the deck
-   updates.check           true                      default
-   updates.auto_restart    true                      default
-
- [editor] what e opens
-   editor.command          zed {path}                file
-   editor.terminal         false                     default
-
- [diff] what d opens, and the Files tab
-   diff.command            hunk diff {base} -- {fi…  default
-   diff.terminal           true                      default
- ▸ diff.view               list                      default
-     the Files section's view at start: list, or tree
-     (files under their folders); d t switches
+ [github] pull requests                                    │
+   github.enabled          true                    default │
+                                                           │
+ [figma] Figma links                                       │
+   figma.desktop           false                   default │
+                                                           │
+ [browser] web links                                       │
+   browser.reuse_tabs      true                    default │
+                                                           ┃
+ [updates] new versions of the deck                        ┃
+   updates.check           true                    default ┃
+   updates.auto_restart    true                    default ┃
+                                                           ┃
+ [editor] what e opens                                     ┃
+   editor.command          zed {path}              file    ┃
+   editor.terminal         false                   default ┃
+                                                           ┃
+ [diff] what d opens, and the Files tab                    ┃
+   diff.command            hunk diff {base} -- {…  default ┃
+   diff.terminal           true                    default ┃
+ ▸ diff.view               list                    default ┃
+     the Files section's view at start: list, or tree      ┃
+     (files under their folders); d t switches             │
 ────────────────────────────────────────────────────────────
  ↵ edit  x remove  j k move  esc back  q quit         v9.9.9

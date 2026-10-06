@@ -706,7 +706,10 @@ total line opens the whole diff in the diff tool), a Log event to act on it (a r
 event opens the PR, the rest focus the pane), `! N` for the sources, the
 other-projects line for the project picker. A click in the drawer gives it
 the focus. Drag the rule between the list and the drawer to resize them. The wheel moves the list or scrolls the tab under the pointer.
-The wheel over the diff preview scrolls it.
+The wheel over the diff preview scrolls it. A long diff preview or full
+view (a report, What's new, help, settings) has a scrollbar at its right
+edge: press on the thumb and drag to scroll, or press on the track to jump
+there.
 
 ## Other projects
 
@@ -840,7 +843,10 @@ so the code's colours dominate), hunk headers are dim. A blank line
 separates hunks, and a commit's files. Long lines are cut with `…`, never
 wrapped. `J`/`K` scroll a line, `pgup`/`pgdn` (or
 `ctrl+u`/`ctrl+d`) a page, `home`/`end` to either end, and the wheel over
-the preview three lines. A file's diff shows up to 2000 lines and says how
+the preview three lines. A diff longer than the preview gets a scrollbar in
+its last column, a grey thumb on a faint track, sized by how much of it
+shows; drag the thumb, or press on the track to jump there. The header
+says which lines show (`11–21/31`). A file's diff shows up to 2000 lines and says how
 many more there are; git runs off the UI with the same 5 s timeout, and an
 answer is reused while the file's content is unchanged.
 

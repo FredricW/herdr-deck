@@ -16,6 +16,10 @@ and versions follow [Semantic Versioning](https://semver.org/).
   follows a resize, and it is kept for the next start (in the deck's state
   folder); `z` cycles back to it. The new `ui.drawer_height` setting
   (default `0.5`) is the height until you drag.
+- A scrollbar at the right edge of a diff preview that is longer than the
+  pane, and of a full view that overflows (a report, What's new, help,
+  settings). Drag its thumb to scroll, or press on the track to jump there;
+  it follows the keys and the wheel too.
 
 ## [0.1.6] - 2026-10-05
 

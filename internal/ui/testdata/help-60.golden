@@ -13,16 +13,16 @@
 
 
 ─ Keys ─────────────────────────────────────────────────────
- j k        move; the drawer follows
- space      fold or unfold the list under the cursor
- [ ]        previous / next tab: Overview, Files, Commits,
-            Log
- tab        focus the drawer: j k move in it, ↵ opens, tab
-            switches tabs, esc returns
- 1-9        open the numbered link; on Files and Commits,
-            preview that file or commit
- l f n g    open the first Linear, Figma, Notion or PR link;
-            with several, pick one: a digit, a all, d Figma
-            desktop app, the letter again the first, esc
+ j k        move; the drawer follows                       ┃
+ space      fold or unfold the list under the cursor       ┃
+ [ ]        previous / next tab: Overview, Files, Commits, │
+            Log                                            │
+ tab        focus the drawer: j k move in it, ↵ opens, tab │
+            switches tabs, esc returns                     │
+ 1-9        open the numbered link; on Files and Commits,  │
+            preview that file or commit                    │
+ l f n g    open the first Linear, Figma, Notion or PR     │
+            link; with several, pick one: a digit, a all,  │
+            d Figma desktop app, the letter again the      │
 ────────────────────────────────────────────────────────────
  esc back  pgup pgdn scroll  z drawer  ? help  q quit
