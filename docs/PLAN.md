@@ -448,7 +448,9 @@ split diff's line numbers; named colours have no shade this faint), the
 thumb blue while dragged. The preview gives up its last column; a full view
 two (a blank one, then the bar). A press on the thumb grabs it and a drag
 scrolls; a press on the track jumps there and the drag goes on; a key or the
-release lets go. A row's drawer tabs keep `↓ N more` instead (follow-up).
+release lets go. A row's drawer tabs keep `↓ N more` instead (follow-up),
+except the PR tab, which is long like a report: its content gets the
+scrollbar too, and its card and tab bar keep the full width.
 
 Colours are named ANSI colours, so the terminal theme applies (full table in
 [docs/design/README.md](design/README.md#colours)). Needs you is bold red,

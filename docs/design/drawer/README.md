@@ -261,7 +261,9 @@ app's comment (a bot) and a resolved review thread fold to one dim line
 with `▸` in the second column and the start of the text; `space`, `→`/`l`
 or a click on `▸` unfolds it (`▾`), `←`/`h` folds it. Review states:
 `✓ approved` green, `✕ requested changes` red, `○ reviewed` and `–
-review dismissed` dim. Labels are cyan.
+review dismissed` dim. Labels are cyan. Like a report, the tab's content
+gets the scrollbar at the right edge when it overflows; the card and tab
+bar keep the full width.
 
 **The list's PR column.** A click on `#2320` (at 60 columns, the number at
 the start of STATUS) selects the row and shows its PR tab, bringing back a

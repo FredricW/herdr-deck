@@ -267,3 +267,27 @@ func scrollTo(t *testing.T, m Model, text string) Model {
 	t.Fatalf("%q never shows:\n%s", text, screen(m))
 	return m
 }
+
+// The PR tab, long like a report, has the full views' scrollbar beside its
+// content; the card and tab bar keep the full width.
+func TestPRTabScrollbar(t *testing.T) {
+	m, _ := newModel(t, live(), 80, 28)
+	m, _ = press(m, keys(prTabKeys)...)
+	l := m.layout()
+	if !l.barred || l.drawer.width != 78 {
+		t.Fatalf("barred %v, content width %d; want a scrollbar beside 78 columns", l.barred, l.drawer.width)
+	}
+	if _, y := find(t, m, "◇ review"); !strings.HasSuffix(strings.Split(screen(m), "\n")[y], "◇ review") {
+		t.Error("the card lost its full width")
+	}
+	// A press at the track's end scrolls to the comments.
+	m, _ = press(m, click(79, l.drawerTop+l.drawerH-1))
+	if m.drawerOff == 0 || !strings.Contains(screen(m), "kim ✓ approved") {
+		t.Errorf("a press on the track: offset %d\n%s", m.drawerOff, screen(m))
+	}
+	// Overview has no scrollbar.
+	m, _ = press(m, keys("]]")...)
+	if l := m.layout(); l.barred {
+		t.Error("Overview got a scrollbar")
+	}
+}

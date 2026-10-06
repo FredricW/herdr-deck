@@ -5,24 +5,24 @@
 
   Overview   Files   Commits   PR   Log 6                              ↓ 8 more
 
-
- [✓] picker with search
- [ ] empty state
-
- Design: Figma 598-48083.
-
- ── Comments ──  8 · 3 unresolved
- ▸ deploy-preview · bot · 2d ago: Preview deployed to https://preview.example.c…
-
- alex · 5h ago
-   Can we keep the old picker behind a flag for a week?
-
- ▸ src/pages/summary/picker.tsx:18 · kim · +1 reply · resolved · 4h ago: Typo i…
-
- src/api/users.ts:7 · sam · outdated · 3h ago
-   Drop the  any  here.
-
- src/pages/users/index.ts:41 · sam · 2h ago
-   Should this be paginated? The list can get long.
+                                                                               │
+ [✓] picker with search                                                        │
+ [ ] empty state                                                               │
+                                                                               │
+ Design: Figma 598-48083.                                                      │
+                                                                               │
+ ── Comments ──  8 · 3 unresolved                                              │
+ ▸ deploy-preview · bot · 2d ago: Preview deployed to https://preview.example… │
+                                                                               ┃
+ alex · 5h ago                                                                 ┃
+   Can we keep the old picker behind a flag for a week?                        ┃
+                                                                               ┃
+ ▸ src/pages/summary/picker.tsx:18 · kim · +1 reply · resolved · 4h ago: Typo… ┃
+                                                                               ┃
+ src/api/users.ts:7 · sam · outdated · 3h ago                                  ┃
+   Drop the  any  here.                                                        ┃
+                                                                               │
+ src/pages/users/index.ts:41 · sam · 2h ago                                    │
+   Should this be paginated? The list can get long.                            │
 ────────────────────────────────────────────────────────────────────────────────
  g on GitHub  c check log  pgdn scroll  tab focus  [ ] tab  ? help        v9.9.9

@@ -150,10 +150,17 @@ func (m Model) layout() frame {
 		// scrollbar: a blank one, so right-aligned text keeps clear of
 		// it, and the bar. It is laid out that narrow first, as most
 		// full views overflow, and again at the full width if it fits.
-		// A row's drawer keeps its width and says what is below in its
-		// tab bar.
-		if m.mode != modeRow && m.width >= barMinWidth {
+		// A row's drawer says what is below in its tab bar; the PR tab,
+		// long like a report, gets a scrollbar too, beside its content
+		// only: the card and tab bar keep the full width.
+		r, ok := m.selected()
+		switch {
+		case m.width < barMinWidth:
+		case m.mode != modeRow:
 			f.drawer = m.drawerFor(m.width-2, f.drawerH)
+			f.barred = f.drawerBar(0).shown()
+		case ok && r.kind == rowWork && m.curTab() == tabPR:
+			f.drawer = m.rowDrawer(r, rowLinks(r), m.width, m.width-2, f.drawerH)
 			f.barred = f.drawerBar(0).shown()
 		}
 		if !f.barred {
@@ -187,7 +194,7 @@ func (m Model) drawerFor(width, h int) *drawer {
 	if !ok {
 		return m.projectDrawer(row{}, width)
 	}
-	return m.rowDrawer(r, rowLinks(r), width, h)
+	return m.rowDrawer(r, rowLinks(r), width, width, h)
 }
 
 func (m Model) render() string {

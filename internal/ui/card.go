@@ -17,12 +17,14 @@ import (
 // The drawer's header card and tab bar (docs/design/drawer/README.md).
 
 // rowDrawer is the selected row's drawer: the header card, the tab bar and
-// the tab's content, h lines of which show from the drawer's offset.
-func (m Model) rowDrawer(r row, links []deck.Link, width, h int) *drawer {
+// the tab's content, h lines of which show from the drawer's offset. The
+// card and tab bar take width columns, the content inner: fewer when it
+// leaves room for a scrollbar.
+func (m Model) rowDrawer(r row, links []deck.Link, width, inner, h int) *drawer {
 	if r.kind == rowHeading {
 		return m.projectDrawer(r, width)
 	}
-	d := newDrawer(width, "")
+	d := newDrawer(inner, "")
 	d.light = m.light
 	d.card = m.card(r, width)
 	tab := m.curTab()

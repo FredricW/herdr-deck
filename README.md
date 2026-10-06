@@ -294,7 +294,8 @@ which has the rest:
   comment (CI, deploy previews) and a resolved review thread fold to one
   dim line; `space`, `→`/`l` or a click on its `▸` unfolds it, `←`/`h`
   folds it. `↵` or a click on a comment opens it on GitHub, reusing a
-  browser tab that shows the PR. Long content scrolls like the report.
+  browser tab that shows the PR. Long content scrolls like the report,
+  with the same scrollbar at the right edge.
 - The description and comments are read only while the PR tab shows the
   PR: at once when the tab opens, then with the PR's own reads every 45
   seconds, in the same request (about 3 more GraphQL points), and kept when
