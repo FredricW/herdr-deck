@@ -485,3 +485,86 @@ func TestStripComments(t *testing.T) {
 		t.Error("lines or offsets moved")
 	}
 }
+
+// A removed upward import is not a violation: the finding says it went.
+func TestRemovedViolation(t *testing.T) {
+	cfg := `{"x-herdr-deck": {"architecture": {"layers": [
+		{"name": "ui", "paths": ["ui/**"]}, {"name": "core", "paths": ["core/**"]}]}}}`
+	base := map[string]string{"go.mod": "module example.com/m\n", ".config/dev.json": cfg,
+		"ui/ui.go":     "package ui\n\nfunc Run() {}\n",
+		"core/core.go": "package core\n\nimport \"example.com/m/ui\"\n\nfunc Run() { ui.Run() }\n"}
+	head := maps.Clone(base)
+	head["core/core.go"] = "package core\n\nfunc Run() {}\n"
+	res := FromFiles("m", "main", base, head, Config{})
+	e, ok := edge(res, "core", "ui")
+	if !ok || e.Status != Removed || e.Verdict != VerdictUp || e.Risky() {
+		t.Fatalf("edge = %+v", e)
+	}
+	if len(res.Findings) == 0 || res.Findings[0].Verdict != VerdictNone || res.Findings[0].Why != "an upward import gone" {
+		t.Errorf("findings = %+v", res.Findings)
+	}
+}
+
+func TestTSResolution(t *testing.T) {
+	res := &tsResolver{files: map[string]bool{
+		"src/db/client.ts": true, "src/ui/components/Button.tsx": true, "src/components/Card.tsx": true,
+	}, configs: []*tsconfig{{dir: ".", baseURL: ".", paths: map[string][]string{
+		"@/*": {"src/*"}, "@/components/*": {"src/ui/components/*"},
+	}}}}
+	for _, c := range []struct{ spec, want string }{
+		{"./db/client.js", "src/db"},                 // ESM: .js for a .ts source
+		{"@/components/Button", "src/ui/components"}, // the longest prefix wins
+		{"@/components/Card", ""},                    // not where the longer pattern points
+		{"@/db/client", "src/db"},
+	} {
+		if got := res.resolve("src/main.ts", c.spec); got != c.want {
+			t.Errorf("%s: %q, want %q", c.spec, got, c.want)
+		}
+	}
+}
+
+func TestParseModBlocks(t *testing.T) {
+	m := parseMod(".", []byte(`module example.com/m
+
+go 1.24
+
+require github.com/acme/one v1.0.0
+
+require (
+	github.com/acme/two v2.0.0 // indirect
+)
+
+replace (
+	github.com/acme/one v1.0.0 => ./one
+	github.com/acme/three v0.1.0 => ./three
+)
+
+exclude github.com/acme/four v0.9.0
+`))
+	want := map[string]string{"github.com/acme/one": "v1.0.0", "github.com/acme/two": "v2.0.0"}
+	if !maps.Equal(m.requires, want) {
+		t.Errorf("requires = %v, want %v", m.requires, want)
+	}
+}
+
+func TestShapesAndSQL(t *testing.T) {
+	a := parseTS([]byte("export const port = 1\n"))
+	b := parseTS([]byte("export const host = 1\n"))
+	if a.decls[0].shape != b.decls[0].shape || a.decls[0].hash == b.decls[0].hash {
+		t.Errorf("a rename is not one shape: %+v %+v", a.decls[0], b.decls[0])
+	}
+	g := parseGo([]byte("package q\n\nconst all = `SELECT id,\n  name\nFROM users WHERE open`\n"))
+	if len(g.touches) != 1 || g.touches[0].target != "users" {
+		t.Errorf("touches = %+v", g.touches)
+	}
+}
+
+// A move that also changes a dependency is no pure move.
+func TestPureMoveWithADependency(t *testing.T) {
+	base := map[string]string{"go.mod": "module example.com/m\n", "a/a.go": "package a\n\nfunc A() {}\n"}
+	head := map[string]string{"go.mod": "module example.com/m\n\nrequire github.com/acme/x v1.0.0\n", "b/a.go": "package a\n\nfunc A() {}\n"}
+	res := FromFiles("m", "main", base, head, Config{})
+	if res.PureMove() || len(res.Deps) != 1 {
+		t.Errorf("pure move %v, deps %v", res.PureMove(), res.Deps)
+	}
+}

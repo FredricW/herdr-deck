@@ -344,8 +344,9 @@ lists what the user chose.
   cycles, touchpoints (env, http, sql, exec, fs, flag), go.mod /
   package.json requirements, exported API, and declarations moved
   (matched by hash) so a move is not a change. Facts are cached by blob
-  SHA and results by merge-base, head and config (16), so a reload costs
-  `rev-parse`, `merge-base` and `ls-tree` until HEAD moves. It runs off the
+  SHA and results by merge-base, head and the manifest's blob (16), so a
+  reload costs `rev-parse HEAD`, `merge-base` and `rev-parse
+  HEAD:.config/dev.json` until one of them moves. It runs off the
   UI goroutine like the Files read (30 s timeout). The repository's
   `.config/dev.json` at HEAD may declare `x-herdr-deck.architecture`:
   `layers` (ordered, `paths` globs, `closed`), `roots`, `language`;

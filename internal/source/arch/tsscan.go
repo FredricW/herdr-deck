@@ -134,7 +134,8 @@ func parseTS(src []byte) *facts {
 		text := string(code[m[0]:end])
 		kind, name := string(code[m[4]:m[5]]), string(code[m[6]:m[7]])
 		sig, _, _ := strings.Cut(text, "\n")
-		blank := strings.Replace(text, name, "_", 1)
+		at := m[6] - m[0] // the name, not an earlier substring such as "port" in "export"
+		blank := text[:at] + "_" + text[at+len(name):]
 		g.decls = append(g.decls, decl{
 			key: kind + " " + name, exported: m[2] >= 0, sig: strings.TrimSpace(sig),
 			hash: hash(text), shape: hash(blank), line: lineAt(code, m[0]),
@@ -224,9 +225,24 @@ func (t *tsResolver) resolve(fromFile, spec string) string {
 		return t.file(path.Join(path.Dir(fromFile), spec))
 	}
 	if cfg := t.configFor(fromFile); cfg != nil {
-		for _, pat := range slices.Sorted(mapKeys(cfg.paths)) {
+		// As TypeScript does: an exact pattern first, then the longest
+		// prefix before the *.
+		pats := slices.Sorted(mapKeys(cfg.paths))
+		slices.SortStableFunc(pats, func(a, b string) int {
+			ea, eb := !strings.Contains(a, "*"), !strings.Contains(b, "*")
+			switch {
+			case ea != eb && ea:
+				return -1
+			case ea != eb:
+				return 1
+			}
+			return len(b) - len(a)
+		})
+		for _, pat := range pats {
 			prefix, star := strings.CutSuffix(pat, "*")
 			if (star && strings.HasPrefix(spec, prefix)) || (!star && spec == pat) {
+				// Only the best pattern counts: its targets, in order, or
+				// nothing (an alias that resolves nowhere is no package).
 				rest := strings.TrimPrefix(spec, prefix)
 				for _, tg := range cfg.paths[pat] {
 					p := path.Join(cfg.dir, cfg.baseURL, strings.Replace(tg, "*", rest, 1))
@@ -234,6 +250,7 @@ func (t *tsResolver) resolve(fromFile, spec string) string {
 						return n
 					}
 				}
+				return ""
 			}
 		}
 	}
@@ -276,6 +293,17 @@ func (t *tsResolver) configFor(file string) *tsconfig {
 func (t *tsResolver) file(p string) string {
 	if isTSFile(p) && t.files[p] {
 		return path.Dir(p)
+	}
+	// ESM and NodeNext write the output's extension: ./client.js for
+	// client.ts.
+	for js, srcs := range map[string][]string{".js": {".ts", ".tsx"}, ".jsx": {".tsx"}, ".mjs": {".mts"}, ".cjs": {".cts"}} {
+		if stem, ok := strings.CutSuffix(p, js); ok {
+			for _, ext := range srcs {
+				if t.files[stem+ext] {
+					return path.Dir(stem + ext)
+				}
+			}
+		}
 	}
 	for _, ext := range tsExts {
 		if t.files[p+ext] {

@@ -270,7 +270,7 @@ var goRules = []struct {
 
 // sqlTable finds table names in string literals that read as SQL.
 var (
-	sqlTable = regexp.MustCompile(`(?i)\b(?:select\b.*?\bfrom|insert\s+into|update|delete\s+from|join)\s+["` + "`" + `]?([a-z_][a-z0-9_.]*)`)
+	sqlTable = regexp.MustCompile(`(?is)\b(?:select\b.*?\bfrom|insert\s+into|update|delete\s+from|join)\s+["` + "`" + `]?([a-z_][a-z0-9_.]*)`)
 	sqlLike  = regexp.MustCompile(`(?i)^\s*(select|insert|update|delete|with)\b`)
 )
 

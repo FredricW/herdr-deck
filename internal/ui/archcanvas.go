@@ -553,7 +553,7 @@ type canvas struct {
 // upward or skips a layer, so plain text shows the risk too. Plain digits:
 // circled ones are drawn two columns wide by some terminals.
 func portMark(n int, e arch.Edge) string {
-	if e.Verdict.Risky() {
+	if e.Risky() {
 		return fmt.Sprintf("%d!", n)
 	}
 	return fmt.Sprint(n)
@@ -657,7 +657,7 @@ func (c *canvas) markers() {
 		}
 		t.n++
 		t.mixed = t.mixed || t.st != edgeStyle(e.Status)
-		t.risky = t.risky || e.Verdict.Risky()
+		t.risky = t.risky || e.Risky()
 	}
 	var order []*cbox
 	seen := map[*cbox]bool{}
@@ -750,11 +750,15 @@ func (c *canvas) legend(r *arch.Result, w int) []string {
 	if !c.counts {
 		for i, e := range c.edges {
 			tag := ""
-			switch e.Verdict {
-			case arch.VerdictUp:
+			switch {
+			case e.Risky() && e.Verdict == arch.VerdictUp:
 				tag = "  ✕ upward"
-			case arch.VerdictSkip:
+			case e.Risky():
 				tag = "  ⚠ " + e.Why
+			case e.Verdict == arch.VerdictUp:
+				tag = "  was upward"
+			case e.Verdict == arch.VerdictSkip:
+				tag = "  was a skip"
 			}
 			if e.Status != arch.Added {
 				tag += "  " + edgeWord(e.Status)
@@ -770,7 +774,7 @@ func (c *canvas) legend(r *arch.Result, w int) []string {
 				from = append(from, e.From)
 			}
 			mark := ""
-			if e.Verdict.Risky() {
+			if e.Risky() {
 				mark = "!"
 			}
 			switch e.Status {

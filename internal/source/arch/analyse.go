@@ -134,7 +134,15 @@ func analyse(r *Result, base, head *snapshot, files []deck.DiffFile, cfg Config)
 
 	r.Cycles = newCycles(compEdges(base.edges), compEdges(head.edges))
 
-	// Declarations and touchpoints of the changed files, both sides.
+	// Declarations and touchpoints of the changed files, both sides. A Go
+	// package shares one namespace; a TypeScript file is a module of its
+	// own, so its declarations are told apart by file.
+	unit := func(file string) string {
+		if r.Language == LangTS {
+			return file
+		}
+		return path.Dir(file)
+	}
 	bd, hd := map[keyed]decl{}, map[keyed]decl{}
 	bt, ht := map[string]int{}, map[string]int{}
 	htSite, btSite := map[string]Site{}, map[string]Site{}
@@ -145,7 +153,9 @@ func analyse(r *Result, base, head *snapshot, files []deck.DiffFile, cfg Config)
 		}
 		if g := base.files[old]; old != "" && g != nil {
 			for _, d := range g.decls {
-				bd[keyed{path.Dir(old), d.key}] = d
+				if d.key != "func init" { // Go allows many
+					bd[keyed{path.Dir(old), unit(old), d.key}] = d
+				}
 			}
 			for _, t := range g.touches {
 				k := path.Dir(old) + "\x00" + t.key()
@@ -160,7 +170,9 @@ func analyse(r *Result, base, head *snapshot, files []deck.DiffFile, cfg Config)
 		}
 		if g := head.files[f.Path]; g != nil {
 			for _, d := range g.decls {
-				hd[keyed{path.Dir(f.Path), d.key}] = d
+				if d.key != "func init" {
+					hd[keyed{path.Dir(f.Path), unit(f.Path), d.key}] = d
+				}
 			}
 			for _, t := range g.touches {
 				k := path.Dir(f.Path) + "\x00" + t.key()
@@ -265,10 +277,13 @@ func baseSites(ss []Site) []Site {
 	return out
 }
 
-// keyed is a declaration's place: its package and key.
-type keyed struct{ pkg, key string }
+// keyed is a declaration's place: its package, the namespace it is in
+// (the package in Go, its file in TypeScript) and its key.
+type keyed struct{ pkg, unit, key string }
 
-func cmpKeyed(a, b keyed) int { return cmp.Or(cmp.Compare(a.pkg, b.pkg), cmp.Compare(a.key, b.key)) }
+func cmpKeyed(a, b keyed) int {
+	return cmp.Or(cmp.Compare(a.pkg, b.pkg), cmp.Compare(a.unit, b.unit), cmp.Compare(a.key, b.key))
+}
 
 // declMoves matches the declarations of the changed files across the two
 // sides: the same key in the same package is unchanged or changed in
@@ -461,7 +476,14 @@ func (r *Result) findings() {
 		case e.MovedWithCode:
 			f.Sign, f.Why = "≡", "moved with its code"
 		case e.Status == Removed:
-			f.Sign = "−"
+			// Taking a violation away is not one.
+			f.Sign, f.Verdict = "−", VerdictNone
+			switch e.Verdict {
+			case VerdictUp:
+				f.Why = "an upward import gone"
+			case VerdictSkip:
+				f.Why = "a layer skip gone"
+			}
 		}
 		fs = append(fs, f)
 	}

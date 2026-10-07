@@ -118,12 +118,16 @@ func (b *catFile) read(sha string) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
+	if n > maxBlob {
+		// Skip it, its trailing newline too, without holding it.
+		if _, err := io.CopyN(io.Discard, b.out, int64(n)+1); err != nil {
+			return nil, err
+		}
+		return nil, errTooBig
+	}
 	buf := make([]byte, n+1) // the content and its trailing newline
 	if _, err := io.ReadFull(b.out, buf); err != nil {
 		return nil, err
-	}
-	if n > maxBlob {
-		return nil, errTooBig
 	}
 	return buf[:n], nil
 }

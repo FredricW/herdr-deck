@@ -21,17 +21,34 @@ type module struct {
 
 var (
 	modLine = regexp.MustCompile(`(?m)^module\s+(\S+)`)
-	reqLine = regexp.MustCompile(`(?m)^\s*(?:require\s+)?([a-zA-Z0-9][^\s()]*\.[^\s()]+)\s+(v\S+)`)
+	reqLine = regexp.MustCompile(`^([a-zA-Z0-9][^\s()]*\.[^\s()]+)\s+(v\S+)`)
 )
 
+// parseMod reads go.mod's module path and its require lines, alone or in
+// a require ( … ) block; replace and exclude lines are not requirements.
 func parseMod(dir string, src []byte) module {
 	m := module{dir: dir, requires: map[string]string{}}
 	if s := modLine.FindSubmatch(src); s != nil {
 		m.path = string(s[1])
 	}
-	for _, s := range reqLine.FindAllSubmatch(src, -1) {
-		if string(s[1]) != m.path {
-			m.requires[string(s[1])] = string(s[2])
+	block := ""
+	for line := range strings.Lines(string(src)) {
+		line, _, _ = strings.Cut(line, "//")
+		line = strings.TrimSpace(line)
+		switch {
+		case block != "" && line == ")":
+			block = ""
+			continue
+		case block == "" && strings.HasSuffix(line, "("):
+			block = strings.TrimSpace(strings.TrimSuffix(line, "("))
+			continue
+		}
+		req := block == "require"
+		if rest, ok := strings.CutPrefix(line, "require "); ok && block == "" {
+			line, req = strings.TrimSpace(rest), true
+		}
+		if s := reqLine.FindStringSubmatch(line); req && s != nil && s[1] != m.path {
+			m.requires[s[1]] = s[2]
 		}
 	}
 	return m

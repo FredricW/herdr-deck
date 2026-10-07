@@ -135,7 +135,8 @@ func TestCanvasMarkers(t *testing.T) {
 	}
 	for i, e := range c.edges {
 		label := portMark(i+1, e)
-		if e.Verdict.Risky() != strings.HasSuffix(label, "!") {
+		// A removed edge that skipped a layer is good news: no `!`.
+		if e.Risky() != strings.HasSuffix(label, "!") || e.Status == arch.Removed && strings.HasSuffix(label, "!") {
 			t.Errorf("edge %d %s → %s: label %q, verdict %v", i+1, e.From, e.To, label, e.Verdict)
 		}
 		for _, side := range []struct {

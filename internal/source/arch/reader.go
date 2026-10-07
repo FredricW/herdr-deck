@@ -24,9 +24,9 @@ type gitFunc func(ctx context.Context, dir string, args ...string) ([]byte, erro
 
 // Reader reads what a thread's branch did to its repository's shape. It
 // keeps every file's facts by blob SHA and the last results by merge-base,
-// head and config, so a reload whose HEAD did not move costs two git
-// calls, and one that moved parses only the files that changed. It is
-// safe for concurrent use.
+// head and manifest, so a reload whose HEAD did not move costs three
+// small git calls, and one that moved parses only the files that changed.
+// It is safe for concurrent use.
 type Reader struct {
 	// Tests counts test files too (arch.tests).
 	Tests bool
@@ -91,6 +91,17 @@ func (r *Reader) Read(ctx context.Context, t deck.Thread) *Result {
 		return res
 	}
 	res.MergeBase = strings.TrimSpace(string(out))
+	// The manifest's blob is part of the cache key: until HEAD, the
+	// merge-base or the manifest moves, the last result stands, and a
+	// reload costs these three git calls.
+	cfgBlob := ""
+	if out, err := git(ctx, dir, "rev-parse", "--verify", "--quiet", res.Head+":"+ManifestPath); err == nil {
+		cfgBlob = strings.TrimSpace(string(out))
+	}
+	key := fmt.Sprintf("%s %s %s tests=%t", res.MergeBase, res.Head, cfgBlob, r.Tests)
+	if c, ok := r.cached(key); ok {
+		return c
+	}
 	headTree, err := lsTree(ctx, git, dir, res.Head)
 	if err != nil {
 		res.Note = "git ls-tree: " + err.Error()
@@ -103,14 +114,10 @@ func (r *Reader) Read(ctx context.Context, t deck.Thread) *Result {
 	}
 	defer bl.close()
 
-	cfg, cfgKey, configured, err := r.config(headTree, bl)
+	cfg, configured, err := r.config(cfgBlob, bl)
 	if err != nil {
 		res.Note = ManifestPath + ": " + err.Error()
 		return res
-	}
-	key := res.MergeBase + " " + res.Head + " " + cfgKey
-	if c, ok := r.cached(key); ok {
-		return c
 	}
 	res.Configured = configured
 	res.Language = cfg.Language
@@ -153,28 +160,21 @@ func (r *Reader) Read(ctx context.Context, t deck.Thread) *Result {
 	return res
 }
 
-// config reads the manifest's architecture block at the head commit, a
-// key for the result cache (the manifest's blob, or "-" without a block),
-// and whether the block says anything.
-func (r *Reader) config(tree []entry, bl blobReader) (cfg Config, key string, configured bool, err error) {
-	key = "-"
-	for _, e := range tree {
-		if e.path != ManifestPath {
-			continue
-		}
-		src, err := bl.read(e.blob)
+// config reads the manifest's architecture block from its blob ("" for
+// no manifest), and says whether the block says anything.
+func (r *Reader) config(blob string, bl blobReader) (cfg Config, configured bool, err error) {
+	if blob != "" {
+		src, err := bl.read(blob)
 		if err != nil {
-			return cfg, "", false, err
+			return cfg, false, err
 		}
 		if cfg, err = ParseConfig(src); err != nil {
-			return cfg, "", false, err
+			return cfg, false, err
 		}
-		if configured = len(cfg.Layers)+len(cfg.Roots) > 0 || cfg.Language != ""; configured {
-			key = e.blob
-		}
+		configured = len(cfg.Layers)+len(cfg.Roots) > 0 || cfg.Language != ""
 	}
 	cfg.Tests = r.Tests
-	return cfg, fmt.Sprintf("%s tests=%t", key, r.Tests), configured, nil
+	return cfg, configured, nil
 }
 
 func (r *Reader) cached(key string) (*Result, bool) {

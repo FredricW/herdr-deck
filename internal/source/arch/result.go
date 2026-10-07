@@ -108,6 +108,10 @@ type Edge struct {
 // Internal says the edge is between two packages of the repository.
 func (e Edge) Internal() bool { return internal(e.To) }
 
+// Risky says the edge goes upward or skips a layer, and the change did not
+// remove it: a removed one is good news.
+func (e Edge) Risky() bool { return e.Verdict.Risky() && e.Status != Removed }
+
 // Touch is a touchpoint the change added (or, with Removed, took away).
 type Touch struct {
 	Package string
@@ -228,11 +232,12 @@ func (r *Result) ChangedEdges() (added, removed, changed int) {
 }
 
 // PureMove says the change only moved code: files or declarations moved,
-// and no declaration or dependency changed.
+// and no declaration, import, touchpoint or dependency changed.
 func (r *Result) PureMove() bool {
 	m := r.Moves
 	a, rm, _ := r.ChangedEdges()
-	return m.Changed+m.Added+m.Removed == 0 && a+rm == 0 && len(r.Touches) == 0 && m.Files+m.Decls+m.Renamed > 0
+	return m.Changed+m.Added+m.Removed == 0 && a+rm == 0 && len(r.Touches)+len(r.Deps)+len(r.Cycles) == 0 &&
+		m.Files+m.Decls+m.Renamed > 0
 }
 
 // Short is a node's name in text: a package's path, or a third-party or
