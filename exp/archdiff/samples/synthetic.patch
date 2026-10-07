@@ -1,0 +1,41 @@
+diff --git a/internal/source/diff/leak.go b/internal/source/diff/leak.go
+new file mode 100644
+index 0000000..61fbe3d
+--- /dev/null
++++ b/internal/source/diff/leak.go
+@@ -0,0 +1,24 @@
++package diff
++
++import (
++	"database/sql"
++	"net/http"
++	"os"
++
++	"github.com/FredricW/herdr-deck/internal/ui"
++)
++
++const tokenEnv = "ABC_EXPORT_TOKEN"
++
++// Export is a made-up example of a change that bends the layering.
++func Export(db *sql.DB) error {
++	_ = ui.Options{}
++	if os.Getenv(tokenEnv) == "" {
++		return nil
++	}
++	if _, err := db.Exec("INSERT INTO export_jobs (id) VALUES (?)", 1); err != nil {
++		return err
++	}
++	_, err := http.Get("https://s3.example.com/bucket")
++	return err
++}
+diff --git a/internal/ui/peek.go b/internal/ui/peek.go
+new file mode 100644
+index 0000000..10b3e41
+--- /dev/null
++++ b/internal/ui/peek.go
+@@ -0,0 +1,5 @@
++package ui
++
++import "github.com/FredricW/herdr-deck/internal/source/github"
++
++var _ = github.Reader{}
