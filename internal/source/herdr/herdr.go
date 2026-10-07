@@ -105,25 +105,29 @@ func (c Client) Focus(ctx context.Context, paneID string) error {
 // its shell, followed by Enter (methods pane.split and pane.send_input). The
 // new pane starts in cwd.
 func (c Client) RunInPane(ctx context.Context, target, cwd, line string) error {
-	return c.OpenPane(ctx, target, cwd, line, false)
+	return c.OpenPane(ctx, target, cwd, line, nil, false)
 }
 
-// OpenPane is RunInPane that, with zoom set, also zooms the new pane to
-// the whole tab before typing (pane.zoom, mode on), so a view that wants
-// room gets it; herdr's zoom key gives the other panes back. A zoom that
-// fails leaves the pane as it is.
-func (c Client) OpenPane(ctx context.Context, target, cwd, line string, zoom bool) error {
+// OpenPane is RunInPane with env added to the new pane's environment and,
+// with zoom set, the new pane zoomed to the whole tab before typing
+// (pane.zoom, mode on), so a view that wants room gets it; herdr's zoom key
+// gives the other panes back. A zoom that fails leaves the pane as it is.
+func (c Client) OpenPane(ctx context.Context, target, cwd, line string, env map[string]string, zoom bool) error {
 	var res struct {
 		Pane struct {
 			ID string `json:"pane_id"`
 		} `json:"pane"`
 	}
-	err := c.call(ctx, "pane.split", map[string]any{
+	params := map[string]any{
 		"target_pane_id": target,
 		"direction":      "down",
 		"cwd":            cwd,
 		"focus":          true,
-	}, &res)
+	}
+	if len(env) > 0 {
+		params["env"] = env
+	}
+	err := c.call(ctx, "pane.split", params, &res)
 	if err != nil {
 		return err
 	}

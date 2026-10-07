@@ -376,10 +376,14 @@ func impactDetail(r *arch.Result, c *canvas, sel string, unrouted int, pre strin
 			tags = append(tags, edgeWord(e.Status))
 		}
 		switch {
-		case e.Verdict == arch.VerdictUp:
+		case e.Risky() && e.Verdict == arch.VerdictUp:
 			tags = append(tags, "✕ upward")
-		case e.Verdict == arch.VerdictSkip:
+		case e.Risky():
 			tags = append(tags, "⚠ "+e.Why)
+		case e.Verdict == arch.VerdictUp:
+			tags = append(tags, "was upward")
+		case e.Verdict == arch.VerdictSkip:
+			tags = append(tags, "was a skip")
 		case e.Why != "":
 			tags = append(tags, e.Why)
 		}

@@ -12,6 +12,7 @@ import (
 	"path/filepath"
 	"runtime/debug"
 	"slices"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -91,26 +92,27 @@ func run(args []string) error {
 		return err
 	}
 
-	client := herdr.Client{Socket: herdr.SocketPath(os.Getenv)}
-	runner := launch.Runner{}
-	self := os.Getenv("HERDR_PANE_ID")
-	if self != "" {
-		runner.Pane = func(argv []string, dir string) error {
-			return client.RunInPane(context.Background(), self, dir, launch.ShellLine(argv))
-		}
-	}
+	client, runner, self := paneRunner(os.Getenv)
 	// O opens a thread's Impact view in a pane of its own, running this
-	// binary; outside herdr there is no pane to open.
+	// binary with the flags this deck got and its settings' environment;
+	// outside herdr there is no pane to open.
+	var passed []string
+	fs.Visit(func(f *flag.Flag) {
+		switch f.Name {
+		case "project", "fake", "version":
+		default:
+			passed = append(passed, "--"+f.Name+"="+f.Value.String())
+		}
+	})
 	impactPane := func(args ...string) func(deck.Thread) error {
 		exe, err := os.Executable()
 		if self == "" || err != nil {
 			return nil
 		}
-		if fl.Config != "" {
-			args = append(args, "--config", fl.Config)
-		}
+		args = append(args, passed...)
+		env := settingsEnv(os.Environ())
 		return func(t deck.Thread) error {
-			return client.OpenPane(context.Background(), self, t.Worktree, impactCommand(exe, args, t), true)
+			return client.OpenPane(context.Background(), self, t.Worktree, impactCommand(exe, args, t), env, true)
 		}
 	}
 	// The settings page swaps cur when it saves; everything that runs
@@ -527,6 +529,7 @@ func runArch(args []string) error {
 	fs.StringVar(&fl.Config, "config", "", "config file (default: $"+config.EnvPath+", else $XDG_CONFIG_HOME/herdr-deck/config.toml or ~/.config/herdr-deck/config.toml)")
 	slugFlag := fs.String("project", "", "project slug (default: $"+project.EnvProject+", else the project folder containing the working directory)")
 	id := fs.String("thread", "", "thread id, such as t-0002")
+	fl.Register(fs) // the deck passes on the setting flags it was given
 	demo := fs.Bool("fake", false, "show the built-in sample instead of a project")
 	if err := fs.Parse(args); err != nil {
 		return err
@@ -538,13 +541,7 @@ func runArch(args []string) error {
 	if err != nil {
 		return err
 	}
-	client := herdr.Client{Socket: herdr.SocketPath(os.Getenv)}
-	runner := launch.Runner{}
-	if self := os.Getenv("HERDR_PANE_ID"); self != "" {
-		runner.Pane = func(argv []string, dir string) error {
-			return client.RunInPane(context.Background(), self, dir, launch.ShellLine(argv))
-		}
-	}
+	_, runner, _ := paneRunner(os.Getenv)
 	opt := ui.ImpactOptions{
 		Tick: cfg.RefreshInterval,
 		OpenDiff: func(path, base string, files []string) error {
@@ -589,4 +586,35 @@ func runArch(args []string) error {
 	}
 	_, err = tea.NewProgram(ui.NewImpactPane(opt)).Run()
 	return err
+}
+
+// paneRunner is the herdr client, a runner that opens terminal programs in
+// a pane below this one when the deck runs inside herdr, and this pane's
+// id ("" outside herdr).
+func paneRunner(getenv func(string) string) (herdr.Client, launch.Runner, string) {
+	client := herdr.Client{Socket: herdr.SocketPath(getenv)}
+	runner := launch.Runner{}
+	self := getenv("HERDR_PANE_ID")
+	if self != "" {
+		runner.Pane = func(argv []string, dir string) error {
+			return client.RunInPane(context.Background(), self, dir, launch.ShellLine(argv))
+		}
+	}
+	return client, runner, self
+}
+
+// settingsEnv is the part of environ a deck's settings come from, for a
+// pane it opens: herdr starts a pane with its own environment, not the
+// deck's. Secrets such as LINEAR_API_KEY stay out.
+func settingsEnv(environ []string) map[string]string {
+	env := map[string]string{}
+	for _, kv := range environ {
+		k, v, _ := strings.Cut(kv, "=")
+		switch {
+		case strings.HasPrefix(k, "HERDR_DECK_"), k == config.EnvProjectsRoot,
+			k == "XDG_CONFIG_HOME", k == "XDG_STATE_HOME", k == "XDG_CACHE_HOME":
+			env[k] = v
+		}
+	}
+	return env
 }

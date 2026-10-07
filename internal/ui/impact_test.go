@@ -349,3 +349,58 @@ func TestImpactPane(t *testing.T) {
 		t.Error("q does not quit")
 	}
 }
+
+// The cursor keeps its place: a reload that reads the same result leaves
+// it, z keeps it on its finding, and ⋯ fewer with no ⋯ line left puts it
+// on the last finding; h and l off the canvas are not the Impact tab's.
+func TestImpactCursorStays(t *testing.T) {
+	m := focusedImpact(t, 80, 60, func(*Options) {})
+	m, _ = press(m, keys("jj")...)
+	if m.dcur != 2 {
+		t.Fatalf("cursor %d", m.dcur)
+	}
+	m, _ = press(m, snapshotMsg(fakeSnap()))
+	if m.dcur != 2 {
+		t.Errorf("after a reload: cursor %d", m.dcur)
+	}
+	m, _ = press(m, keys("z")...) // to the normal height: five findings show
+	if m.dcur != 2 || m.curTab() != tabImpact {
+		t.Errorf("after z: cursor %d", m.dcur)
+	}
+	// l on a finding is not a move: it opens the Linear link as ever.
+	before := m.isel
+	m, _ = press(m, keys("l")...)
+	if m.dcur != 2 || m.isel != before {
+		t.Errorf("l on a finding moved: cursor %d, selection %q", m.dcur, m.isel)
+	}
+	// At the normal height ⋯ more shows every finding; at full height
+	// ⋯ fewer goes back to twelve, all of them here, so no ⋯ line is
+	// left and the cursor goes to the last finding.
+	m, _ = newModelWith(t, fakeSnap(), 80, 28, func(o *Options) {
+		o.Diff, o.Patch, o.Arch = fake.Diff, fake.Patch, fake.Arch
+	})
+	m.switchTab(tabImpact)
+	m, _ = press(m, tabKey)
+	d, _ := impactLay(t, m)
+	for d.stops[m.dcur].act.kind != actFindMore {
+		m, _ = press(m, keys("j")...)
+		d, _ = impactLay(t, m)
+	}
+	m, _ = press(m, tea.KeyPressMsg{Code: tea.KeyEnter})
+	if !m.iall {
+		t.Fatal("⋯ more did not show every finding")
+	}
+	m, _ = press(m, keys("z")...)
+	d, _ = impactLay(t, m)
+	if d.stops[m.dcur].act.kind != actFindMore {
+		t.Fatalf("after z the cursor left the ⋯ line: %v", d.stops[m.dcur].act)
+	}
+	m, _ = press(m, tea.KeyPressMsg{Code: tea.KeyEnter})
+	d, lay := impactLay(t, m)
+	if m.iall || d.stops[m.dcur].act != (action{kind: actFinding, n: lay.findings - 1}) {
+		t.Errorf("after ⋯ fewer: all %v, stop %v", m.iall, d.stops[m.dcur].act)
+	}
+	if want := lay.res.Findings[lay.findings-1].Package; m.isel != want {
+		t.Errorf("selection %q, want %q", m.isel, want)
+	}
+}

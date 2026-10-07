@@ -601,7 +601,7 @@ func TestOpenPane(t *testing.T) {
 		return true
 	})
 	c := Client{Socket: s.path}
-	if err := c.OpenPane(context.Background(), "w1:p2", "/src/wt", "exec herdr-deck arch", true); err != nil {
+	if err := c.OpenPane(context.Background(), "w1:p2", "/src/wt", "exec herdr-deck arch", map[string]string{"HERDR_DECK_ARCH_TESTS": "true"}, true); err != nil {
 		t.Fatal(err)
 	}
 	var got []string
@@ -609,7 +609,7 @@ func TestOpenPane(t *testing.T) {
 		got = append(got, r.Method+" "+string(r.Params))
 	}
 	want := []string{
-		`pane.split {"cwd":"/src/wt","direction":"down","focus":true,"target_pane_id":"w1:p2"}`,
+		`pane.split {"cwd":"/src/wt","direction":"down","env":{"HERDR_DECK_ARCH_TESTS":"true"},"focus":true,"target_pane_id":"w1:p2"}`,
 		`pane.zoom {"mode":"on","pane_id":"w1:p9"}`,
 		`pane.send_input {"keys":["Enter"],"pane_id":"w1:p9","text":"exec herdr-deck arch"}`,
 	}
@@ -617,7 +617,7 @@ func TestOpenPane(t *testing.T) {
 		t.Errorf("requests:\n%s\nwant:\n%s", strings.Join(got, "\n"), strings.Join(want, "\n"))
 	}
 	// Without zoom, as the editor opens: no pane.zoom.
-	if err := c.OpenPane(context.Background(), "w1:p2", "/src/wt", "nvim .", false); err != nil {
+	if err := c.OpenPane(context.Background(), "w1:p2", "/src/wt", "nvim .", nil, false); err != nil {
 		t.Fatal(err)
 	}
 	for _, r := range s.requests()[3:] {

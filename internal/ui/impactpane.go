@@ -55,11 +55,17 @@ func NewImpactPane(opt ImpactOptions) ImpactPane {
 	if opt.Tick == 0 {
 		opt.Tick = DefaultTick
 	}
-	return ImpactPane{opt: opt, width: defaultWidth, height: defaultHeight, cache: &canvasCache{}}
+	// Init's read is running from the start: Init cannot keep state.
+	return ImpactPane{opt: opt, width: defaultWidth, height: defaultHeight, cache: &canvasCache{}, reading: opt.Read != nil}
 }
 
 func (p ImpactPane) Init() tea.Cmd {
-	return tea.Batch(tea.RequestBackgroundColor, p.read(), p.tick())
+	cmds := []tea.Cmd{tea.RequestBackgroundColor, p.tick()}
+	if read := p.opt.Read; read != nil {
+		t := p.opt.Thread
+		cmds = append(cmds, func() tea.Msg { return paneReadMsg{read(context.Background(), t)} })
+	}
+	return tea.Batch(cmds...)
 }
 
 func (p *ImpactPane) read() tea.Cmd {
@@ -108,7 +114,8 @@ func (p ImpactPane) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tea.BackgroundColorMsg:
 		p.light = !msg.IsDark()
 	case paneTickMsg:
-		return p, tea.Batch(p.read(), p.tick())
+		cmd := p.read()
+		return p, tea.Batch(cmd, p.tick())
 	case paneReadMsg:
 		p.reading = false
 		if p.res != msg.res {
@@ -133,7 +140,8 @@ func (p ImpactPane) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 	case tea.MouseClickMsg:
 		p.status = ""
-		return p, p.click(msg.Mouse())
+		cmd := p.click(msg.Mouse())
+		return p, cmd
 	}
 	return p, nil
 }
@@ -160,7 +168,8 @@ func (p ImpactPane) key(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		p.show()
 	case "enter":
 		if d.impact != nil && p.cur < len(d.stops) {
-			return p, p.act(d, d.stops[p.cur].act)
+			cmd := p.act(d, d.stops[p.cur].act)
+			return p, cmd
 		}
 	case "pgdown", "ctrl+d", " ":
 		p.scroll(max(h-2, 1))
@@ -171,7 +180,8 @@ func (p ImpactPane) key(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	case "end", "G":
 		p.scroll(1 << 30)
 	case "r":
-		return p, p.read()
+		cmd := p.read()
+		return p, cmd
 	}
 	return p, nil
 }

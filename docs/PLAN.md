@@ -375,8 +375,10 @@ lists what the user chose.
   a second click acts. `↵` opens the site in the diff preview at its line
   (`previewGoto`: the patch line whose new, or old, number matches, three
   rows of context above). `O` runs `exec herdr-deck arch --project <slug>
-  --thread <id>` in a pane split below the deck, focused and zoomed
-  (`pane.split`, `pane.zoom` mode on, `pane.send_input`); the pane
+  --thread <id>` (plus the deck's setting flags; its `HERDR_DECK_*`,
+  `HERDR_PROJECTS_ROOT` and `XDG_*` variables go in the split's `env`)
+  in a pane split below the deck, focused and zoomed (`pane.split`,
+  `pane.zoom` mode on, `pane.send_input`); the pane
   (`ui.ImpactPane`) reads the thread from herdr-projects' list and opens
   files in the diff tool.
 - **Log tab.** The thread's timeline, newest first, one line per event:

@@ -33,3 +33,18 @@ func TestRunArchNeedsAThread(t *testing.T) {
 		t.Errorf("err = %v", err)
 	}
 }
+
+// The pane gets the deck's settings from its environment, not secrets.
+func TestSettingsEnv(t *testing.T) {
+	got := settingsEnv([]string{"HERDR_DECK_ARCH_TESTS=true", "HERDR_PROJECTS_ROOT=/p", "XDG_CONFIG_HOME=/c",
+		"LINEAR_API_KEY=secret", "PATH=/bin", "HERDR_PANE_ID=w1:p1"})
+	want := map[string]string{"HERDR_DECK_ARCH_TESTS": "true", "HERDR_PROJECTS_ROOT": "/p", "XDG_CONFIG_HOME": "/c"}
+	if len(got) != len(want) {
+		t.Fatalf("got %v", got)
+	}
+	for k, v := range want {
+		if got[k] != v {
+			t.Errorf("%s = %q, want %q", k, got[k], v)
+		}
+	}
+}

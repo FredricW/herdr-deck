@@ -107,6 +107,10 @@ func (m *Model) impactKey(msg tea.KeyPressMsg) bool {
 		return false
 	}
 	l := m.layout()
+	onBox := l.drawer != nil && m.dcur < len(l.drawer.stops) && l.drawer.stops[m.dcur].act.kind == actBox
+	if (dir == "left" || dir == "right") && !onBox {
+		return false // h and l mean something else off the canvas
+	}
 	if l.drawer == nil || l.drawer.impact == nil || len(l.drawer.stops) == 0 {
 		switch dir {
 		case "down":
@@ -176,13 +180,16 @@ func (m *Model) impactAct(a action) tea.Cmd {
 		return m.openImpactSite(impactSite{file: f.Site.File, line: f.Site.Line, base: f.Site.Base})
 	case actFindMore:
 		m.iall = !m.iall
-		// The cursor stays on the ⋯ line, which moves to the list's end.
+		// The cursor stays on the ⋯ line, which moves to the list's end,
+		// or, when every finding fits and there is none, on the last one.
 		l := m.layout()
+		m.dcur = max(l.drawer.impact.findings-1, 0)
 		for i, s := range l.drawer.stops {
 			if s.act.kind == actFindMore {
 				m.dcur = i
 			}
 		}
+		m.syncImpactSel()
 		m.moveDrawerCursor(0)
 	case actBox:
 		b := lay.boxes[a.n]
@@ -311,4 +318,43 @@ func (m *Model) openImpactPane() tea.Cmd {
 		return nil
 	}
 	return func() tea.Msg { return openedMsg{what: t.ID + "'s Impact view in a pane", err: open(t)} }
+}
+
+// impactStopAct is what the Impact tab's cursor is on, when it shows.
+func (m Model) impactStopAct() (action, bool) {
+	if m.mode != modeRow || m.curTab() != tabImpact || !m.dfocus {
+		return action{}, false
+	}
+	l := m.layout()
+	if l.drawer == nil || l.drawer.impact == nil || m.dcur >= len(l.drawer.stops) {
+		return action{}, false
+	}
+	return l.drawer.stops[m.dcur].act, true
+}
+
+// relocateImpact puts the Impact tab's cursor back where it was after the
+// stops changed (a new height shows more findings, a new read has
+// others): on the same finding or ⋯ line (prev) when it still shows, else
+// on the selected box, else on the first finding.
+func (m *Model) relocateImpact(prev action) {
+	if m.mode != modeRow || m.curTab() != tabImpact || !m.dfocus {
+		return
+	}
+	l := m.layout()
+	if l.drawer == nil || l.drawer.impact == nil {
+		return
+	}
+	m.dcur = 0
+	if s := l.drawer.impact.boxStop(m.isel); s >= 0 {
+		m.dcur = s
+	}
+	if prev.kind == actFinding || prev.kind == actFindMore {
+		for i, s := range l.drawer.stops {
+			if s.act == prev {
+				m.dcur = i
+			}
+		}
+	}
+	m.syncImpactSel()
+	m.moveDrawerCursor(0)
 }

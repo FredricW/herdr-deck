@@ -1126,7 +1126,8 @@ back at rest, with its numbered markers.
 **Its own pane.** `O` opens the row's Impact view in a herdr pane of its
 own: the deck splits its pane, zooms the new one to the whole tab (herdr's
 zoom key gives the rest back) and runs `herdr-deck arch --project <slug>
---thread <id>` there. It shows every finding and the canvas at the pane's
+--thread <id>` there, with the flags the deck was started with and its
+`HERDR_DECK_*`, `HERDR_PROJECTS_ROOT` and `XDG_*` variables. It shows every finding and the canvas at the pane's
 width, moves the same way, and, with no Files tab beside it, `↵` opens
 files in the diff tool. It reads again every `ui.refresh_interval`, and `q`
 closes it and its pane. Outside herdr, `O` says it needs herdr; `herdr-deck

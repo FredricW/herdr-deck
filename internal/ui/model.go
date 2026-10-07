@@ -562,7 +562,15 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		return m, m.readPatch(false)
 	case archMsg:
-		return m, m.setArch(msg)
+		// A reload reads again and mostly gets the same result back; only
+		// a new one moves the stops, and the cursor with them.
+		changed := m.archs[msg.key] != msg.res
+		prev, _ := m.impactStopAct()
+		cmd := m.setArch(msg)
+		if changed {
+			m.relocateImpact(prev)
+		}
+		return m, cmd
 	case commitFilesMsg:
 		m.setCommitFiles(msg)
 		m.syncPreview()
@@ -1019,12 +1027,14 @@ func (m Model) handleKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	case key.Matches(msg, m.keys.Report):
 		m.toggleReport()
 	case key.Matches(msg, m.keys.Drawer):
+		prev, _ := m.impactStopAct()
 		m.size = (m.size + 1) % 3
 		if m.size == sizeHidden {
 			m.dfocus = false
 		}
 		m.drawerOff = 0
 		m.ensureVisible()
+		m.relocateImpact(prev)
 	case key.Matches(msg, m.keys.Grow):
 		return m, m.resizeDrawer(1)
 	case key.Matches(msg, m.keys.Shrink):
@@ -1040,7 +1050,8 @@ func (m Model) handleKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	case key.Matches(msg, m.keys.Projects):
 		m.openPicker()
 	case key.Matches(msg, m.keys.ImpactPane):
-		return m, m.openImpactPane()
+		cmd := m.openImpactPane()
+		return m, cmd
 	case key.Matches(msg, m.keys.PageDown):
 		m.scrollDrawer(max(m.layout().drawerH/2, 1))
 	case key.Matches(msg, m.keys.PageUp):
