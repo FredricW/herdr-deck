@@ -90,3 +90,50 @@ func Run() {
 		}
 	}
 }
+
+// The canvas layout keeps every child inside its parent, siblings apart,
+// and gives the same geometry on every run.
+func TestCanvasLayout(t *testing.T) {
+	mk := func() *cnode {
+		leaf := func(p string, lines ...string) *cnode {
+			return &cnode{path: p, name: p, pkg: true, impacted: true, kind: '~', lines: lines}
+		}
+		src := &cnode{path: "internal/source", name: "source", children: []*cnode{
+			leaf("dev", "+2362 −735", "api +16 −11 ~4"), leaf("github", "+1007 −0"), leaf("live"),
+		}}
+		in := &cnode{path: "internal", name: "internal", children: []*cnode{leaf("ui", "+276 −94"), src, leaf("deck")}}
+		return &cnode{path: ".", name: "repo", children: []*cnode{leaf("cmd"), in}}
+	}
+	var walk func(n *cnode, f func(n *cnode))
+	walk = func(n *cnode, f func(n *cnode)) {
+		f(n)
+		for _, c := range n.children {
+			walk(c, f)
+		}
+	}
+	for _, w := range []int{60, 80, 120} {
+		for _, gap := range []int{0, 1} {
+			a, b := mk(), mk()
+			a.layout(0, 0, w, gap)
+			b.layout(0, 0, w, gap)
+			var ga, gb []int
+			walk(a, func(n *cnode) { ga = append(ga, n.x, n.y, n.w, n.h) })
+			walk(b, func(n *cnode) { gb = append(gb, n.x, n.y, n.w, n.h) })
+			if !slices.Equal(ga, gb) {
+				t.Fatalf("w=%d: layout not deterministic", w)
+			}
+			walk(a, func(p *cnode) {
+				for i, c := range p.children {
+					if c.x <= p.x || c.y <= p.y || c.x+c.w >= p.x+p.w || c.y+c.h >= p.y+p.h {
+						t.Errorf("w=%d gap=%d: %s not inside %s", w, gap, c.path, p.path)
+					}
+					for _, d := range p.children[i+1:] {
+						if c.x < d.x+d.w && d.x < c.x+c.w && c.y < d.y+d.h && d.y < c.y+c.h {
+							t.Errorf("w=%d gap=%d: %s overlaps %s", w, gap, c.path, d.path)
+						}
+					}
+				}
+			})
+		}
+	}
+}

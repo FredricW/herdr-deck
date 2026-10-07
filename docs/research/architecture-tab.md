@@ -3,7 +3,7 @@
 Written 2026-10-07 against herdr-deck at 0937435. This is an exploration
 with a throwaway prototype, not a finished feature. The prototype is
 [`exp/archdiff`](../../exp/archdiff), which the deck does not build in.
-Tool facts were checked that day against the sources in [§13](#13-sources).
+Tool facts were checked that day against the sources in [§14](#14-sources).
 The mockups use the made-up `admin-rebuild` project of the
 [design README](../design/README.md#sample-data): thread t-0002, *Users
 page*, in the `webshop` monorepo. Its packages, imports and code are
@@ -31,7 +31,12 @@ real merges it found what a diff hides:
 What a terminal draws well is **lists, lanes and a matrix**, not a graph.
 So the tab opens on a risk-sorted **Look here first** list, with **lanes**
 (one section per layer, edges listed under their package) and a
-**lane matrix** for dense changes as the other views. A repo declares its
+**lane matrix** for dense changes as the other views. A fourth view, a
+**canvas of nested boxes** (packages inside their parent directories),
+was prototyped later at the user's request ([§12](#12-the-canvas-view)).
+It shows where a change sits. For its edges, the recommendation is
+numbered ports on the borders, with lines drawn only for the selected
+box, not all edges routed at once. A repo declares its
 layers in a small `x-herdr-deck.architecture` block in the shared
 `.config/dev.json`. Without it, lanes are inferred and only the
 non-layer signals apply. TypeScript and Python come later through
@@ -39,7 +44,7 @@ pure-Go import scanners; tree-sitter and language servers are not needed
 for this tab. No AI: rules cover every signal here, and the one fuzzy
 spot (matching renamed declarations whose bodies also changed) is better
 served by a similarity score. Phases and the decisions for the user are
-in [§12](#12-recommendation).
+in [§13](#13-recommendation).
 
 Contents:
 
@@ -54,8 +59,9 @@ Contents:
 9. [Fallbacks](#9-fallbacks)
 10. [Where AI could help](#10-where-ai-could-help)
 11. [The prototype](#11-the-prototype)
-12. [Recommendation](#12-recommendation)
-13. [Sources](#13-sources)
+12. [The canvas view](#12-the-canvas-view)
+13. [Recommendation](#13-recommendation)
+14. [Sources](#14-sources)
 
 ---
 
@@ -693,7 +699,7 @@ place to try a model first.
 ## 11. The prototype
 
 [`exp/archdiff`](../../exp/archdiff) is a standalone Go command of about
-1800 lines, using only the standard library. It reads two commits from
+2800 lines with the canvas (§12), using only the standard library. It reads two commits from
 git, builds both package graphs, diffs them and prints the tab's text
 at a given width. It is not built into the deck and imports nothing from
 it. Run it with:
@@ -812,7 +818,263 @@ scrolling and goldens. The parsing and graph code (`goscan.go`,
 `graph.go`, `diff.go`) is the part worth lifting into an
 `internal/source/arch` package.
 
-## 12. Recommendation
+## 12. The canvas view
+
+The user asked to explore one more renderer before deciding: a 2-D
+canvas of nested boxes. The prototype has it as `-view canvas`. All of
+the samples below are its real output:
+- the text samples are in [`exp/archdiff/samples/`](../../exp/archdiff/samples)
+  (`.txt` plain, `.ansi` in colour; `sh exp/archdiff/samples/render.sh`
+  re-renders them);
+- colour screenshots are in the thread's library.
+
+### What it draws
+
+- **Boxes.** Every impacted package is a box: changed packages, plus
+  both ends of a changed edge. It sits inside boxes for its parent
+  directories, and the repo is the outermost box.
+- **Folding.** Directories that are not packages and hold a single child
+  collapse into one box (`internal/source` stays as two boxes because
+  `internal` holds more; `skills/dev-manifest/validate` becomes one).
+  Unchanged packages under a box are not drawn; they appear as a count
+  on its top border (`⋯7`).
+- **Inside a box:**
+  - the change marker in the title: `+` new, `~` changed, `−` removed,
+    `≡` only moved into;
+  - the line weight (`+2362 −735`) and the public surface
+    (`api +16 −11 ~4`);
+  - a signal line: moves in (`≡20←dev,validate`), touchpoint icons
+    (`$` env, `⇄` http, `≣` sql, `»` exec, `▤` fs, `⊢` flag) and new
+    third-party imports (`◆1`).
+- **Colours** are the deck's named ANSI colours, muted:
+  - green new, yellow changed, red removed, cyan moved;
+  - parents and unchanged boxes faint.
+- **Layout.**
+  - A recursive row-packing treemap: children flow left to right in rows
+    that wrap at the parent's width. Each row is stretched to fill it,
+    and each box to its row's height.
+  - Children sort by their lane (from the layers config), then by name.
+    So entry points come first and core last within each parent: lanes
+    order the canvas, but don't tint it.
+  - The geometry comes from the union of the base's and head's packages
+    plus the diff. So it is the same for the base and the head, and a
+    before/after toggle would only recolour. The geometry is also
+    deterministic, which a test checks.
+  - Box size encodes content, not change weight. A weight-sized treemap
+    was considered, but the text has to fit first in 60–120 columns.
+
+### Edges: four options tried or weighed
+
+**A. Ports: numbered markers on the borders, and a legend.** Each
+changed edge gets a number. The number goes on the source box's bottom
+border and the target box's top border, followed by `!` when the edge
+goes upward or skips a lane. The legend lists the edges, beside the
+canvas at 110 columns or more, else below it. The layout reserves border
+room for the markers, so none is dropped. PR #43 at 80 columns:
+
+```text
+┌─ herdr-deck ───────────────────────────────────────────────────────────── ⋯2 ┐
+│ ┌─ ~ cmd/herdr-deck ───────────────────────────────────────────────────────┐ │
+│ │ +28 −0                                                                   │ │
+│ └─1────────────────────────────────────────────────────────────────────────┘ │
+│ ┌─ internal ─────────────────────────────────────────────────────────── ⋯8 ┐ │
+│ │ ┌─ ~ ui ───────────────────────────────────────────────────────────────┐ │ │
+│ │ │ +539 −28                                                             │ │ │
+│ │ │ api +0 −0 ~1                                                         │ │ │
+│ │ └──────────────────────────────────────────────────────────────────────┘ │ │
+│ │ ┌─ source ───────────────────────────────────────────────────────── ⋯6 ┐ │ │
+│ │ │ ┌─ ~ fake ──────────┐ ┌─ + github ─1─3───────┐ ┌─ ~ live ──────────┐ │ │ │
+│ │ │ │ +64 −0            │ │ +1007 −0             │ │ +16 −0            │ │ │ │
+│ │ │ │ api +2 −0 ~0      │ │ api +16 −0 ~0        │ │ api +0 −0 ~1      │ │ │ │
+│ │ │ │                   │ │ » ◆1                 │ │                   │ │ │ │
+│ │ │ └───────────────────┘ └─2────────────────────┘ └─3─────────────────┘ │ │ │
+│ │ └──────────────────────────────────────────────────────────────────────┘ │ │
+│ │ ┌─ ~ config ───────────────────────┐ ┌─ ~ deck ─2──────────────────────┐ │ │
+│ │ │ +56 −0                           │ │ +152 −2                         │ │ │
+│ │ │ api +3 −0 ~2                     │ │ api +9 −0 ~1                    │ │ │
+│ │ └──────────────────────────────────┘ └─────────────────────────────────┘ │ │
+│ └──────────────────────────────────────────────────────────────────────────┘ │
+└──────────────────────────────────────────────────────────────────────────────┘
+ 1 cmd/herdr-deck ━▸ source/github
+ 2 source/github ━▸ deck
+ 3 source/live ━▸ source/github
+ 10 unchanged edges between shown boxes
+ + new ~ changed − gone ≡ moved in · $ env ⇄ http ≣ sql » exec ▤ fs ⊢ flag ◆ dep
+```
+
+**B. Routed lines.** These are orthogonal lines through the gaps
+between boxes, found by a shortest-path search on the character grid.
+- A line never runs along a border and never shares a run with another
+  line. It can cross a border or another line at a right angle, at an
+  extra cost, and turns cost a little.
+- New edges are heavy green (`━┃┏`), an upward edge red, a skip yellow,
+  a removed edge dashed and faint (`┄┆`).
+- A line starts at a tee on the source's border (`┣┳`) and ends in an
+  arrowhead on the target's border (`▸▾◂▴`).
+- The layout adds a blank row above, between and below the child rows,
+  so lines have somewhere to go.
+
+The synthetic commit at 80 columns (the upward edge is red in colour):
+
+```text
+┌─ herdr-deck ───────────────────────────────────────────────────────────── ⋯3 ┐
+│                                                                              │
+│ ┌─ internal ────────────────────────────────────────────────────────── ⋯10 ┐ │
+│ │                                                                          │ │
+│ │ ┌─ ~ ui ───────────────┐ ┌─ source ──────────────────────────────── ⋯8 ┐ │ │
+│ │ │ +5 −0                ┣━╋━━━━━━━━━━━━━━━━━━━━━━━━━━┓                  │ │ │
+│ │ │                      │ │ ┌─ ~ diff ────────────┐ ┌▾ github ────────┐ │ │ │
+│ │ │                      ◂━╋━┫ +24 −0              │ │                 │ │ │ │
+│ │ │                      │ │ │ api +1 −0 ~0        │ │                 │ │ │ │
+│ │ │                      │ │ │ $⇄≣                 │ │                 │ │ │ │
+│ │ │                      │ │ └─────────────────────┘ └─────────────────┘ │ │ │
+│ │ │                      │ │                                             │ │ │
+│ │ └──────────────────────┘ └─────────────────────────────────────────────┘ │ │
+│ │                                                                          │ │
+│ └──────────────────────────────────────────────────────────────────────────┘ │
+│                                                                              │
+└──────────────────────────────────────────────────────────────────────────────┘
+ source/diff ━▸ ui  ✕ upward
+ ui ━▸ source/github
+ 0 unchanged edges between shown boxes
+ + new ~ changed − gone ≡ moved in · $ env ⇄ http ≣ sql » exec ▤ fs ⊢ flag ◆ dep
+```
+
+**C. Focus: lines for the selected box only.** The selected box gets a
+heavy border, with its changed edges (heavy) and up to six unchanged
+edges (light) routed. Everything not connected to it is dimmed. The
+legend counts the other changed edges ("3 more changed edges: select
+their box"). In the deck, `j`/`k` would move the selection box by box.
+See `pr52-dev-manifest-80-focus.txt` and the 120-column screenshot.
+
+**D. Counts** are the dense form of A: `▾N` out and `▴N` in per box,
+with the legend grouped by source. The prototype switches to counts
+beyond 20 changed edges. The whole history of herdr-deck (34 new
+edges) at 80 columns, in `dense-history-80-ports.txt`:
+
+```text
+┌─ + herdr-deck ─▴1────────────────────────────────────────────────────────────┐
+│ +10 −0                                                                       │
+│ api +1 −0 ~0                                                                 │
+│ ┌─ ~ cmd/herdr-deck ───────────────────────────────────────────────────────┐ │
+│ │ +925 −34                                                                 │ │
+│ │ $                                                                        │ │
+│ └─▾11──────────────────────────────────────────────────────────────────────┘ │
+│ ┌─ internal ───────────────────────────────────────────────────────────────┐ │
+│ │ ┌─ + plugin ─▴1──┐ ┌─ + markdown ───┐ ┌─ + syntax ─▴1─┐ ┌─ ~ ui ───────┐ │ │
+│ │ │ +654 −0        │ │ +177 −0        │ │ +140 −0       │ │ +8482 −866   │ │ │
+│ │ │ api +27 −0 ~0  │ │ api +1 −0 ~0   │ │ api +4 −0 ~0  │ │ api +5 −0 ~1 │ │ │
+│ │ │ ▤              │ │ ◆2             │ │ ◆2            │ │ ≣            │ │ │
+│ │ └─▾6─────────────┘ └────────────────┘ └───────────────┘ └─▾4───────────┘ │ │
+│ │ ┌─ source ─────────────────────────────────────────────────────────────┐ │ │
+ ⋯
+ 34 changed edges: ▾ out ▴ in per box
+ cmd/herdr-deck ▸ . changelog config plugin restart dev diff github linear proj…
+ config ▸ deck launch
+ plugin ▸ config deck project herdr linear tasks
+ source/dev ▸ deck manifest
+ source/dev/manifest ▸ schema
+ source/diff ▸ deck
+ ⋯
+```
+
+**Weighed but not built.**
+- **Edge bundling along parent borders:** in a grid of characters, a
+  bundle is one shared line, and you can't tell which edge left where.
+  It also costs the gap rows of B.
+- **An adjacency strip beside the canvas:** this is the lane matrix of
+  §2, which already exists as the dense fallback.
+- **Arrows only for new or removed edges, with unchanged ones counted:**
+  every option above already does that; unchanged edges show only as a
+  count, or in C's focus.
+
+### How they compare
+
+| | A ports | B routed lines | C focus | D counts |
+|---|---|---|---|---|
+| Height | the canvas only | **+25–45 %** (gap rows): #52 is 25 rows with ports, 36 with lines at 80 columns; the dense history 51 against 65 | as B | as A |
+| 3–5 edges (#43, #52, synthetic) | clear, but you read the legend for direction | clear and direct; the best-looking at 120 columns | clear | — |
+| Nested source and target (`dev → dev/manifest`) | fine | fine (`┣━▸` inside the parent) | fine | fine |
+| Lines through unrelated boxes | — | **yes**: #52's `validate → manifest` runs down through `internal`, `source` and `dev`, which reads as if `dev` were involved | rarely, few lines | — |
+| Line crossing a border vs a junction | — | **ambiguous**: `╋` on a border looks like a tee into that box | as B | — |
+| Dense (34 edges, `dense-history-80-*`) | markers become a number soup; past 20 they switch to D | **unreadable spaghetti** (excerpt below) | still fine: one box's edges | readable: which boxes are hubs, and the legend groups by source |
+| 60 columns | works: nesting costs 2 columns per level, chains collapse, legend below | lines squeeze into one-column gaps; only 1–3 edges stay readable | as B | works |
+| Plain text, no colour | `!` marks risk | upward edges look like the others | as B | `!` not shown; red only |
+| Cost | trivial | a grid search per edge, < 5 ms here | as B for one box | trivial |
+
+The routed lines on the dense history at 80 columns (from
+`dense-history-80-lines.txt`):
+
+```text
+┌─ + herdr-deck ───────────────────────────────────────────────────────────────┐
+│ +10 −0                                                                       │
+│ api +1 −0 ~0                                                                 │
+│                                                                              │
+│ ┌─ ~ cmd/herdr-deck ───────────────────────────────────────────────────────┐ │
+◂━┫ +925 −34                                                                 │ │
+│┏┫ $              ┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓               ┣┓│
+│┃└┳────────────┳──╋──┳──────────────┳───┳─────────────────┳─╋────────────┳─┳┘┃│
+│┃ ┃            ┃  ┃  ┃              ┃ ┏━╋━━━━━━━━━━━━┓    ┃ ┃            ┃ ┃ ┃│
+│┃┌╋ internal ──╋──╋──╋──────────────╋─╋─╋────────────╋────╋─╋────────────╋─╋┐┃│
+│┃│┃            ┃  ┃┏━╋━━━━━━━━━━━━━━╋━╋━╋━┓          ┃    ┃ ┃            ┃ ┃│┃│
+│┃│┃┌─ + plugin ▾──┻┻┐┃┌─ + markdown ╋─▾┐┃┌╋ + syntax ╋───┐┃┌╋ ~ ui ──────╋┐┃│┃│
+│┃│┃│ +654 −0        │┃│ +177 −0     ┃  │┃│┃+140 −0   ┗━━━╋╋┫┃+8482 −866  ┃│┃│┃│
+│┃│┃│ api +27 −0 ~0  │┃│ api +1 −0 ~0┃  │┃│┃api +4 −0 ~0  ◂╋┫┃api +5 −0 ~1┃│┃│┃│
+│┃│┃│ ▤              │┃│ ◆2          ┃  │┃│┃◆2 ┏━━━━━━━━━━╋╋┫┃≣           ┃│┃│┃│
+│┃│┃└┳────────┳────┳┳┘┃└─────────────╋──┘┃└╋───╋──────────┘┃└╋───────┳────╋┘┃│┃│
+│┃│┃ ┃        ┃    ┃┗━╋━━━━━━━━━━┓   ┃   ┃ ┗━━━╋━━━━━━━┓   ┃ ┃       ┃    ┃ ┃│┃│
+│┃│┃┌╋ source ╋────╋──╋──────────╋───╋───╋─────╋───────╋───╋─╋───────╋────╋┐┃│┃│
+│┃│┃│┃ ┏━━━━━━┛    ┃  ┃        ┏━╋━━━┛   ┗┓    ┃     ┏━╋━━━┛ ┗━━━━━━┓┃    ┃│┃│┃│
+│┃│┃│┃┌╋ + dev ────╋──▾───────┐┃┌╋ + diff ▾────╋────┐┃┌╋ ~ fake ────╋╋───┐┃│┃│┃│
+│┃│┃│┃│┃+1793 −0   ┗━━━━━━━━━┓│┃│┃+1050 −0     ┃    ◂╋┫┃+680 −44    ┃┃   │┃│┃│┃│
+│┃│┃│┃│┃api +24 −0 ~0        ┃│┃│┃api +16 −0 ~0┃    │┃│┃api +9 −0 ~0┃┃   │┃│┃│┃│
+ ⋯
+```
+
+Two lessons came from rendering, not from planning:
+- **Circled digits (`①`) are a trap.** They are East Asian "ambiguous"
+  width, and Ghostty and VHS draw them two columns wide, which broke
+  every border they sat on. Ports are plain numbers now. The same risk
+  applies to `⚠`, `⚑` and `▶` in boxes: `▶` came out as an emoji in
+  the screenshots, so exec became `»`.
+- **Markers can be dropped silently.** The first version dropped ports
+  that didn't fit a narrow box; the layout now reserves room for them.
+
+### Recommendation for the deck
+
+**Use the canvas as a full-height view of the tab, with ports by
+default (A), counts when dense (D), and focus lines for the selected box
+(C). Don't route all edges at once (B).**
+
+- **A as the resting state.** It adds no height, survives 60 columns
+  and plain text, and its legend doubles as the risk list's items. A
+  number on a border is enough to find the box.
+- **C as the interaction.** The deck is interactive, so lines only need
+  to exist for what you're looking at: moving the cursor over boxes
+  draws that box's edges. Routing one box's edges stays readable even
+  on the dense history. Its few lines rarely pass through unrelated
+  boxes, and when they do, the dimming says they don't belong.
+- **D past about 20 changed edges.** At that density the canvas mostly
+  answers "which boxes are hubs". The *Look here first* list and the
+  lane matrix answer the rest, and the tab should open on those.
+- **Height.** The canvas is taller than the drawer at its normal height:
+  #52 needs 25 rows at 80 columns, the dense history 51. So it belongs
+  at full height (`z`) with the scrollbar, or in the 120-column split
+  next to the selection's detail (§3). The tab still opens on *Look
+  here first*. The views cycle with `t`: first → lanes → canvas →
+  matrix.
+- **At 60 columns** the canvas works with ports or counts. Nesting costs
+  2 columns per level, and the chain collapse keeps the depth down.
+  Focus lines are kept for selections whose edges stay within one
+  parent.
+
+Compared with the lanes view, the canvas shows **where** a change sits
+(which component, how deep, what else lives there), and lanes show
+**which way** an edge goes against the layering. They answer different
+questions. If only one is built, build lanes first: they are cheaper,
+shorter, and carry the layer verdicts that matter most.
+
+## 13. Recommendation
 
 **Build it, in phases, Go first.** The cost is low because the
 expensive-looking part (two dependency graphs per thread) is cheap with
@@ -826,7 +1088,8 @@ reviewer skimming a long agent diff misses.
 | 2 | Matrix view and the dense fallback; before/after; zoom; stable IDs; verdicts in the state folder; disk cache; uncommitted changes | 1 PR |
 | 3 | TypeScript: import scanner and resolver (tsconfig paths, workspaces), `package.json` deps, TS touchpoint rules | 1 PR, plus a gotreesitter spike if exports are wanted |
 | 4 | Python: import scanner, `pyproject`/requirements deps, rules; optional ruff cross-check | 1 PR |
-| later | 120-column split with the selection; read import-linter / go-arch-lint configs; exporting verdicts to a review; drawn boxes for tiny graphs | — |
+| 2b | The canvas view (§12): ports, counts when dense, focus lines for the selected box, at full height and in the 120-column split | 1 PR |
+| later | 120-column split with the selection; read import-linter / go-arch-lint configs; exporting verdicts to a review | — |
 
 Phase 1 alone is useful on herdr-deck itself. Phases 3 and 4 depend on
 which repos the user runs threads on.
@@ -851,8 +1114,12 @@ which repos the user runs threads on.
 7. **Verdict storage.** Recommended: the deck's state folder, keyed by
    repo, branch and ID, in the walkthrough's format. The alternative is
    writing into a walkthrough file in the repo when one exists.
+8. **The canvas.** Build it at all, and its edges. Recommended: yes,
+   after the lanes (phase 2b), with ports at rest and lines only for the
+   selected box. If only one structural view is wanted, keep lanes; the
+   canvas adds "where", lanes carry the layer verdicts.
 
-## 13. Sources
+## 14. Sources
 
 All checked 2026-10-07.
 

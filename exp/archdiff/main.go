@@ -14,6 +14,7 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"path"
 	"strings"
 	"time"
 )
@@ -24,18 +25,28 @@ func main() {
 	head := flag.String("head", "HEAD", "head commit")
 	width := flag.Int("width", 80, "columns")
 	layersFile := flag.String("layers", "", "layers config (JSON: {\"layers\":[{\"name\",\"paths\",\"closed\"}]}); without it lanes are inferred")
-	view := flag.String("view", "all", "first, lanes, matrix, detail or all")
+	view := flag.String("view", "all", "first, lanes, matrix, detail, all, or canvas")
+	edges := flag.String("edges", "ports", "canvas edges: ports, lines or focus")
+	selected := flag.String("select", "", "canvas focus box (default: the riskiest edge's source)")
+	color := flag.Bool("color", false, "canvas in ANSI colours")
 	tests := flag.Bool("tests", false, "count _test.go files")
 	timing := flag.Bool("time", false, "print timings to stderr")
 	flag.Parse()
 
-	if err := run(*repo, *base, *head, *width, *layersFile, *view, *tests, *timing); err != nil {
+	c := canvasOpts{mode: edgeMode(*edges), selected: *selected, color: *color}
+	if err := run(*repo, *base, *head, *width, *layersFile, *view, *tests, *timing, c); err != nil {
 		fmt.Fprintln(os.Stderr, "archdiff:", err)
 		os.Exit(1)
 	}
 }
 
-func run(repo, base, head string, width int, layersFile, view string, tests, timing bool) error {
+type canvasOpts struct {
+	mode     edgeMode
+	selected string
+	color    bool
+}
+
+func run(repo, base, head string, width int, layersFile, view string, tests, timing bool, co canvasOpts) error {
 	t0 := time.Now()
 	resolve := func(rev string) (string, error) {
 		out, err := git(repo, "rev-parse", "--verify", rev+"^{commit}")
@@ -111,6 +122,15 @@ func run(repo, base, head string, width int, layersFile, view string, tests, tim
 	}
 	if view == "detail" || view == "all" {
 		r.detail(o)
+	}
+	if view == "canvas" {
+		name := "repo"
+		for _, m := range hs.modules {
+			if m.dir == "." {
+				name = path.Base(m.path)
+			}
+		}
+		r.canvasView(o, name, co.mode, co.selected, co.color)
 	}
 	for _, l := range o.lines {
 		fmt.Println(strings.TrimRight(l, " "))
