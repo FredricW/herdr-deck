@@ -12,7 +12,7 @@ worktree's dev servers, and refreshes as they change. As a herdr plugin it
 opens next to each coordinator by itself. See [docs/PLAN.md](docs/PLAN.md)
 for the plan and milestones.
 
-![The deck on sample data: Users page needs you and is pinned on top; the drawer below shows its card and Overview tab, then ] shows its Files, Commits and Log tabs; moving down the list keeps the tab, the review row shows its PR, links and dev servers, and the folded Backlog opens and shuts with space.](docs/demo/hero.gif)
+![The deck on sample data: Users page needs you and is pinned on top; the drawer below shows its card and Overview tab, then ] shows its Files, Commits and Log tabs; moving down the list keeps the tab, the review row shows its PR, links and dev servers, then its PR tab with what the PR is, its status, description and comments, and the folded Backlog opens and shuts with space.](docs/demo/hero.gif)
 
 ## Install as a herdr plugin
 
@@ -258,17 +258,16 @@ statuses off, and the deck then never calls Linear.
 ### GitHub pull requests
 
 When `gh` is installed and logged in (`gh auth login`), the deck reads each
-open thread PR from GitHub itself, through `gh api graphql`, and its *PR*
-section says why the PR is not merging yet:
+open thread PR from GitHub itself, through `gh api graphql`. Overview's
+*PR* section says why the PR is not merging yet, and points to the PR tab,
+which has the rest:
 
 ```
  ── PR ──
  [5 #2320] open · review required · 2 comments (sam, alex)
  ✕ 1 failing: [lint]  ◌ 1 running: test (macos-latest) 6m  ✓ 2 passed
  ✕ blocked: checks failing, checks running, review required (sam)
- ── Review ──  2 unresolved · 1 outdated
- src/pages/users/index.ts:41  sam
-   Should this be paginated? The list can get long.
+ → PR tab: 3 unresolved review threads, description and comments
 ```
 
 - The checks line lists failing checks as chips, then running, queued and
@@ -281,9 +280,27 @@ section says why the PR is not merging yet:
   the job on GitHub. A check that is not a GitHub Actions job has no log
   the deck can read, so its page opens instead. Logs are read only when you
   ask, kept in memory (never on disk) and not read again for the same job.
-- *Review* lists the PR's unresolved review threads, outdated ones last:
-  file and line, author, replies, and the first comment rendered as
-  Markdown. `↵` or a click opens the thread on GitHub.
+- The **PR tab** (after Commits, only on a row whose thread has a PR)
+  opens on what the PR is, with no heading: the number and title as a
+  chip that opens the PR, the author, when it was opened and updated, head
+  → base branch, labels, who reviewed and where they stand (`✓ alex  ✕
+  sam`) and who is asked (`◌ frontend asked`), and `+214 −12 · 11 files`.
+  Three sections follow. *Status*: the state (open, draft, merged,
+  closed), the review decision and auto-merge, why it is not merging, the
+  checks as above, and when it was checked. *Description*: the PR's body rendered as Markdown. *Comments*: the
+  conversation in time order: comments, reviews (approved, requested
+  changes, reviewed, with their text) and review threads with their file
+  and line, each with its author, age and text as Markdown. An app's
+  comment (CI, deploy previews) and a resolved review thread fold to one
+  dim line; `space`, `→`/`l` or a click on its `▸` unfolds it, `←`/`h`
+  folds it. `↵` or a click on a comment opens it on GitHub, reusing a
+  browser tab that shows the PR. Long content scrolls like the report,
+  with the same scrollbar at the right edge.
+- The description and comments are read only while the PR tab shows the
+  PR: at once when the tab opens, then with the PR's own reads every 45
+  seconds (about 3 more GraphQL points), and kept when you leave the tab.
+  A merged or closed PR's are read once. Until they arrive, or when they
+  cannot be read, the tab lists the unresolved review threads.
 
 The deck never sees a token: `gh` holds it. Reads run in the background,
 one GraphQL request per host for all of a project's open PRs, and are
@@ -293,8 +310,8 @@ all. After an error the deck waits a minute (longer after each further
 one, up to 10), and after a rate limit until it resets; it also pauses
 when fewer than 100 GraphQL points are left, since herdr-projects and your
 own `gh` share the budget. herdr-projects' ticker reads the same PRs every
-couple of minutes: whichever looked last wins, and `checked` (at full
-height) says when. Without `gh`, or logged out, the PR section shows the
+couple of minutes: whichever looked last wins, and `checked` on the PR
+tab says when. Without `gh`, or logged out, the PR section shows the
 ticker's data as before and the `!` view says why. `enabled = false` in
 `[github]` (or `HERDR_DECK_GITHUB_ENABLED=false`) turns the deck's own
 reads off. The deck only reads GitHub; it never writes.
@@ -668,7 +685,7 @@ pane (`z` makes it full height, or hides it). It starts with a card: the
 row's title, its status as a glyph and a word (`● needs you`, `◐ working`,
 `◇ review`, …) with the thread's percent, and a dim line with the thread
 id, its title, what it is doing and its pane, with a progress bar or the
-PR's checks at the right. Under the card are four tabs:
+PR's checks at the right. Under the card are four tabs, five with a PR:
 
 ```
  Users page                                   ● needs you  ~95%
@@ -681,14 +698,17 @@ PR's checks at the right. Under the card are four tabs:
 ```
 
 - **Overview**: titled sections, the empty ones left out: *Next* (the
-  report's `## Next`), *PR* (state, review, comments and who made them,
-  checks and why it is not merging), *Review* (unresolved review threads;
-  see GitHub pull requests), *Note* (the task's notes), *Links* (Linear, Figma, Notion
+  report's `## Next`), *PR* (a summary: state, review, comments and who
+  made them, checks and why it is not merging, and a line to the PR
+  tab), *Note* (the task's notes), *Links* (Linear, Figma, Notion
   and GitHub links as numbered chips, with each Linear issue's state),
   *Dev* (dev servers and localhost links) and *Thread* (pane, branch,
   report, base, dev log).
 - **Files**: the thread's changed files as a diffstat (see Changed files).
 - **Commits**: the thread branch's own commits, newest first (see Commits).
+- **PR**: the thread's pull request: status, what it is, its description
+  and its conversation (see GitHub pull requests). Rows without a PR have
+  no PR tab.
 - **Log**: the thread's timeline, newest first, from what herdr-projects
   records: created and launched (the thread file), new reports, waiting on
   you, blocked on a prompt, PRs opened, updated, failing and merged,
@@ -723,7 +743,7 @@ only threads waiting on you. The deck never marks an item handled.
 |---|---|
 | `j` / `k`, `↓` / `↑` | move; the drawer follows |
 | `space` | fold or unfold the list under the cursor (Backlog and Resolved start folded; see `[ui] folded_lists`) |
-| `[` / `]` | previous / next drawer tab: Overview, Files, Commits, Log |
+| `[` / `]` | previous / next drawer tab: Overview, Files, Commits, PR, Log |
 | `tab` | focus the drawer: `j`/`k` move its cursor, `↵` opens what is under it, `tab`/`shift+tab` switch tabs, `esc` returns to the list |
 | `1`–`9` | open the drawer's numbered link (Figma links in the desktop app with `figma.desktop = true`); on Files and Commits, preview the numbered file or commit |
 | `l` `f` `n` `g` | open the row's Linear / Figma / Notion / PR link; with several, pick one with a digit, `a` for all, `d` for the Figma desktop app, the same letter for the first, `esc` to cancel |
@@ -738,6 +758,7 @@ only threads waiting on you. The deck never marks an item handled.
 | `v` | on Files or Commits: turn the preview of the file or commit under the cursor on or off; `esc` brings the list back (see Diff preview) |
 | `g` on Commits | in the focused drawer, open the commit under the cursor in the PR on GitHub (see Commits) |
 | `space` `→` `l` / `←` `h` on Commits | in the focused drawer, expand the commit under the cursor to its files / collapse it (`space` toggles); from the list, `space` folds and `l` is Linear as before |
+| `space` `→` `l` / `←` `h` on PR | in the focused drawer, unfold an app's comment or a resolved review thread / fold it; `↵` opens the comment under the cursor on GitHub |
 | `J` / `K` | scroll the preview a line (`pgup` / `pgdn` a page) |
 | `S` (or `\|`) | while the preview shows: switch between the unified and the split (old \| new) layout for the session (see Diff preview) |
 | `r` | the thread's report, full height, rendered as Markdown |
@@ -757,9 +778,13 @@ only threads waiting on you. The deck never marks an item handled.
 
 Mouse: click a row to select it, a list heading to fold it, a tab to show
 it, a chip to open its link, a changed file or a commit to preview it (the
-total line opens the whole diff in the diff tool), a Log event to act on it (a report shows it, a PR
+total line opens the whole diff in the diff tool), a PR comment to open it
+on GitHub (its `▸` to unfold it), a Log event to act on it (a report shows it, a PR
 event opens the PR, the rest focus the pane), `! N` for the sources, the
-other-projects line for the project picker. A click in the drawer gives it
+other-projects line for the project picker. A click on a row's PR number
+(the PR column, `#2320`, or at 60 columns the start of STATUS) selects the
+row and shows its PR tab; a second click on it, with that tab showing,
+opens the PR on GitHub, as `g` does from anywhere. A click in the drawer gives it
 the focus. Drag the rule between the list and the drawer to resize them. The wheel moves the list or scrolls the tab under the pointer.
 The wheel over the diff preview scrolls it. A long diff preview or full
 view (a report, What's new, help, settings) has a scrollbar at its right

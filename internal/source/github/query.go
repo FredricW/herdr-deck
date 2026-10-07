@@ -20,6 +20,8 @@ type prRef struct {
 	Owner  string
 	Repo   string
 	Number int
+	// Detail asks for the description and conversation too.
+	Detail bool
 }
 
 // parsePR reads https://<host>/<owner>/<repo>/pull/<number>.
@@ -63,20 +65,39 @@ commits(last: 1) { nodes { commit { statusCheckRollup { contexts(first: 60) { no
 reviewThreads(first: 50) { nodes { isResolved isOutdated path line originalLine
   comments(first: 1) { totalCount nodes { author { login } body url createdAt } } } }`
 
+// detailFields is what the PR tab adds: the description and the
+// conversation, about 3 points more. Review threads come from prFields,
+// resolved ones included.
+const detailFields = `title body createdAt updatedAt headRefName additions deletions changedFiles
+author { __typename login }
+labels(first: 20) { nodes { name } }
+comments(last: 50) { totalCount nodes { author { __typename login } body url createdAt } }
+reviews(last: 50) { totalCount nodes { author { __typename login } state body url submittedAt comments { totalCount } } }`
+
 // query asks for refs, all on one host, in one request: one aliased
-// repository { pullRequest } per PR, plus the rate limit left. It returns
-// gh's arguments.
+// repository { pullRequest } per PR, plus the rate limit left; the refs
+// with Detail set get detailFields too. It returns gh's arguments.
 func query(refs []prRef) []string {
 	var params, fields []string
 	args := []string{"api", "graphql", "--hostname", refs[0].Host}
+	detail := false
 	for i, ref := range refs {
 		o, r, n := "o"+strconv.Itoa(i), "r"+strconv.Itoa(i), "n"+strconv.Itoa(i)
 		params = append(params, "$"+o+": String!", "$"+r+": String!", "$"+n+": Int!")
-		fields = append(fields, fmt.Sprintf("p%d: repository(owner: $%s, name: $%s) { pullRequest(number: $%s) { ...deckPR } }", i, o, r, n))
+		spread := "...deckPR"
+		if ref.Detail {
+			spread += " ...deckDetail"
+			detail = true
+		}
+		fields = append(fields, fmt.Sprintf("p%d: repository(owner: $%s, name: $%s) { pullRequest(number: $%s) { %s } }", i, o, r, n, spread))
 		args = append(args, "-f", o+"="+ref.Owner, "-f", r+"="+ref.Repo, "-F", n+"="+strconv.Itoa(ref.Number))
 	}
 	q := "query DeckPRs(" + strings.Join(params, ", ") + ") { rateLimit { remaining resetAt } " +
 		strings.Join(fields, " ") + " } fragment deckPR on PullRequest { " + strings.Join(strings.Fields(prFields), " ") + " }"
+	// GraphQL refuses a fragment the query does not use.
+	if detail {
+		q += " fragment deckDetail on PullRequest { " + strings.Join(strings.Fields(detailFields), " ") + " }"
+	}
 	return append(args, "-f", "query="+q)
 }
 
@@ -129,6 +150,7 @@ type gqlPR struct {
 			} `json:"commit"`
 		} `json:"nodes"`
 	} `json:"commits"`
+	gqlDetail
 	ReviewThreads struct {
 		Nodes []struct {
 			IsResolved   bool   `json:"isResolved"`
@@ -149,6 +171,63 @@ type gqlPR struct {
 			} `json:"comments"`
 		} `json:"nodes"`
 	} `json:"reviewThreads"`
+}
+
+// gqlDetail is detailFields' answer; Title is empty when they were not
+// asked for.
+type gqlDetail struct {
+	Title        string     `json:"title"`
+	Body         string     `json:"body"`
+	CreatedAt    time.Time  `json:"createdAt"`
+	UpdatedAt    time.Time  `json:"updatedAt"`
+	HeadRefName  string     `json:"headRefName"`
+	Additions    int        `json:"additions"`
+	Deletions    int        `json:"deletions"`
+	ChangedFiles int        `json:"changedFiles"`
+	Author       *gqlAuthor `json:"author"`
+	Labels       *struct {
+		Nodes []struct {
+			Name string `json:"name"`
+		} `json:"nodes"`
+	} `json:"labels"`
+	Comments *struct {
+		TotalCount int `json:"totalCount"`
+		Nodes      []struct {
+			Author    *gqlAuthor `json:"author"`
+			Body      string     `json:"body"`
+			URL       string     `json:"url"`
+			CreatedAt time.Time  `json:"createdAt"`
+		} `json:"nodes"`
+	} `json:"comments"`
+	Reviews *struct {
+		TotalCount int `json:"totalCount"`
+		Nodes      []struct {
+			Author      *gqlAuthor `json:"author"`
+			State       string     `json:"state"`
+			Body        string     `json:"body"`
+			URL         string     `json:"url"`
+			SubmittedAt time.Time  `json:"submittedAt"`
+			Comments    struct {
+				TotalCount int `json:"totalCount"`
+			} `json:"comments"`
+		} `json:"nodes"`
+	} `json:"reviews"`
+}
+
+// gqlAuthor is a comment's author: a User, a Bot (an app), a Mannequin
+// or an Organization; null when the account is gone.
+type gqlAuthor struct {
+	Typename string `json:"__typename"`
+	Login    string `json:"login"`
+}
+
+// login is the author's login, "ghost" for a deleted account, as GitHub
+// shows it; bot says it is an app.
+func (a *gqlAuthor) login() (login string, bot bool) {
+	if a == nil || a.Login == "" {
+		return "ghost", false
+	}
+	return a.Login, a.Typename == "Bot" || strings.HasSuffix(a.Login, "[bot]")
 }
 
 // gqlContext is a CheckRun or a StatusContext of the rollup.
@@ -220,6 +299,10 @@ type pullData struct {
 	Requests   []string
 	Checks     []deck.Check
 	Threads    []deck.ReviewThread
+	// Detail is the description and conversation, when asked for, and
+	// DetailAt when they were read.
+	Detail   *deck.PRDetail
+	DetailAt time.Time
 }
 
 // Failing names the failed checks, the way herdr-projects' ticker does.
@@ -260,10 +343,8 @@ func (g *gqlPR) data() *pullData {
 		}
 	}
 	var outdated []deck.ReviewThread
+	var resolved []deck.ReviewThread
 	for _, t := range g.ReviewThreads.Nodes {
-		if t.IsResolved {
-			continue
-		}
 		rt := deck.ReviewThread{Path: t.Path, Outdated: t.IsOutdated, Replies: max(t.Comments.TotalCount-1, 0)}
 		switch {
 		case t.Line != nil:
@@ -278,14 +359,90 @@ func (g *gqlPR) data() *pullData {
 			}
 			rt.Body, rt.URL, rt.At = strings.TrimSpace(c.Body), c.URL, c.CreatedAt
 		}
-		if rt.Outdated {
+		switch {
+		case t.IsResolved:
+			resolved = append(resolved, rt)
+		case rt.Outdated:
 			outdated = append(outdated, rt)
-		} else {
+		default:
 			p.Threads = append(p.Threads, rt)
 		}
 	}
 	p.Threads = append(p.Threads, outdated...)
+	if g.Title != "" {
+		p.Detail = g.detail(p.Threads, resolved)
+	}
 	return p
+}
+
+// detail is the PR tab's data: detailFields' answer, with the review
+// threads (open and resolved) laid into the conversation by time.
+func (g *gqlPR) detail(open, resolved []deck.ReviewThread) *deck.PRDetail {
+	d := &deck.PRDetail{
+		Title: g.Title, Body: strings.TrimSpace(g.Body), Head: g.HeadRefName, Base: g.BaseRefName,
+		Created: g.CreatedAt, Updated: g.UpdatedAt,
+		Additions: g.Additions, Deletions: g.Deletions, ChangedFiles: g.ChangedFiles,
+	}
+	if g.Author != nil {
+		d.Author, _ = g.Author.login()
+	}
+	if g.Labels != nil {
+		for _, l := range g.Labels.Nodes {
+			d.Labels = append(d.Labels, l.Name)
+		}
+	}
+	if c := g.Comments; c != nil {
+		d.Earlier += max(c.TotalCount-len(c.Nodes), 0)
+		for _, n := range c.Nodes {
+			who, bot := n.Author.login()
+			d.Comments = append(d.Comments, deck.PRComment{Kind: deck.CommentIssue, Author: who, Bot: bot,
+				Body: strings.TrimSpace(n.Body), URL: n.URL, At: n.CreatedAt})
+		}
+	}
+	if r := g.Reviews; r != nil {
+		d.Earlier += max(r.TotalCount-len(r.Nodes), 0)
+		at := map[string]int{}
+		for _, n := range r.Nodes {
+			if n.State == "PENDING" { // a draft review, the viewer's own
+				continue
+			}
+			who, bot := n.Author.login()
+			body := strings.TrimSpace(n.Body)
+			// GitHub makes an empty comment-only review for every reply in
+			// a review thread: the thread shows those.
+			if n.State != "COMMENTED" || body != "" {
+				d.Comments = append(d.Comments, deck.PRComment{Kind: deck.CommentReview, Author: who, Bot: bot,
+					Body: body, URL: n.URL, At: n.SubmittedAt, State: n.State, Inline: n.Comments.TotalCount})
+			}
+			// The author is no reviewer of their own PR. A later
+			// comment-only review keeps an approval or a request for
+			// changes, as on GitHub.
+			if who == d.Author {
+				continue
+			}
+			i, seen := at[who]
+			switch {
+			case !seen:
+				at[who] = len(d.Reviewers)
+				d.Reviewers = append(d.Reviewers, deck.Reviewer{Login: who, State: n.State})
+			case n.State != "COMMENTED":
+				d.Reviewers[i].State = n.State
+			}
+		}
+	}
+	thread := func(t deck.ReviewThread, done bool) {
+		d.Comments = append(d.Comments, deck.PRComment{Kind: deck.CommentThread, Author: t.Author,
+			Body: t.Body, URL: t.URL, At: t.At, Path: t.Path, Line: t.Line, Outdated: t.Outdated,
+			Resolved: done, Replies: t.Replies})
+	}
+	for _, t := range open {
+		thread(t, false)
+	}
+	for _, t := range resolved {
+		thread(t, true)
+	}
+	slices.SortStableFunc(d.Comments, func(a, b deck.PRComment) int { return a.At.Compare(b.At) })
+	return d
 }
 
 // checks turns the rollup into one check per workflow and name: a re-run

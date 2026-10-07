@@ -1,0 +1,28 @@
+ Admin rebuild                           ◐ 2  ◇ 1  ○ 1  ✉ 0
+────────────────────────────────────────────────────────────
+    WORK                        STATUS           LINKS  DEV
+  In progress
+  ◐ Users page                  Building overv…  L4
+  ◐ Templates page              Writing tests    L F    ●●●
+ ▸◇ Document select for summa…  #2320 review     L F3   ●○
+
+  On hold until Monday 2026-10-05
+  ○ Subscriptions list          idle             L N    ~○
+
+  + Backlog (3)
+
+
+────────────────────────────────────────────────────────────
+ Document select for summary                       ◇ review
+ webshop · t-0004-summary                         #2320 ✕ 1
+
+  Overview   Files   Commits   PR   Log 6         ↓ 14 more
+
+ [5 #2320]                                                 ┃
+ could not read it: rate limited until 15:00               ┃
+                                                           │
+ ── Status ──                                              │
+ open · review required                                    │
+ ✕ blocked: checks failing, checks running, review         │
+────────────────────────────────────────────────────────────
+ g GitHub  c log  tab focus  [ ] tab  z drawer        v9.9.9

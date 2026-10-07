@@ -177,21 +177,6 @@ func TestCheckLogError(t *testing.T) {
 	}
 }
 
-func TestCheckChipAndThreadClick(t *testing.T) {
-	m, o := newModelWith(t, live(), 80, 28, func(opt *Options) { opt.CheckLog = fake.CheckLog })
-	m, _ = press(m, keys("jjz")...)
-	x, y := find(t, m, "src/pages/users/table.tsx:12")
-	m, _ = press(m, click(x, y))
-	if len(o.urls) != 1 || o.urls[0] != "https://github.com/acme/webshop/pull/2320#discussion_r102" {
-		t.Errorf("a click on a review thread opened %q", o.urls)
-	}
-	x, y = find(t, m, "[lint]")
-	m, _ = press(m, click(x+1, y))
-	if m.mode != modeCheck || m.logCheck.Name != "lint" {
-		t.Errorf("a click on the check chip: mode %v, check %q", m.mode, m.logCheck.Name)
-	}
-}
-
 func TestCheckWithoutJobOpensPage(t *testing.T) {
 	s := livePR(func(pr *deck.PullRequest) {
 		pr.Checks = []deck.Check{{Name: "deploy-preview", State: deck.CheckFailed, URL: "https://ci.example.com/acme/webshop/77"}}

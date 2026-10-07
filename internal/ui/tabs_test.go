@@ -143,7 +143,7 @@ func TestDrawerFocusAndCursor(t *testing.T) {
 
 func TestLogEventsAct(t *testing.T) {
 	m, o := newModel(t, calm(), 80, 28)
-	m, _ = press(m, keys("jj]")...) // t-0004's Log
+	m, _ = press(m, keys("jj[")...) // t-0004's Log
 	if m.curTab() != tabLog {
 		t.Fatalf("tab %v", m.curTab())
 	}

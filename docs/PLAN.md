@@ -448,7 +448,9 @@ split diff's line numbers; named colours have no shade this faint), the
 thumb blue while dragged. The preview gives up its last column; a full view
 two (a blank one, then the bar). A press on the thumb grabs it and a drag
 scrolls; a press on the track jumps there and the drag goes on; a key or the
-release lets go. A row's drawer tabs keep `↓ N more` instead (follow-up).
+release lets go. A row's drawer tabs keep `↓ N more` instead (follow-up),
+except the PR tab, which is long like a report: its content gets the
+scrollbar too, and its card and tab bar keep the full width.
 
 Colours are named ANSI colours, so the terminal theme applies (full table in
 [docs/design/README.md](design/README.md#colours)). Needs you is bold red,
@@ -802,8 +804,29 @@ G1 (why the PR is not merging), G2 (a failed check's log tail) and G3
   200 lines. A finished job's tail is cached by job ID. Checks outside
   Actions open their page instead.
 - The UI: the *PR* section's checks line and merge-state line
-  (`mergeReason`), the *Review* section after it, and the log view
-  (`modeCheck`, full height like the report). Settings: `[github] enabled`
+  (`mergeReason`) with a line to the PR tab, the PR tab, and the log view
+  (`modeCheck`, full height like the report).
+- The PR tab (2026-10-06), after Commits and only for a thread with a PR:
+  first, with no heading, what the PR is (title chip, author, opened and
+  updated, head → base, labels, reviewers and requests,
+  additions/deletions/files; the user put it first on 2026-10-07), then
+  *Status* (state, review decision, auto-merge, `mergeReason`, checks,
+  `checked`), *Description* (the body through internal/markdown) and *Comments* (issue
+  comments, reviews and review threads, resolved ones included, in time
+  order; apps' comments and resolved threads fold to one line). The body
+  and conversation (`deck.PRDetail`, `detailFields`: title, body, labels,
+  `comments(last: 50)`, `reviews(last: 50)`) are asked for only for the PR
+  the tab shows (`Reader.Detail`), as a second fragment in the same
+  request, alone (a large or failing answer never costs the other PRs
+  their read), so they refresh with the PR's own FocusTTL reads and share
+  its back-off; a read without them keeps the last ones, and the tab
+  coming back reads them again once older than FocusTTL. Empty
+  comment-only reviews (GitHub makes one per thread reply) and the
+  author's own review state are left out. Before the detail arrives, the
+  tab lists the regular read's unresolved threads. A click on
+  the list's PR number shows the tab, a second click opens GitHub; `g`
+  still opens GitHub from anywhere. Overview's *Review* section moved into
+  the tab. Settings: `[github] enabled`
   (default true); the intervals are constants.
 - Tests use a fake gh runner with made-up fixtures (`testdata/`); they never
   call GitHub.

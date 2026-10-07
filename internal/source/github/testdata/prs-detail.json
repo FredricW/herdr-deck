@@ -1,0 +1,353 @@
+{
+  "data": {
+    "rateLimit": {
+      "remaining": 4321,
+      "resetAt": "2026-10-02T15:00:00Z"
+    },
+    "p0": {
+      "pullRequest": {
+        "state": "OPEN",
+        "isDraft": false,
+        "mergeable": "MERGEABLE",
+        "mergeStateStatus": "BEHIND",
+        "reviewDecision": "REVIEW_REQUIRED",
+        "baseRefName": "main",
+        "autoMergeRequest": {
+          "enabledAt": "2026-10-02T14:00:00Z"
+        },
+        "reviewRequests": {
+          "nodes": [
+            {
+              "requestedReviewer": {
+                "__typename": "User",
+                "login": "sam"
+              }
+            },
+            {
+              "requestedReviewer": {
+                "__typename": "Team",
+                "name": "frontend"
+              }
+            }
+          ]
+        },
+        "commits": {
+          "nodes": [
+            {
+              "commit": {
+                "statusCheckRollup": {
+                  "contexts": {
+                    "nodes": [
+                      {
+                        "__typename": "CheckRun",
+                        "name": "lint",
+                        "status": "COMPLETED",
+                        "conclusion": "FAILURE",
+                        "detailsUrl": "https://github.com/acme/webshop/actions/runs/4242/job/9001",
+                        "startedAt": "2026-10-02T14:30:00Z",
+                        "completedAt": "2026-10-02T14:32:00Z",
+                        "checkSuite": {
+                          "workflowRun": {
+                            "workflow": {
+                              "name": "CI"
+                            }
+                          }
+                        }
+                      },
+                      {
+                        "__typename": "CheckRun",
+                        "name": "lint",
+                        "status": "COMPLETED",
+                        "conclusion": "SUCCESS",
+                        "detailsUrl": "https://github.com/acme/webshop/actions/runs/4250/job/9100",
+                        "startedAt": "2026-10-02T14:38:00Z",
+                        "completedAt": "2026-10-02T14:39:00Z",
+                        "checkSuite": {
+                          "workflowRun": {
+                            "workflow": {
+                              "name": "Docs"
+                            }
+                          }
+                        }
+                      },
+                      {
+                        "__typename": "CheckRun",
+                        "name": "test (ubuntu-latest)",
+                        "status": "COMPLETED",
+                        "conclusion": "CANCELLED",
+                        "detailsUrl": "https://github.com/acme/webshop/actions/runs/4241/job/8990",
+                        "startedAt": "2026-10-02T14:20:00Z",
+                        "completedAt": "2026-10-02T14:21:00Z"
+                      },
+                      {
+                        "__typename": "CheckRun",
+                        "name": "test (ubuntu-latest)",
+                        "status": "COMPLETED",
+                        "conclusion": "SUCCESS",
+                        "detailsUrl": "https://github.com/acme/webshop/actions/runs/4242/job/9002",
+                        "startedAt": "2026-10-02T14:30:00Z",
+                        "completedAt": "2026-10-02T14:35:00Z"
+                      },
+                      {
+                        "__typename": "CheckRun",
+                        "name": "test (macos-latest)",
+                        "status": "IN_PROGRESS",
+                        "conclusion": null,
+                        "detailsUrl": "https://github.com/acme/webshop/actions/runs/4242/job/9003",
+                        "startedAt": "2026-10-02T14:30:00Z",
+                        "completedAt": null
+                      },
+                      {
+                        "__typename": "CheckRun",
+                        "name": "deploy-preview",
+                        "status": "QUEUED",
+                        "conclusion": null,
+                        "detailsUrl": "https://ci.example.com/acme/webshop/77",
+                        "startedAt": null,
+                        "completedAt": null
+                      },
+                      {
+                        "__typename": "StatusContext",
+                        "context": "coverage",
+                        "state": "SUCCESS",
+                        "targetUrl": "https://coverage.example.com/acme/webshop",
+                        "createdAt": "2026-10-02T14:36:00Z"
+                      },
+                      {
+                        "__typename": "CheckRun",
+                        "name": "docs",
+                        "status": "COMPLETED",
+                        "conclusion": "SKIPPED",
+                        "detailsUrl": "https://github.com/acme/webshop/actions/runs/4242/job/9004",
+                        "startedAt": "2026-10-02T14:30:00Z",
+                        "completedAt": "2026-10-02T14:30:01Z"
+                      }
+                    ]
+                  }
+                }
+              }
+            }
+          ]
+        },
+        "reviewThreads": {
+          "nodes": [
+            {
+              "isResolved": false,
+              "isOutdated": true,
+              "path": "src/api/users.ts",
+              "line": null,
+              "originalLine": 7,
+              "comments": {
+                "totalCount": 1,
+                "nodes": [
+                  {
+                    "author": {
+                      "login": "sam"
+                    },
+                    "body": "Drop the `any` here.",
+                    "url": "https://github.com/acme/webshop/pull/2320#discussion_r103",
+                    "createdAt": "2026-10-02T12:00:00Z"
+                  }
+                ]
+              }
+            },
+            {
+              "isResolved": true,
+              "isOutdated": false,
+              "path": "README.md",
+              "line": 3,
+              "originalLine": 3,
+              "comments": {
+                "totalCount": 2,
+                "nodes": [
+                  {
+                    "author": {
+                      "login": "alex"
+                    },
+                    "body": "Typo.",
+                    "url": "https://github.com/acme/webshop/pull/2320#discussion_r100",
+                    "createdAt": "2026-10-02T11:00:00Z"
+                  }
+                ]
+              }
+            },
+            {
+              "isResolved": false,
+              "isOutdated": false,
+              "path": "src/pages/users/index.ts",
+              "line": 41,
+              "originalLine": 40,
+              "comments": {
+                "totalCount": 1,
+                "nodes": [
+                  {
+                    "author": {
+                      "login": "sam"
+                    },
+                    "body": "Should this be **paginated**?\n\nThe list can get long.",
+                    "url": "https://github.com/acme/webshop/pull/2320#discussion_r101",
+                    "createdAt": "2026-10-02T13:00:00Z"
+                  }
+                ]
+              }
+            },
+            {
+              "isResolved": false,
+              "isOutdated": false,
+              "path": "src/pages/users/table.tsx",
+              "line": 12,
+              "originalLine": 12,
+              "comments": {
+                "totalCount": 3,
+                "nodes": [
+                  {
+                    "author": {
+                      "login": "alex"
+                    },
+                    "body": "Rename to `UserRow`.",
+                    "url": "https://github.com/acme/webshop/pull/2320#discussion_r102",
+                    "createdAt": "2026-10-02T13:30:00Z"
+                  }
+                ]
+              }
+            }
+          ]
+        },
+        "title": "Document select for summary",
+        "body": "## Summary\n\nAdds the document picker to the summary page (ABC-1191).\n\n- [x] picker\n- [ ] empty state\n",
+        "createdAt": "2026-09-30T09:00:00Z",
+        "updatedAt": "2026-10-02T14:00:00Z",
+        "headRefName": "hp/admin-rebuild/t-0004-summary",
+        "additions": 214,
+        "deletions": 12,
+        "changedFiles": 11,
+        "author": {
+          "__typename": "User",
+          "login": "robin"
+        },
+        "labels": {
+          "nodes": [
+            {
+              "name": "frontend"
+            },
+            {
+              "name": "needs-review"
+            }
+          ]
+        },
+        "comments": {
+          "totalCount": 53,
+          "nodes": [
+            {
+              "author": {
+                "__typename": "Bot",
+                "login": "vercel"
+              },
+              "body": "Deploy preview ready: https://preview.example.com",
+              "url": "https://github.com/acme/webshop/pull/2320#issuecomment-1",
+              "createdAt": "2026-09-30T09:05:00Z"
+            },
+            {
+              "author": {
+                "__typename": "User",
+                "login": "alex"
+              },
+              "body": "Can we keep the old picker behind a flag?",
+              "url": "https://github.com/acme/webshop/pull/2320#issuecomment-2",
+              "createdAt": "2026-10-01T10:00:00Z"
+            },
+            {
+              "author": null,
+              "body": "Looks good.",
+              "url": "https://github.com/acme/webshop/pull/2320#issuecomment-3",
+              "createdAt": "2026-10-02T09:00:00Z"
+            }
+          ]
+        },
+        "reviews": {
+          "totalCount": 5,
+          "nodes": [
+            {
+              "author": {
+                "__typename": "User",
+                "login": "sam"
+              },
+              "state": "CHANGES_REQUESTED",
+              "body": "A few things first.",
+              "url": "https://github.com/acme/webshop/pull/2320#pullrequestreview-1",
+              "submittedAt": "2026-10-01T12:00:00Z",
+              "comments": {
+                "totalCount": 2
+              }
+            },
+            {
+              "author": {
+                "__typename": "User",
+                "login": "sam"
+              },
+              "state": "COMMENTED",
+              "body": "",
+              "url": "https://github.com/acme/webshop/pull/2320#pullrequestreview-2",
+              "submittedAt": "2026-10-02T13:00:00Z",
+              "comments": {
+                "totalCount": 1
+              }
+            },
+            {
+              "author": {
+                "__typename": "User",
+                "login": "alex"
+              },
+              "state": "APPROVED",
+              "body": "",
+              "url": "https://github.com/acme/webshop/pull/2320#pullrequestreview-3",
+              "submittedAt": "2026-10-02T13:40:00Z",
+              "comments": {
+                "totalCount": 0
+              }
+            },
+            {
+              "author": {
+                "__typename": "User",
+                "login": "robin"
+              },
+              "state": "PENDING",
+              "body": "draft",
+              "url": "https://github.com/acme/webshop/pull/2320#pullrequestreview-4",
+              "submittedAt": null,
+              "comments": {
+                "totalCount": 0
+              }
+            },
+            {
+              "author": {
+                "__typename": "User",
+                "login": "robin"
+              },
+              "state": "COMMENTED",
+              "body": "Thanks, fixed in the next commit.",
+              "url": "https://github.com/acme/webshop/pull/2320#pullrequestreview-5",
+              "submittedAt": "2026-10-02T13:50:00Z",
+              "comments": {
+                "totalCount": 0
+              }
+            }
+          ]
+        }
+      }
+    },
+    "p1": {
+      "pullRequest": null
+    }
+  },
+  "errors": [
+    {
+      "type": "NOT_FOUND",
+      "path": [
+        "p1",
+        "pullRequest"
+      ],
+      "message": "Could not resolve to a PullRequest with the number of 99."
+    }
+  ]
+}

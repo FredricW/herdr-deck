@@ -1,0 +1,28 @@
+ Admin rebuild                                               ◐ 2  ◇ 1  ○ 1  ✉ 0
+────────────────────────────────────────────────────────────────────────────────
+ Document select for summary                                           ◇ review
+ webshop · t-0004-summary                                     #2320 ✕ 1 failing
+
+  Overview   Files   Commits   PR   Log 6                            ↓ Comments
+
+ [5 #2320] Document select for summary                                         ┃
+ author   robin · opened 2d ago · updated 20m ago                              ┃
+ branch   t-0004-summary → main                                                ┃
+ labels   frontend needs-review                                                ┃
+ reviews  ○ alex  ✓ kim  ◌ sam asked                                           ┃
+ changes  +214 −12 · 11 files                                                  ┃
+                                                                               ┃
+ ── Status ──                                                                  ┃
+ open · review required                                                        │
+ ✕ blocked: checks failing, checks running, review required (sam)              │
+ ✕ 1 failing: [lint]  ◌ 1 running: test (macos-latest) 6m  ✓ 2 passed          │
+ checked just now                                                              │
+                                                                               │
+ ── Description ──                                                             │
+ ## Summary                                                                    │
+                                                                               │
+ Adds the document picker to the summary page (ABC-1191).                      │
+                                                                               │
+ [✓] picker with search                                                        │
+────────────────────────────────────────────────────────────────────────────────
+ g on GitHub  c check log  pgdn scroll  tab focus  [ ] tab  ? help        v9.9.9

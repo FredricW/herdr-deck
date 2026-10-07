@@ -3,7 +3,7 @@
  Document select for summary                       ◇ review
  webshop · t-0004-summary                         #2320 ✕ 1
 
-  Overview   Files   Commits   Log 6               ↓ 7 more
+  Overview   Files   Commits   PR   Log 6
 
  ── PR ──
  [5 #2320] open · review required · 2c
@@ -11,18 +11,18 @@
  ✓ 2 passed
  ✕ blocked: checks failing, checks running, review required
  (sam)
- checked just now
- ── Review ──  2 unresolved · 1 outdated
- src/pages/users/index.ts:41  sam
-   Should this be paginated? The list can get long.
- src/pages/users/table.tsx:12  alex · +2 replies
-   Rename to  UserRow .
- src/api/users.ts:7  sam · outdated
-   Drop the  any  here.
+ → PR tab: 3 unresolved
  ── Links ──
  [1 ABC-1191 Summary document picker · in review · Sam Lee]
  [2 Figma 598-48083] [3 1138-88367] [4 635-76529]
  ── Dev ──
  ● Frontend :5174
+ ○ API :8002 exited
+   /var/state/dev-manifest/logs/t-0004-summary-1a2b3c4d/ser…
+ [6 Frontend ●] [7 API docs ○]
+ ── Thread ──
+ thread  t-0004 · Summary select documents
+ pane    w21:p1
+ branch  hp/admin-rebuild/t-0004-summary
 ────────────────────────────────────────────────────────────
  1-9 link  o open  ↵ pane  [ ] tab  z drawer  ? help  v9.9.9

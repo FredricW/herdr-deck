@@ -32,6 +32,16 @@ and versions follow [Semantic Versioning](https://semver.org/).
   a run record, dependents first. Run records and logs live in the shared
   `~/.local/state/dev-manifest/` folder, so other tools see what the deck
   started.
+- A PR tab in the drawer, after Commits, on rows whose thread has a pull
+  request: what it is (title, author, branches, labels, reviewers, size),
+  its status (state, why it is not merging, checks with the failing ones
+  as chips, review decision, auto-merge), its description as Markdown,
+  and its conversation in time order (comments, reviews and review
+  threads; apps' comments and resolved threads folded to one line). `↵` or
+  a click opens a comment on GitHub. The description and comments are read
+  only while the tab shows the PR, in the same request as the PR itself.
+- A click on a row's PR number in the list shows its PR tab; a second
+  click opens the PR on GitHub.
 
 ### Changed
 
@@ -41,6 +51,8 @@ and versions follow [Semantic Versioning](https://semver.org/).
   and a broken manifest is reported instead of falling back to another
   file. Logs of what `u` starts moved from the deck's own state folder to
   the shared one.
+- Overview's *PR* section is a short summary with a line to the PR tab;
+  the *Review* section moved into the PR tab's comments.
 
 ## [0.1.6] - 2026-10-05
 

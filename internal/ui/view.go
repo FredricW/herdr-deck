@@ -150,10 +150,17 @@ func (m Model) layout() frame {
 		// scrollbar: a blank one, so right-aligned text keeps clear of
 		// it, and the bar. It is laid out that narrow first, as most
 		// full views overflow, and again at the full width if it fits.
-		// A row's drawer keeps its width and says what is below in its
-		// tab bar.
-		if m.mode != modeRow && m.width >= barMinWidth {
+		// A row's drawer says what is below in its tab bar; the PR tab,
+		// long like a report, gets a scrollbar too, beside its content
+		// only: the card and tab bar keep the full width.
+		r, ok := m.selected()
+		switch {
+		case m.width < barMinWidth:
+		case m.mode != modeRow:
 			f.drawer = m.drawerFor(m.width-2, f.drawerH)
+			f.barred = f.drawerBar(0).shown()
+		case ok && r.kind == rowWork && m.curTab() == tabPR:
+			f.drawer = m.rowDrawer(r, rowLinks(r), m.width, m.width-2, f.drawerH)
 			f.barred = f.drawerBar(0).shown()
 		}
 		if !f.barred {
@@ -187,7 +194,7 @@ func (m Model) drawerFor(width, h int) *drawer {
 	if !ok {
 		return m.projectDrawer(row{}, width)
 	}
-	return m.rowDrawer(r, rowLinks(r), width, h)
+	return m.rowDrawer(r, rowLinks(r), width, width, h)
 }
 
 func (m Model) render() string {
@@ -487,6 +494,28 @@ func (m Model) rowLine(r row, sel bool, w int, asOf string) string {
 	return m.finish(renderCells(cells), sel, w)
 }
 
+// prCell is where row r shows its PR number, `#2320`, as columns [x0,
+// x1): the PR column at 80 columns, the start of STATUS at 60. ok is false
+// when the row shows no PR.
+func (m Model) prCell(r row) (x0, x1 int, ok bool) {
+	t, has := r.thread()
+	if r.kind != rowWork || !has || t.PR == nil || t.PR.Number <= 0 {
+		return 0, 0, false
+	}
+	c := columns(m.width)
+	text := fmt.Sprintf("#%d", t.PR.Number)
+	x0 = 4 + c.work + 2 // mark, glyph and space; WORK and its gap
+	width := c.status
+	if c.wide {
+		x0 += c.thread + 2 + c.status + 2
+		width = c.pr
+		if len(t.PR.FailingChecks) > 0 {
+			text += "✕"
+		}
+	}
+	return x0, x0 + min(ansi.StringWidth(text), width), true
+}
+
 // rowStatus is the STATUS column. At 60 columns it also carries the PR.
 func rowStatus(t deck.Thread, narrow bool) string {
 	var s string
@@ -772,6 +801,11 @@ func (m Model) rowHint(r row, narrow bool) string {
 				return "j k move  ↵ preview  space files  d tool  esc list"
 			}
 			return "j k move  ↵ preview  space files  d diff tool" + gh + "  esc list  ? help"
+		case tabPR:
+			if narrow {
+				return "j k move  ↵ GitHub  space unfold  esc list"
+			}
+			return "j k move  ↵ on GitHub  space unfold  c check log  esc list  ? help"
 		case tabLog:
 			return "j k event  ↵ act  tab next tab  esc list  ? help"
 		}
@@ -791,6 +825,10 @@ func (m Model) rowHint(r row, narrow bool) string {
 		return "1-9 commit  v preview  tab focus  [ ] tab"
 	case tab == tabCommits:
 		return "1-9 preview commit  v preview  tab focus  [ ] tab  ? help"
+	case tab == tabPR && narrow:
+		return "g GitHub  c log  tab focus  [ ] tab  z drawer"
+	case tab == tabPR:
+		return "g on GitHub  c check log  pgdn scroll  tab focus  [ ] tab  ? help"
 	case tab == tabLog && hasThread && t.PR != nil:
 		return "1-9 link  g PR  r report  [ ] tab  z drawer  ? help"
 	case tab == tabLog:

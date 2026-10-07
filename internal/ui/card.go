@@ -17,12 +17,14 @@ import (
 // The drawer's header card and tab bar (docs/design/drawer/README.md).
 
 // rowDrawer is the selected row's drawer: the header card, the tab bar and
-// the tab's content, h lines of which show from the drawer's offset.
-func (m Model) rowDrawer(r row, links []deck.Link, width, h int) *drawer {
+// the tab's content, h lines of which show from the drawer's offset. The
+// card and tab bar take width columns, the content inner: fewer when it
+// leaves room for a scrollbar.
+func (m Model) rowDrawer(r row, links []deck.Link, width, inner, h int) *drawer {
 	if r.kind == rowHeading {
 		return m.projectDrawer(r, width)
 	}
-	d := newDrawer(width, "")
+	d := newDrawer(inner, "")
 	d.light = m.light
 	d.card = m.card(r, width)
 	tab := m.curTab()
@@ -35,6 +37,8 @@ func (m Model) rowDrawer(r row, links []deck.Link, width, h int) *drawer {
 		m.filesTab(d)
 	case tabCommits:
 		m.commitsTab(d, r)
+	case tabPR:
+		m.prTab(d, r, links)
 	case tabLog:
 		m.logTab(d, t, links)
 	default:
@@ -53,7 +57,7 @@ func (d *drawer) moreHint(tab tabKind, off, h int) string {
 	if below <= 0 {
 		return ""
 	}
-	if tab == tabOverview && d.width >= wideMin {
+	if (tab == tabOverview || tab == tabPR) && d.width >= wideMin {
 		var names []string
 		for _, s := range d.sections {
 			if s.at >= end {
@@ -95,13 +99,18 @@ func tabStyle(active, enabled, light bool) lipgloss.Style {
 
 // tabBar is the tab bar's line and its clickable tabs: each label with one
 // space of padding on its background, one space apart, and the hint at
-// the right, the whole bar one column in from either edge.
+// the right, the whole bar one column in from either edge. PR is left out
+// on a row without one.
 func (m Model) tabBar(r row, hasThread bool, active tabKind, hint string, width int) (string, []zone) {
 	var b strings.Builder
 	var zones []zone
 	x := 1
 	for tab := range numTabs {
 		enabled := m.tabEnabled(r, tab)
+		// PR shows only for a thread with a PR; the others show dim.
+		if tab == tabPR && !enabled {
+			continue
+		}
 		label := tab.String()
 		if enabled {
 			switch tab {
@@ -153,6 +162,9 @@ func (m Model) tabEnabled(r row, tab tabKind) bool {
 	case tabCommits:
 		_, ok := r.thread()
 		return r.kind == rowWork && ok && m.opt.Commits != nil
+	case tabPR:
+		t, ok := r.thread()
+		return r.kind == rowWork && ok && t.PR != nil
 	case tabLog:
 		_, ok := r.thread()
 		return r.kind == rowWork && ok

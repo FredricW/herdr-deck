@@ -16,7 +16,7 @@
  Document select for summary                                           ◇ review
  webshop · t-0004-summary                                     #2320 ✕ 2 failing
 
-  Overview   Files   Commits   Log 7                                   ↓ 1 more
+  Overview   Files   Commits   PR   Log 7                              ↓ 1 more
 
    2m  ✕ checks failing: lint, test (ubuntu-latest)                     14:39 ✉
   25m  ◇ [5 #2320] updated · open · 2 comments                          14:16

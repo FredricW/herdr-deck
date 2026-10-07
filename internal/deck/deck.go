@@ -289,6 +289,69 @@ type PullRequest struct {
 	// Threads are the PR's unresolved review threads, the outdated ones
 	// last.
 	Threads []ReviewThread
+	// Detail is what the PR tab shows beyond the fields above: the title,
+	// description and conversation. GitHub is asked for it only while the
+	// tab shows the PR, so it is nil until then; DetailNote says why it is
+	// missing when a read failed.
+	Detail     *PRDetail
+	DetailNote string
+}
+
+// PRDetail is a PR's description and conversation, read for the PR tab.
+type PRDetail struct {
+	Title  string
+	Author string
+	// Head and Base are the branches the PR merges from and into.
+	Head, Base       string
+	Body             string
+	Created, Updated time.Time
+	Labels           []string
+	Additions        int
+	Deletions        int
+	ChangedFiles     int
+	Reviewers        []Reviewer
+	// Comments are the conversation in time order, oldest first;
+	// Earlier counts the issue comments and reviews before the ones read.
+	Comments []PRComment
+	Earlier  int
+}
+
+// Reviewer is who reviewed a PR and where they stand: APPROVED,
+// CHANGES_REQUESTED, COMMENTED or DISMISSED.
+type Reviewer struct {
+	Login string
+	State string
+}
+
+// CommentKind says what a PR comment is.
+type CommentKind int
+
+const (
+	CommentIssue  CommentKind = iota // a comment on the conversation
+	CommentReview                    // a review's summary
+	CommentThread                    // a review thread's first comment
+)
+
+// PRComment is one entry of a PR's conversation.
+type PRComment struct {
+	Kind   CommentKind
+	Author string
+	// Bot is set for an app's comment (CI, deploy previews, …).
+	Bot  bool
+	Body string
+	URL  string
+	At   time.Time
+	// State is a review's: APPROVED, CHANGES_REQUESTED, COMMENTED or
+	// DISMISSED; Inline counts its comments on files.
+	State  string
+	Inline int
+	// Path, Line, Outdated, Resolved and Replies are a review thread's,
+	// as in ReviewThread.
+	Path     string
+	Line     int
+	Outdated bool
+	Resolved bool
+	Replies  int
 }
 
 // CheckState is how far a check got.

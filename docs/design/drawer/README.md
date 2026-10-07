@@ -119,8 +119,8 @@ Every line the drawer shows today, and where it goes:
 - ***Thread*** starts with `thread` (the id, and the thread's title when
   the row is a task), then `pane`, `branch` (in full, so it can be read and
   copied whole), `report`, `base` and `log`.
-- **Tab bar.** ` Overview `, ` Files N `, ` Commits N `, ` Log N ` on
-  their backgrounds, one space apart, with a blank line above and below
+- **Tab bar.** ` Overview `, ` Files N `, ` Commits N `, ` PR ` (only
+  with a PR), ` Log N ` on their backgrounds, one space apart, with a blank line above and below
   the bar and one column of padding at either end of it. A report's or a
   failed check's line stands in the same place. `Files N` counts changed files
   (`Files …` until git has answered once), `Commits N` the branch's
@@ -172,6 +172,8 @@ switch tabs, `j`/`k` move the drawer cursor, `↵` acts on the item under it,
 and `esc` gives the focus back to the list. A click in the drawer gives it
 the focus too.
 
+The PR tab, added later, has its own keys: see [PR](#pr).
+
 | Key | Overview | Files | Commits | Log |
 |---|---|---|---|---|
 | `[` `]` | previous / next tab, from the list or the drawer | same | same | same |
@@ -218,6 +220,61 @@ under it. The sha, age and a merge commit's row are dim; `● ` is yellow, as an
 unhandled update; `+N` green, `−M` red. A commit previews in the diff
 preview's place, as `git show` shows it. README's *Commits* section and
 PLAN.md describe the details.
+
+## PR
+
+Added on 2026-10-06: a PR tab between Commits and Log, in the same tab
+style, shown only for a row whose thread has a PR. Overview's *PR* section
+became a short summary (chip, state and review, checks, why it is not
+merging) ending in a dim `→ PR tab: 3 unresolved review threads,
+description and comments` line that switches to the tab; its *Review*
+section moved into the tab's comments.
+
+The tab opens on what the PR is, with no heading (the user put it first on
+2026-10-07); *Status*, *Description* and *Comments* follow under their
+rules.
+
+```text
+ Overview   Files 11   Commits 4   PR   Log 7                      ↓ Comments
+ [5 #2320] Document select for summary
+ author   robin · opened 2d ago · updated 20m ago
+ branch   t-0004-summary → main
+ labels   frontend needs-review
+ reviews  ○ alex  ✓ kim  ◌ sam asked
+ changes  +214 −12 · 11 files
+ ── Status ──
+ open · review required
+ ✕ blocked: checks failing, checks running, review required (sam)
+ ✕ 1 failing: [lint]  ◌ 1 running: test (macos-latest) 6m  ✓ 2 passed
+ checked just now
+ ── Description ──
+ (the body, rendered as Markdown)
+ ── Comments ──  8 · 3 unresolved
+  ▸ deploy-preview · bot · 2d ago: Preview deployed to https://preview.exa…
+ alex · 5h ago
+   Can we keep the old picker behind a flag for a week?
+ src/pages/users/table.tsx:12 · alex · +2 replies · 90m ago
+   Rename to UserRow.
+ kim ✓ approved · 1h ago
+   Looks good once lint passes.
+```
+
+A comment's line is a cursor stop: `↵` or a click opens it on GitHub. An
+app's comment (a bot) and a resolved review thread fold to one dim line
+with `▸` in the third column (clear of the drawer cursor's `▸`) and the start of the text; `space`, `→`/`l`
+or a click on `▸` unfolds it (`▾`), `←`/`h` folds it. Review states:
+`✓ approved` green, `✕ requested changes` red, `○ reviewed` and `–
+review dismissed` dim. Labels are cyan. Like a report, the tab's content
+gets the scrollbar at the right edge when it overflows; the card and tab
+bar keep the full width.
+
+**The list's PR column.** A click on `#2320` (at 60 columns, the number at
+the start of STATUS) selects the row and shows its PR tab, bringing back a
+hidden drawer. A second click on the same number, with the tab already
+showing that PR, opens it on GitHub; `g` opens it from anywhere, as
+before. A second click rather than a double click: the deck gets no
+double-click events, and timing clicks would make the first click's tab
+switch wait.
 
 ## Data the deck does not read yet
 
