@@ -8,6 +8,8 @@ and versions follow [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.1.7] - 2026-10-07
+
 ### Added
 
 - Drag the rule between the list and the drawer to resize the drawer, or
@@ -21,8 +23,8 @@ and versions follow [Semantic Versioning](https://semver.org/).
   settings). Drag its thumb to scroll, or press on the track to jump there;
   it follows the keys and the wheel too.
 - The deck reads the shared dev manifest, `.config/dev.json`
-  ([spec](docs/dev-manifest.md)): the worktree's own, else the main
-  checkout's. Ports come from fixed numbers or the project's state file,
+  ([spec](https://github.com/FredricW/herdr-deck/blob/main/docs/dev-manifest.md)):
+  the worktree's own, else the main checkout's. Ports come from fixed numbers or the project's state file,
   links and commands can use `$WORKTREE`, `$REPO`, `$DIRNAME`, `$BRANCH`,
   `$PORT_<name>` and `$env(…)`, and the drawer's *Dev* section shows each
   service on its own line with its dot, port, state and log.
@@ -38,8 +40,7 @@ and versions follow [Semantic Versioning](https://semver.org/).
   as chips, review decision, auto-merge), its description as Markdown,
   and its conversation in time order (comments, reviews and review
   threads; apps' comments and resolved threads folded to one line). `↵` or
-  a click opens a comment on GitHub. The description and comments are read
-  only while the tab shows the PR, in the same request as the PR itself.
+  a click opens a comment on GitHub.
 - A click on a row's PR number in the list shows its PR tab; a second
   click opens the PR on GitHub.
 
@@ -50,7 +51,8 @@ and versions follow [Semantic Versioning](https://semver.org/).
   `.config/dev.json` (the worktree's or the main checkout's) comes first,
   and a broken manifest is reported instead of falling back to another
   file. Logs of what `u` starts moved from the deck's own state folder to
-  the shared one.
+  the shared one. An `up` command started by an older deck keeps running
+  but is not tracked: stop it yourself, since `U` does not see it.
 - Overview's *PR* section is a short summary with a line to the PR tab;
   the *Review* section moved into the PR tab's comments.
 
