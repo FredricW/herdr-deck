@@ -1,0 +1,317 @@
+── width 60 ──────────────────────────────────────────────
+ Look here first                      150 frames · 46 flows 
+ 1 + dev.Store.Lock                                 2 flows 
+      +▤ fs read, ▦ fs write, ⚙ exec, ◷ sleep, $ env · ↻ 8 …
+ 2 + dev.Reader.fill                                6 flows 
+      +▤ fs read, ⚙ exec, ⧗ lock · ↻ 3 blocking call in a l…
+ 3 + dev.Reader.Stop                                 1 flow 
+      +▤ fs read, ▦ fs write, ⚙ exec, ⧗ lock, ◷ sleep, $ en…
+ 4 ~ dev.Reader.Up                                   1 flow 
+      +◷ sleep · −5 error path · 5 call moved in/out of a b…
+ 5 + dev.Reader.upCommand                            1 flow 
+      +▤ fs read, ▦ fs write, ⚙ exec, ⇄ network, ⧗ lock, ◷ …
+ 6 ~ dev.Reader.Apply                               6 flows 
+      2 call moved in/out of a branch · ↻ 3 blocking call i…
+ 7 + dev.Reader.stopProcess                          1 flow 
+      +⚙ exec, ⧗ lock, ◷ sleep · ↻ 4 blocking call in a loop
+ 8 + dev.Reader.waitReady                            1 flow 
+      +▤ fs read, ⚙ exec, ⇄ network, ⧗ lock · ↻ 3 blocking …
+   ⋯ 130 more · ≈ 12 refactors collapsed
+
+ ▸ handleKey ▸ key DevStop
+   internal/ui/model.go:972
+    + ui.Model.stopDev                ▤▦⚙⧗◷ new · 63 frames 
+
+ ▸ handleKey ▸ key DevUp
+   internal/ui/model.go:970
+    ~ ui.Model.startDev                                  +◷ 
+      + ui.Model.devThread                              new 
+      − ui.Model.selected
+      − ui.row.thread
+      ≈ ƒ start                                    +◷ async 
+        ~ dev.Reader.Up                                  +◷ 
+          + dev.Reader.prepare            ▤ new · 29 frames 
+          ~ ↯ return err          moved out of error branch 
+          + dev.Reader.claim                          ⧗ new 
+          + dev.Reader.release                  ⧗ defer new 
+          + manifest.Manifest.DefaultGroup              new 
+          + manifest.Manifest.Command                   new 
+          + manifest.Found.Short                     if new 
+          − ↯ return errors.New("no worktree on this ro… if 
+          − dev.FindManifest                              ▤ 
+          + dev.Reader.upCommand  ▤▦⚙⇄⧗◷ if new · 29 frames 
+          + manifest.Manifest.StartOrder     new · 2 frames 
+          + manifest.Manifest.Service                 ↻ new 
+          + manifest.Found.Short                     if new 
+          − dev.shortPath                                if 
+          − ↯ return fmt.Errorf("%s: %w")                if 
+          − dev.shortPath                                if 
+          + dev.Reader.store                            new 
+          + manifest.Manifest.Service                 ↻ new 
+          + manifest.Manifest.Service                 ↻ new 
+          + dev.Reader.waitReady     ▤⚙⇄⧗ ↻ new · 15 frames 
+          + manifest.Manifest.Service              ↻ if new 
+          − ↯ return errors.New("no folder for logs: $H… if 
+          − sync.Mutex.Lock                               ⧗ 
+          − dev.Prober.Listening                         ⇄⧗ 
+          + manifest.Manifest.Service              ↻ if new 
+          + dev.Reader.serviceLog       ↻ if new · 7 frames 
+          + dev.tilde                              ↻ if new 
+          ~ fmt.Sprintf                     moved into loop 
+          + dev.Reader.ready         ▤⚙⇄⧗ ↻ new · 14 frames 
+          + dev.Reader.serviceCommand   ▤ ↻ new · 10 frames 
+          − dev.Reader.upFiles
+          − dev.readPID                                   ▤ 
+          − dev.Reader.alive                              ⚙ 
+          ~ fmt.Sprintf       moved into loop, into error b…
+          + dev.Reader.startRecord… ▤▦⚙⧗◷ ↻ new · 13 frames 
+          − dev.vars.expand
+          − os.MkdirAll                                   ▦ 
+          − dev.startDetached                  ▤▦⚙ if async 
+          − ƒ start
+          − ↯ return err                                err 
+          ~ fmt.Sprintf        moved into loop, into branch 
+          ~ strings.Join                          reordered 
+          − os.WriteFile                                  ▦ 
+          − ↯ return fmt.Errorf("started %q as pid %d,… err 
+
+ ▸ Init
+   internal/ui/model.go:411
+      ui.Model.load                                      if 
+        ƒ load                                async 2 impls 
+        ~ Read › dev.Reader.Apply                        if 
+          + dev.Reader.devUp           ▤⚙⧗ ↻ new · 9 frames 
+          − dev.Reader.applyUp                         ▤⚙ ↻ 
+          + dev.Reader.read             ▤ ↻ new · 29 frames 
+          + dev.plan.readyCheck         ↻ if new · 3 frames 
+          + dev.plan.anyMainPort           ↻ new · 2 frames 
+          ~ dev.Prober.Listening                  reordered 
+          + dev.Prober.Ready              ⇄⧗ new · 4 frames 
+          + dev.Reader.fill        ▤⚙⧗ ↻ if new · 20 frames 
+          − dev.Reader.servers                          ▤ ↻ 
+          ~ deck.AppendLink               moved into branch 
+ ⋯ 43 more flows · 0 reach it only through shared frames
+
+ Blast radius ▸ dev.Store.Lock                      2 flows 
+  ↑ dev.Reader.forget                               changed 
+    ↑ dev.Reader.Stop                               changed 
+      ↑ herdr-deck.run$StopDev                      changed 
+        ↑ ui.Model.stopDev                          changed 
+          ◆ handleKey ▸ key DevStop                 changed 
+  ↑ dev.Reader.startRecorded                        changed 
+    ↑ dev.Reader.Up                                 changed 
+      ↑ herdr-deck.run$StartDev                     changed 
+        ↑ ui.Model.startDev                         changed 
+          ◆ handleKey ▸ key DevUp
+    ↑ dev.Reader.upCommand                          changed 
+      ↑ dev.Reader.Up                               changed 
+
+── width 80 ──────────────────────────────────────────────────────────────────
+ Look here first                                          150 frames · 46 flows 
+ 1 + dev.Store.Lock                                                     2 flows 
+      +▤ fs read, ▦ fs write, ⚙ exec, ◷ sleep, $ env · ↻ 8 blocking call in a l…
+ 2 + dev.Reader.fill                                                    6 flows 
+      +▤ fs read, ⚙ exec, ⧗ lock · ↻ 3 blocking call in a loop
+ 3 + dev.Reader.Stop                                                     1 flow 
+      +▤ fs read, ▦ fs write, ⚙ exec, ⧗ lock, ◷ sleep, $ env · ↻ 4 blocking cal…
+ 4 ~ dev.Reader.Up                                                       1 flow 
+      +◷ sleep · −5 error path · 5 call moved in/out of a branch · ↻ 4 blocking…
+ 5 + dev.Reader.upCommand                                                1 flow 
+      +▤ fs read, ▦ fs write, ⚙ exec, ⇄ network, ⧗ lock, ◷ sleep, $ env · ↻ 1 b…
+ 6 ~ dev.Reader.Apply                                                   6 flows 
+      2 call moved in/out of a branch · ↻ 3 blocking call in a loop
+ 7 + dev.Reader.stopProcess                                              1 flow 
+      +⚙ exec, ⧗ lock, ◷ sleep · ↻ 4 blocking call in a loop
+ 8 + dev.Reader.waitReady                                                1 flow 
+      +▤ fs read, ⚙ exec, ⇄ network, ⧗ lock · ↻ 3 blocking call in a loop
+   ⋯ 130 more · ≈ 12 refactors collapsed
+
+ ▸ handleKey ▸ key DevStop
+   internal/ui/model.go:972
+    + ui.Model.stopDev                                    ▤▦⚙⧗◷ new · 63 frames 
+
+ ▸ handleKey ▸ key DevUp
+   internal/ui/model.go:970
+    ~ ui.Model.startDev                                                      +◷ 
+      + ui.Model.devThread                                                  new 
+      − ui.Model.selected
+      − ui.row.thread
+      ≈ ƒ start                                                        +◷ async 
+        ~ dev.Reader.Up                                                      +◷ 
+          + dev.Reader.prepare                                ▤ new · 29 frames 
+          ~ ↯ return err                              moved out of error branch 
+          + dev.Reader.claim                                              ⧗ new 
+          + dev.Reader.release                                      ⧗ defer new 
+          + manifest.Manifest.DefaultGroup                                  new 
+          + manifest.Manifest.Command                                       new 
+          + manifest.Found.Short                                         if new 
+          − ↯ return errors.New("no worktree on this ro…)                    if 
+          − dev.FindManifest                                                  ▤ 
+          + dev.Reader.upCommand                      ▤▦⚙⇄⧗◷ if new · 29 frames 
+          + manifest.Manifest.StartOrder                         new · 2 frames 
+          + manifest.Manifest.Service                                     ↻ new 
+          + manifest.Found.Short                                         if new 
+          − dev.shortPath                                                    if 
+          − ↯ return fmt.Errorf("%s: %w")                                    if 
+          − dev.shortPath                                                    if 
+          + dev.Reader.store                                                new 
+          + manifest.Manifest.Service                                     ↻ new 
+          + manifest.Manifest.Service                                     ↻ new 
+          + dev.Reader.waitReady                         ▤⚙⇄⧗ ↻ new · 15 frames 
+          + manifest.Manifest.Service                                  ↻ if new 
+          − ↯ return errors.New("no folder for logs: $H…)                    if 
+          − sync.Mutex.Lock                                                   ⧗ 
+          − dev.Prober.Listening                                             ⇄⧗ 
+          + manifest.Manifest.Service                                  ↻ if new 
+          + dev.Reader.serviceLog                           ↻ if new · 7 frames 
+          + dev.tilde                                                  ↻ if new 
+          ~ fmt.Sprintf                                         moved into loop 
+          + dev.Reader.ready                             ▤⚙⇄⧗ ↻ new · 14 frames 
+          + dev.Reader.serviceCommand                       ▤ ↻ new · 10 frames 
+          − dev.Reader.upFiles
+          − dev.readPID                                                       ▤ 
+          − dev.Reader.alive                                                  ⚙ 
+          ~ fmt.Sprintf                      moved into loop, into error branch 
+          + dev.Reader.startRecorded                    ▤▦⚙⧗◷ ↻ new · 13 frames 
+          − dev.vars.expand
+          − os.MkdirAll                                                       ▦ 
+          − dev.startDetached                                      ▤▦⚙ if async 
+          − ƒ start
+          − ↯ return err                                                    err 
+          ~ fmt.Sprintf                            moved into loop, into branch 
+          ~ strings.Join                                              reordered 
+          − os.WriteFile                                                      ▦ 
+          − ↯ return fmt.Errorf("started %q as pid %d, …)                   err 
+
+ ▸ Init
+   internal/ui/model.go:411
+      ui.Model.load                                                          if 
+        ƒ load                                                    async 2 impls 
+        ~ Read › dev.Reader.Apply                                            if 
+          + dev.Reader.devUp                               ▤⚙⧗ ↻ new · 9 frames 
+          − dev.Reader.applyUp                                             ▤⚙ ↻ 
+          + dev.Reader.read                                 ▤ ↻ new · 29 frames 
+          + dev.plan.readyCheck                             ↻ if new · 3 frames 
+          + dev.plan.anyMainPort                               ↻ new · 2 frames 
+          ~ dev.Prober.Listening                                      reordered 
+          + dev.Prober.Ready                                  ⇄⧗ new · 4 frames 
+          + dev.Reader.fill                            ▤⚙⧗ ↻ if new · 20 frames 
+          − dev.Reader.servers                                              ▤ ↻ 
+          ~ deck.AppendLink                                   moved into branch 
+ ⋯ 43 more flows · 0 reach it only through shared frames
+
+ Blast radius ▸ dev.Store.Lock                                          2 flows 
+  ↑ dev.Reader.forget                                                   changed 
+    ↑ dev.Reader.Stop                                                   changed 
+      ↑ herdr-deck.run$StopDev                                          changed 
+        ↑ ui.Model.stopDev                                              changed 
+          ◆ handleKey ▸ key DevStop                                     changed 
+  ↑ dev.Reader.startRecorded                                            changed 
+    ↑ dev.Reader.Up                                                     changed 
+      ↑ herdr-deck.run$StartDev                                         changed 
+        ↑ ui.Model.startDev                                             changed 
+          ◆ handleKey ▸ key DevUp
+    ↑ dev.Reader.upCommand                                              changed 
+      ↑ dev.Reader.Up                                                   changed 
+
+── width 120 ─────────────────────────────────────────────────────────────────────────────────────────────────────────
+ Look here first                                                                                  150 frames · 46 flows 
+ 1 + dev.Store.Lock                            +▤ fs read, ▦ fs write, ⚙ exec, ◷ sleep, $ env · ↻ 8 blocking c… 2 flows 
+ 2 + dev.Reader.fill                           +▤ fs read, ⚙ exec, ⧗ lock · ↻ 3 blocking call in a loop         6 flows 
+ 3 + dev.Reader.Stop                           +▤ fs read, ▦ fs write, ⚙ exec, ⧗ lock, ◷ sleep, $ env · ↻ 4 blo… 1 flow 
+ 4 ~ dev.Reader.Up                             +◷ sleep · −5 error path · 5 call moved in/out of a branch · ↻ 4… 1 flow 
+ 5 + dev.Reader.upCommand                      +▤ fs read, ▦ fs write, ⚙ exec, ⇄ network, ⧗ lock, ◷ sleep, $ en… 1 flow 
+ 6 ~ dev.Reader.Apply                          2 call moved in/out of a branch · ↻ 3 blocking call in a loop    6 flows 
+ 7 + dev.Reader.stopProcess                    +⚙ exec, ⧗ lock, ◷ sleep · ↻ 4 blocking call in a loop            1 flow 
+ 8 + dev.Reader.waitReady                      +▤ fs read, ⚙ exec, ⇄ network, ⧗ lock · ↻ 3 blocking call in a l… 1 flow 
+   ⋯ 130 more · ≈ 12 refactors collapsed
+
+ ▸ handleKey ▸ key DevStop
+   internal/ui/model.go:972
+    + ui.Model.stopDev                                                                            ▤▦⚙⧗◷ new · 63 frames 
+
+ ▸ handleKey ▸ key DevUp
+   internal/ui/model.go:970
+    ~ ui.Model.startDev                                                                                              +◷ 
+      + ui.Model.devThread                                                                                          new 
+      − ui.Model.selected
+      − ui.row.thread
+      ≈ ƒ start                                                                                                +◷ async 
+        ~ dev.Reader.Up                                                                                              +◷ 
+          + dev.Reader.prepare                                                                        ▤ new · 29 frames 
+          ~ ↯ return err                                                                      moved out of error branch 
+          + dev.Reader.claim                                                                                      ⧗ new 
+          + dev.Reader.release                                                                              ⧗ defer new 
+          + manifest.Manifest.DefaultGroup                                                                          new 
+          + manifest.Manifest.Command                                                                               new 
+          + manifest.Found.Short                                                                                 if new 
+          − ↯ return errors.New("no worktree on this ro…)                                                            if 
+          − dev.FindManifest                                                                                          ▤ 
+          + dev.Reader.upCommand                                                              ▤▦⚙⇄⧗◷ if new · 29 frames 
+          + manifest.Manifest.StartOrder                                                                 new · 2 frames 
+          + manifest.Manifest.Service                                                                             ↻ new 
+          + manifest.Found.Short                                                                                 if new 
+          − dev.shortPath                                                                                            if 
+          − ↯ return fmt.Errorf("%s: %w")                                                                            if 
+          − dev.shortPath                                                                                            if 
+          + dev.Reader.store                                                                                        new 
+          + manifest.Manifest.Service                                                                             ↻ new 
+          + manifest.Manifest.Service                                                                             ↻ new 
+          + dev.Reader.waitReady                                                                 ▤⚙⇄⧗ ↻ new · 15 frames 
+          + manifest.Manifest.Service                                                                          ↻ if new 
+          − ↯ return errors.New("no folder for logs: $H…)                                                            if 
+          − sync.Mutex.Lock                                                                                           ⧗ 
+          − dev.Prober.Listening                                                                                     ⇄⧗ 
+          + manifest.Manifest.Service                                                                          ↻ if new 
+          + dev.Reader.serviceLog                                                                   ↻ if new · 7 frames 
+          + dev.tilde                                                                                          ↻ if new 
+          ~ fmt.Sprintf                                                                                 moved into loop 
+          + dev.Reader.ready                                                                     ▤⚙⇄⧗ ↻ new · 14 frames 
+          + dev.Reader.serviceCommand                                                               ▤ ↻ new · 10 frames 
+          − dev.Reader.upFiles
+          − dev.readPID                                                                                               ▤ 
+          − dev.Reader.alive                                                                                          ⚙ 
+          ~ fmt.Sprintf                                                              moved into loop, into error branch 
+          + dev.Reader.startRecorded                                                            ▤▦⚙⧗◷ ↻ new · 13 frames 
+          − dev.vars.expand
+          − os.MkdirAll                                                                                               ▦ 
+          − dev.startDetached                                                                              ▤▦⚙ if async 
+          − ƒ start
+          − ↯ return err                                                                                            err 
+          ~ fmt.Sprintf                                                                    moved into loop, into branch 
+          ~ strings.Join                                                                                      reordered 
+          − os.WriteFile                                                                                              ▦ 
+          − ↯ return fmt.Errorf("started %q as pid %d, …)                                                           err 
+
+ ▸ Init
+   internal/ui/model.go:411
+      ui.Model.load                                                                                                  if 
+        ƒ load                                                                                            async 2 impls 
+        ~ Read › dev.Reader.Apply                                                                                    if 
+          + dev.Reader.devUp                                                                       ▤⚙⧗ ↻ new · 9 frames 
+          − dev.Reader.applyUp                                                                                     ▤⚙ ↻ 
+          + dev.Reader.read                                                                         ▤ ↻ new · 29 frames 
+          + dev.plan.readyCheck                                                                     ↻ if new · 3 frames 
+          + dev.plan.anyMainPort                                                                       ↻ new · 2 frames 
+          ~ dev.Prober.Listening                                                                              reordered 
+          + dev.Prober.Ready                                                                          ⇄⧗ new · 4 frames 
+          + dev.Reader.fill                                                                    ▤⚙⧗ ↻ if new · 20 frames 
+          − dev.Reader.servers                                                                                      ▤ ↻ 
+          ~ deck.AppendLink                                                                           moved into branch 
+ ⋯ 43 more flows · 0 reach it only through shared frames
+
+ Blast radius ▸ dev.Store.Lock                                                                                  2 flows 
+  ↑ dev.Reader.forget                                                                                           changed 
+    ↑ dev.Reader.Stop                                                                                           changed 
+      ↑ herdr-deck.run$StopDev                                                                                  changed 
+        ↑ ui.Model.stopDev                                                                                      changed 
+          ◆ handleKey ▸ key DevStop                                                                             changed 
+  ↑ dev.Reader.startRecorded                                                                                    changed 
+    ↑ dev.Reader.Up                                                                                             changed 
+      ↑ herdr-deck.run$StartDev                                                                                 changed 
+        ↑ ui.Model.startDev                                                                                     changed 
+          ◆ handleKey ▸ key DevUp
+    ↑ dev.Reader.upCommand                                                                                      changed 
+      ↑ dev.Reader.Up                                                                                           changed 
+
+── external calls the rule table doesn't know (changed frames):

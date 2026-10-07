@@ -1,0 +1,101 @@
+── width 80 ──────────────────────────────────────────────────────────────────
+ Look here first                                            1 frames · 39 flows 
+ 1 ⚠ ui.Model.diffThread                                               39 flows 
+      +▤ fs read · blocks UI (▤) in 38 flows · ↻ 1 blocking call in a loop
+
+ ▸ Update ▸ diffMsg                                                 sync ⧗ → ▤⧗ 
+   internal/ui/model.go:527
+   via ◇ curTab, diff, layout, diffThread
+      ui.Model.readDiff                                                      if 
+      ~ ui.Model.diffThread                                                +▤ ◇ 
+
+ ▸ Update ▸ snapshotMsg                                             sync ⧗ → ▤⧗ 
+   internal/ui/model.go:516
+   via ◇ ensureVisible, curTab, diff, layout, diffThread
+    ~ readDiff › ui.Model.diffThread                                       +▤ ◇ 
+ ⋯ 31 more flows · 6 reach it only through shared frames
+
+ ◇ ~ ui.Model.diffThread                                     shared by 39 flows 
+   internal/ui/model.go:624
+    + os.ReadFile                                                        ▤ ↻ if 
+
+ ◇   ui.Model.curTab                                         shared by 39 flows 
+   internal/ui/card.go:177
+      ui.Model.tabEnabled                                                    +▤ 
+      ~ ui.Model.diffThread                                             +▤ if ↑ 
+
+ Blast radius ▸ ui.Model.diffThread                                    39 flows 
+  ↑ ui.Model.diff
+    ↑ ui.Model.act
+      ↑ ui.Model.handleClick
+        ◆ Update ▸ tea.MouseClickMsg
+    ↑ ui.Model.filesOnlyKey
+      ↑ ui.Model.handleKey
+        ◆ Update ▸ tea.KeyPressMsg
+    ↑ ui.Model.filesTab
+      ↑ ui.Model.rowDrawer
+        ↑ ui.Model.drawerFor
+          ↑ ui.Model.layout
+            ↑ ui.Model.barTo
+              ⋯
+            ↑ ui.Model.ensureVisible
+              ⋯
+            ↑ ui.Model.followSetting
+              ⋯
+            ↑ ui.Model.handleClick
+            ⋯ 9 more callers
+        ↑ ui.Model.layout
+    ↑ ui.Model.previewFile
+      ↑ ui.Model.previewLines
+        ↑ ui.Model.render
+          ◆ View
+      ↑ ui.Model.previewing
+        ↑ ui.Model.readPatch
+          ◆ Update ▸ commitFilesMsg
+          ◆ Update ▸ commitsMsg
+          ◆ Update ▸ diffMsg
+          ◆ Update ▸ patchMsg
+          ⋯ 2 more callers
+        ↑ ui.Model.syncPreview
+          ◆ Update ▸ commitFilesMsg
+          ◆ Update ▸ commitsMsg
+          ◆ Update ▸ diffMsg
+          ◆ Update ▸ snapshotMsg
+          ⋯ 2 more callers
+        ↑ ui.Model.togglePreview
+          ↑ ui.Model.commitsOnlyKey
+            ↑ ui.Model.handleKey
+          ↑ ui.Model.filesOnlyKey
+          ↑ ui.Model.previewCommit
+            ↑ ui.Model.act
+            ↑ ui.Model.handleKey
+          ↑ ui.Model.previewCommitFile
+            ↑ ui.Model.act
+          ⋯ 1 more callers
+      ↑ ui.Model.readPatch
+    ⋯ 3 more callers
+  ↑ ui.Model.diffKeyPressed
+    ◆ handleKey ▸ key Diff
+  ↑ ui.Model.readDiff
+    ◆ Update ▸ diffMsg
+    ◆ Update ▸ snapshotMsg
+    ↑ ui.Model.followDiff
+      ◆ Update ▸ tea.KeyPressMsg
+      ◆ Update ▸ tea.MouseClickMsg
+      ◆ Update ▸ tea.MouseWheelMsg
+  ↑ ui.Model.tabEnabled
+    ↑ ui.Model.act
+    ↑ ui.Model.curTab
+      ↑ ui.Model.commitsOnlyKey
+      ↑ ui.Model.cycleTab
+        ◆ handleKey ▸ key Focus
+        ◆ handleKey ▸ key NextTab
+        ◆ handleKey ▸ key PrevTab
+        ◆ handleKey ▸ key Unfocus
+      ↑ ui.Model.diffKeyPressed
+      ↑ ui.Model.filesOnlyKey
+      ⋯ 14 more callers
+    ↑ ui.Model.cycleTab
+    ↑ ui.Model.tabBar
+      ↑ ui.Model.rowDrawer
+
