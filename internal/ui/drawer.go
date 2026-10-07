@@ -73,6 +73,10 @@ const (
 	actCheck              // show the log of the PR's check n
 	actComment            // open the PR tab's comment n on GitHub
 	actFold               // expand or collapse the PR tab's comment n
+	actFinding            // the Impact tab's finding n
+	actFindMore           // show all of the Impact tab's findings, or fewer
+	actBox                // the Impact canvas's box n (impactLayout.boxes)
+	actSite               // the Impact detail's site n (impactLayout.sites)
 )
 
 type action struct {
@@ -145,6 +149,8 @@ type drawer struct {
 
 	sections []section
 	stops    []stop
+	// impact is what the Impact tab drew, for its keys and clicks.
+	impact *impactLayout
 	// cur is the stop the drawer cursor is on, or -1; given is how many
 	// stops the builder handed out so far.
 	cur, given int
@@ -514,6 +520,8 @@ var helpLines = [][2]string{
 	{"Files", "↵, a digit or a click previews a file; in the focused drawer d opens it in the diff tool; a opens the whole diff there"},
 	{"Commits", "the branch's commits since its base, newest first: ↵, a digit or a click previews one as git show does; in the focused drawer d opens the commit in the diff tool and g in the PR on GitHub; a opens the whole diff"},
 	{"Impact", "what the branch did to the repository's shape: Look here first (upward and layer-skipping imports, cycles, new dependencies, env, HTTP, SQL and exec touchpoints, API changes), then the changed packages as nested boxes, each changed import a number on its boxes' borders (! upward or skipping a layer) listed in the legend; z gives it the full height"},
+	{"j k h l ←↓↑→", "in the focused Impact tab: move through the findings, then from box to box on the canvas (the nearest box that way), then the selected box's detail; the selected box's imports are drawn as lines and the rest dims. ↵ shows a finding's or import's line in the diff preview, a box's first changed file; a click selects, a second click opens"},
+	{"O", "open the Impact view of the row's thread in a herdr pane of its own, zoomed to the whole tab; q closes it"},
 	{"space → l", "in the focused Commits tab: expand the commit to the files it changed (space again, ← or h collapses it; a click on ▸ / ▾ too); ↵ or a click on a file previews its change in that commit, d opens it in the diff tool"},
 	{"J K", "scroll the preview a line; pgup pgdn a page, the wheel over it three lines"},
 	{"S", "switch the preview between unified and split (old on the left, new on the right); diff.layout picks the start; a pane under 100 columns shows unified"},

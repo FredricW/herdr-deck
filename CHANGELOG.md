@@ -23,6 +23,13 @@ and versions follow [Semantic Versioning](https://semver.org/).
   reload costs almost nothing. A repository can declare its layers in
   `.config/dev.json` under `x-herdr-deck.architecture`; the new `[arch]`
   settings turn the tab off (`enabled`) or count test files (`tests`).
+- Select a box on the Impact tab's canvas: `tab`, then `j`/`k` through
+  *Look here first* and the arrows or `hjkl` from box to box, or a click.
+  The selected box's imports are drawn as lines in their colours (`┄` for
+  a removed one) and its detail lists them with their files and lines,
+  its API changes, touchpoints and files; `↵` shows the line in the diff
+  preview. `O` opens the Impact view in a herdr pane of its own, zoomed to
+  the whole tab (`herdr-deck arch`); `q` closes it.
 
 ## [0.1.7] - 2026-10-07
 

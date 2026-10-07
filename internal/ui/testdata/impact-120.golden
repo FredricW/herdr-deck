@@ -20,17 +20,17 @@
  Users page                                                                                           ● needs you  ~95%
  webshop · t-0002-members-admin-users                                                                        ▰▰▰▰▰▰▰▰▰▱
 
-  Overview   Files 8   Commits   Impact 10   Log 7                                                            ↓ 20 more
+  Overview   Files 8   Commits   Impact 9   Log 7                                                             ↓ 15 more
 
- 10 to look at  ✕ 1 upward  ↻ 1 cycle  ⚠ 1 skip  edges +3 −0 ~3                           vs origin/main · TypeScript  ┃
- 1 ✕ format → admin/users  upward                                                                          dates.ts:1  ┃
- 2 ↻ src/format → src/admin → src/format  new cycle                                                        dates.ts:1  ┃
- 3 ⚠ admin/users → db  skips api                                                                      UsersPage.tsx:2  │
- 4 + http api.example.com  in api                                                                          users.ts:3  │
+ 9 to look at  ✕ 1 upward  ↻ 1 cycle  ⚠ 1 skip  edges +3 −0 ~3                            vs origin/main · TypeScript  ┃
+ 1 ✕ api → admin/users  upward                                                                             users.ts:2  ┃
+ 2 ↻ src/api → src/admin → src/api  new cycle                                                              users.ts:2  ┃
+ 3 ⚠ admin/users → db  skips api                                                                      UsersPage.tsx:2  ┃
+ 4 + http api.example.com  in api                                                                          users.ts:4  │
  5 + dep @tanstack/react-table 8.21.3  dependency                                                                      │
- ⋯ 5 more                                                                                                              │
+ ⋯ 4 more · ↵ shows all                                                                                                │
                                                                                                                        │
- ┌─ webshop ────────────────────────────────────────────────────────────────┐  1 format ─▸ admin/users  ✕ upward       │
+ ┌─ webshop ────────────────────────────────────────────────────────────────┐  1 api ─▸ admin/users  ✕ upward          │
  │                                                                          │  2 admin/users ─▸ db  ⚠ skips api        │
 ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
- pgdn scroll  z full height  tab focus  [ ] tab  ? help                                                           v9.9.9
+ tab select boxes  O own pane  z full height  [ ] tab  ? help                                                     v9.9.9

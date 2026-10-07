@@ -17,6 +17,7 @@ type keyMap struct {
 	Settings       key.Binding
 	News           key.Binding
 	Projects       key.Binding
+	ImpactPane     key.Binding
 	Check          key.Binding
 	NextTab        key.Binding
 	PrevTab        key.Binding
@@ -50,14 +51,16 @@ func defaultKeys() keyMap {
 		Settings:  key.NewBinding(key.WithKeys("s")),
 		News:      key.NewBinding(key.WithKeys("w")),
 		Projects:  key.NewBinding(key.WithKeys("p")),
-		Check:     key.NewBinding(key.WithKeys("c")),
-		NextTab:   key.NewBinding(key.WithKeys("]")),
-		PrevTab:   key.NewBinding(key.WithKeys("[")),
-		Focus:     key.NewBinding(key.WithKeys("tab")),
-		Unfocus:   key.NewBinding(key.WithKeys("shift+tab")),
-		PageDown:  key.NewBinding(key.WithKeys("pgdown", "ctrl+d")),
-		PageUp:    key.NewBinding(key.WithKeys("pgup", "ctrl+u")),
-		Back:      key.NewBinding(key.WithKeys("esc")),
-		Quit:      key.NewBinding(key.WithKeys("q", "ctrl+c")),
+		// O opens the Impact view in a pane of its own; o is localhost.
+		ImpactPane: key.NewBinding(key.WithKeys("O")),
+		Check:      key.NewBinding(key.WithKeys("c")),
+		NextTab:    key.NewBinding(key.WithKeys("]")),
+		PrevTab:    key.NewBinding(key.WithKeys("[")),
+		Focus:      key.NewBinding(key.WithKeys("tab")),
+		Unfocus:    key.NewBinding(key.WithKeys("shift+tab")),
+		PageDown:   key.NewBinding(key.WithKeys("pgdown", "ctrl+d")),
+		PageUp:     key.NewBinding(key.WithKeys("pgup", "ctrl+u")),
+		Back:       key.NewBinding(key.WithKeys("esc")),
+		Quit:       key.NewBinding(key.WithKeys("q", "ctrl+c")),
 	}
 }

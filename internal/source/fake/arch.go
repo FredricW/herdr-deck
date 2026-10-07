@@ -13,7 +13,8 @@ import (
 // webshop's shape, read from the files below as the deck reads a real
 // repository. It matches the Files sample: UsersPage changed, UsersTable
 // is new, UsersList is gone, stats.ts became overview.ts and the users API
-// changed. Other threads changed nothing.
+// changed (plus package.json, for the new dependency). Other threads
+// changed nothing.
 func Arch(_ context.Context, t deck.Thread) *arch.Result {
 	if t.ID != "t-0002" {
 		return &arch.Result{Base: "origin/main", Note: "no changes to the shape"}
@@ -93,7 +94,9 @@ export function fetchMembers() { return get('/members') }
 	"src/ui/Button.tsx":     "export function Button(...args: unknown[]) { return args }\n",
 	"src/format/numbers.ts": "export function formatCount(n: number) { return String(n) }\n",
 	"src/format/dates.ts":   "export function formatDate(d: Date) { return d.toISOString() }\n",
-	"src/db/index.ts":       "export function query(sql: string) { return sql }\n",
+	"src/db/index.ts": `export function query(sql: string) { return sql }
+export function userCounts() { return 0 }
+`,
 }
 
 // webshopChange is t-0002's branch: files it adds or changes, and "" for
@@ -122,15 +125,11 @@ export function UsersTable(users: unknown, overview: unknown) {
 	"src/admin/users/overview.ts": `import { formatCount } from '@/format/numbers'
 export function overview(data: unknown, counts: number) { return formatCount(counts) + String(data) }
 `,
+	// The API reaching up into a page for a helper: the upward edge, and
+	// with the pages' imports of the API, a cycle.
 	"src/api/users.ts": `import { get } from './client'
+import { overview } from '@/admin/users/overview'
 export function fetchUsers(limit?: number) { return get('/users?limit=' + limit) }
-export function fetchOverview() { return fetch("https://api.example.com/admin/users/overview") }
-`,
-	// A shared helper reaching up into a page: the upward edge.
-	"src/format/dates.ts": `import { overview } from '@/admin/users/overview'
-export function formatDate(d: Date) { return d.toISOString() + overview(null, 0) }
-`,
-	"src/db/index.ts": `export function query(sql: string) { return sql }
-export function userCounts() { return 0 }
+export function fetchOverview() { return overview(fetch("https://api.example.com/admin/users/overview"), 0) }
 `,
 }

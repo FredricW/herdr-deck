@@ -105,6 +105,14 @@ func (c Client) Focus(ctx context.Context, paneID string) error {
 // its shell, followed by Enter (methods pane.split and pane.send_input). The
 // new pane starts in cwd.
 func (c Client) RunInPane(ctx context.Context, target, cwd, line string) error {
+	return c.OpenPane(ctx, target, cwd, line, false)
+}
+
+// OpenPane is RunInPane that, with zoom set, also zooms the new pane to
+// the whole tab before typing (pane.zoom, mode on), so a view that wants
+// room gets it; herdr's zoom key gives the other panes back. A zoom that
+// fails leaves the pane as it is.
+func (c Client) OpenPane(ctx context.Context, target, cwd, line string, zoom bool) error {
 	var res struct {
 		Pane struct {
 			ID string `json:"pane_id"`
@@ -121,6 +129,9 @@ func (c Client) RunInPane(ctx context.Context, target, cwd, line string) error {
 	}
 	if res.Pane.ID == "" {
 		return errors.New("pane.split returned no pane id")
+	}
+	if zoom {
+		_ = c.call(ctx, "pane.zoom", map[string]any{"pane_id": res.Pane.ID, "mode": "on"}, nil)
 	}
 	return c.call(ctx, "pane.send_input", map[string]any{
 		"pane_id": res.Pane.ID,

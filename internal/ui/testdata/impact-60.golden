@@ -16,13 +16,13 @@
  Users page                               ● needs you  ~95%
  webshop · t-0002-members-admin-users            ▰▰▰▰▰▰▰▰▰▱
 
-  Overview   Files 8   Commits   Impact 10   Log… ↓ 34 more
+  Overview   Files 8   Commits   Impact 9   Log … ↓ 30 more
 
- 10 to look at  ✕ 1 upward  ↻ 1 cycle  ⚠ 1 skip  edges +…  ┃
- 1 ✕ format → admin/users  upward                          │
- 2 ↻ src/format → src/admin → src/format  new cycle        │
+ 9 to look at  ✕ 1 upward  ↻ 1 cycle  ⚠ 1 skip  edges +3…  ┃
+ 1 ✕ api → admin/users  upward                             │
+ 2 ↻ src/api → src/admin → src/api  new cycle              │
  3 ⚠ admin/users → db  skips api                           │
  4 + http api.example.com  in api                          │
  5 + dep @tanstack/react-table 8.21.3  dependency          │
 ────────────────────────────────────────────────────────────
- pgdn scroll  z full  [ ] tab  ? help                 v9.9.9
+ tab select  O pane  z full  [ ] tab                  v9.9.9

@@ -362,9 +362,23 @@ lists what the user chose.
   changed, red removed; `!` upward or skipping), counts (`▾N` `▴N`) past
   20; a legend beside the canvas from 110 columns, else below, with `─▸`
   for every status but removed `┄▸`. Uncommitted changes are left out.
-  Phase 2 (next PR): selecting boxes (arrows/hjkl spatially, clicks),
-  lines for the selected box's edges, a detail, `↵` to the code, and the
-  view in its own herdr pane.
+  The focused tab's cursor stops on the findings (each selects its box),
+  then the boxes in reading order, then the selected box's detail rows;
+  on a box the arrows and hjkl step to the nearest box that way (along
+  plus twice across, `canvas.step`). The selection redraws the same
+  geometry with a heavy border, routes its edges (changed ones, then
+  unchanged up to six) through free cells with a shortest-path search
+  (crossing a border or line costs extra; borders and earlier lines stay
+  whole; only the arrow point goes on the target's border), dims boxes
+  at no end, and swaps the legend for the detail. Canvases are cached by
+  result, width and selection (8). A click selects a box or finding and
+  a second click acts. `↵` opens the site in the diff preview at its line
+  (`previewGoto`: the patch line whose new, or old, number matches, three
+  rows of context above). `O` runs `exec herdr-deck arch --project <slug>
+  --thread <id>` in a pane split below the deck, focused and zoomed
+  (`pane.split`, `pane.zoom` mode on, `pane.send_input`); the pane
+  (`ui.ImpactPane`) reads the thread from herdr-projects' list and opens
+  files in the diff tool.
 - **Log tab.** The thread's timeline, newest first, one line per event:
   age (dim, right-aligned), a glyph in its colour, the text, and at 80
   columns the clock time (dim, with the weekday before today). Only what

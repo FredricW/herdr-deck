@@ -166,6 +166,7 @@ func (m *Model) syncPreview() {
 	}
 	m.relayoutPreview()
 	m.scrollPreview(0)
+	m.applyGoto()
 }
 
 // readPatch reads the previewed file's diff, again when force is set, else
