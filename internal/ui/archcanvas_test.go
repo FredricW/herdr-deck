@@ -401,3 +401,101 @@ func TestCanvasPkgAt(t *testing.T) {
 		t.Errorf("the root's corner: %v", got.path)
 	}
 }
+
+// threeInARow is a root with boxes a, b and c side by side; b sits
+// between a and c. gaps leaves free rows above and below them.
+func threeInARow(gaps bool) (*grid, map[string]*cbox, *canvas) {
+	box := func(p string, x, y, w, h int) *cbox {
+		return &cbox{path: p, name: p, pkg: true, impacted: true, x: x, y: y, w: w, h: h}
+	}
+	top, h, rootH := 2, 5, 9
+	if !gaps {
+		top, h, rootH = 1, 7, 9
+	}
+	a, b, c := box("a", 2, top, 8, h), box("b", 11, top, 8, h), box("c", 20, top, 8, h)
+	root := &cbox{path: ".", name: "repo", impacted: true, x: 0, y: 0, w: 30, h: rootH, children: []*cbox{a, b, c}}
+	g := newGrid(30, rootH)
+	g.drawBox(root, nil)
+	cv := &canvas{root: root, g: g}
+	return g, map[string]*cbox{"a": a, "b": b, "c": c}, cv
+}
+
+// lineCellsIn counts the line cells inside box b, borders included.
+func lineCellsIn(g *grid, b *cbox) int {
+	n := 0
+	for y := b.y; y < b.y+b.h; y++ {
+		for x := b.x; x < b.x+b.w; x++ {
+			if g.cells[y][x].kind == cellLine {
+				n++
+			}
+		}
+	}
+	return n
+}
+
+// A line from a to c goes around b along the gap rows, though through b
+// is shorter.
+func TestRouteAvoidsSiblings(t *testing.T) {
+	g, bx, cv := threeInARow(true)
+	if !g.route(bx["a"], bx["c"], arch.Added, cv.lineOf(bx["a"], bx["c"])) {
+		t.Fatal("no route")
+	}
+	if n := lineCellsIn(g, bx["b"]); n > 0 {
+		t.Errorf("the line runs through b (%d cells)", n)
+	}
+	arrows := 0
+	for y := range g.h {
+		for x := range g.w {
+			if isArrow(g.cells[y][x].r) {
+				arrows++
+				if g.cells[y][x].box != bx["c"] {
+					t.Errorf("an arrow on %s's border", g.cells[y][x].box.path)
+				}
+			}
+		}
+	}
+	if arrows != 1 {
+		t.Errorf("%d arrows", arrows)
+	}
+	// b's borders stay whole.
+	for y := bx["b"].y; y < bx["b"].y+bx["b"].h; y++ {
+		if r := g.cells[y][bx["b"].x].r; !strings.ContainsRune("┌│└", r) {
+			t.Errorf("b's left border has %q", r)
+		}
+	}
+}
+
+// When b walls the way from top to bottom, the line still goes through it,
+// leaving its borders whole.
+func TestRouteThroughASiblingWhenItMust(t *testing.T) {
+	g, bx, cv := threeInARow(false)
+	if !g.route(bx["a"], bx["c"], arch.Added, cv.lineOf(bx["a"], bx["c"])) {
+		t.Fatal("no route")
+	}
+	if n := lineCellsIn(g, bx["b"]); n == 0 {
+		t.Error("the line found another way, so this fixture tests nothing")
+	}
+	for y := bx["b"].y + 1; y < bx["b"].y+bx["b"].h-1; y++ {
+		for _, x := range []int{bx["b"].x, bx["b"].x + bx["b"].w - 1} {
+			if r := g.cells[y][x].r; r != '│' {
+				t.Errorf("b's border at %d,%d is %q", x, y, r)
+			}
+		}
+	}
+}
+
+// The boxes holding an end are the cheap ones to cross: the endpoints and
+// their ancestors, not their siblings.
+func TestLineOf(t *testing.T) {
+	c := newCanvas(sampleShop(), 120)
+	ui, store := c.boxes["internal/ui"], c.boxes["internal/source/store"]
+	allowed := c.lineOf(ui, store)
+	for _, p := range []string{"internal/ui", "internal/source/store", "internal/source", ".", "internal"} {
+		if b := c.boxes[p]; b != nil && !allowed[b] {
+			t.Errorf("%s is not allowed", p)
+		}
+	}
+	if b := c.boxes["internal/source/orders"]; b != nil && allowed[b] {
+		t.Error("a sibling is allowed")
+	}
+}

@@ -1,7 +1,9 @@
 package ui
 
 import (
+	"container/heap"
 	"fmt"
+	"math"
 	"path"
 	"slices"
 	"strings"
@@ -966,7 +968,7 @@ func (c *canvas) focus(r *arch.Result, sel string) (unrouted int) {
 	for _, e := range c.focusEdges(r, sel) {
 		from, to := c.boxes[e.From], c.boxes[e.To]
 		keep[from], keep[to] = true, true
-		if !c.g.route(from, to, e.Status) {
+		if !c.g.route(from, to, e.Status, c.lineOf(from, to)) {
 			unrouted++
 		}
 	}
@@ -981,6 +983,47 @@ func (c *canvas) focus(r *arch.Result, sel string) (unrouted int) {
 	return unrouted
 }
 
+// lineOf is the boxes a line from a to b may cross cheaply: the two and
+// every box holding either.
+func (c *canvas) lineOf(a, b *cbox) map[*cbox]bool {
+	allowed := map[*cbox]bool{a: true, b: true}
+	var visit func(n *cbox, path []*cbox)
+	visit = func(n *cbox, path []*cbox) {
+		path = append(path, n)
+		if n == a || n == b {
+			for _, p := range path {
+				allowed[p] = true
+			}
+		}
+		for _, k := range n.children {
+			visit(k, path)
+		}
+	}
+	visit(c.root, nil)
+	return allowed
+}
+
+// routeQueue is route's priority queue of grid states by cost.
+type routeQueue []routeItem
+
+type routeItem struct{ cost, i int }
+
+func (q routeQueue) Len() int { return len(q) }
+func (q routeQueue) Less(i, j int) bool {
+	if q[i].cost != q[j].cost {
+		return q[i].cost < q[j].cost
+	}
+	return q[i].i < q[j].i // ties by place, so routes are deterministic
+}
+func (q routeQueue) Swap(i, j int) { q[i], q[j] = q[j], q[i] }
+func (q *routeQueue) Push(x any)   { *q = append(*q, x.(routeItem)) }
+func (q *routeQueue) Pop() any {
+	old := *q
+	it := old[len(old)-1]
+	*q = old[:len(old)-1]
+	return it
+}
+
 func isArrow(r rune) bool { return strings.ContainsRune("▸▾◂▴", r) }
 
 // route draws one edge as an orthogonal line from the source box's border
@@ -989,7 +1032,15 @@ func isArrow(r rune) bool { return strings.ContainsRune("▸▾◂▴", r) }
 // stay straight. Borders and earlier lines stay whole: the line stops on
 // one side and goes on at the other. The only glyph it puts on a border
 // is its arrow point, on the target's. It reports whether a route exists.
-func (g *grid) route(from, to *cbox, status arch.Status) bool {
+//
+// The price has two tiers. Crossing the border of the source, the target
+// or a box holding either (allowed) costs a little; crossing the border
+// of any other box, into it or out of it, costs foreignCost, more than
+// the dearest route that crosses none (every state visited once at the
+// dearest step), so a line goes around siblings along the gaps between
+// boxes and runs through one only when nothing else connects. Such a line
+// is drawn the same way, the foreign box's borders left whole.
+func (g *grid) route(from, to *cbox, status arch.Status, allowed map[*cbox]bool) bool {
 	type state struct{ x, y, d int }
 	dx := []int{1, 0, -1, 0}
 	dy := []int{0, 1, 0, -1}
@@ -997,22 +1048,26 @@ func (g *grid) route(from, to *cbox, status arch.Status) bool {
 		c := g.cells[y][x]
 		return c.box == b && (c.kind == cellHoriz || c.kind == cellVert)
 	}
-	const inf = 1 << 30
+	const (
+		turnCost   = 2
+		borderCost = 6
+		lineCost   = 8
+	)
 	n := g.w * g.h * 4
+	foreignCost := n * (1 + turnCost + lineCost + borderCost)
 	dist := make([]int, n)
 	prev := make([]int32, n)
 	for i := range dist {
-		dist[i] = inf
+		dist[i] = math.MaxInt
 		prev[i] = -1
 	}
 	idx := func(s state) int { return (s.y*g.w+s.x)*4 + s.d }
-	// A bucketed queue: costs are small integers.
-	buckets := map[int][]state{}
+	q := &routeQueue{}
 	push := func(s state, c, p int) {
 		if c < dist[idx(s)] {
 			dist[idx(s)] = c
 			prev[idx(s)] = int32(p)
-			buckets[c] = append(buckets[c], s)
+			heap.Push(q, routeItem{cost: c, i: idx(s)})
 		}
 	}
 	for y := from.y; y < from.y+from.h; y++ {
@@ -1029,48 +1084,50 @@ func (g *grid) route(from, to *cbox, status arch.Status) bool {
 		}
 	}
 	end := -1
-	for c := 0; c < 8*(g.w+g.h)+200 && end < 0; c++ {
-		for len(buckets[c]) > 0 && end < 0 {
-			s := buckets[c][0]
-			buckets[c] = buckets[c][1:]
-			if dist[idx(s)] != c {
+	for q.Len() > 0 {
+		it := heap.Pop(q).(routeItem)
+		if it.cost != dist[it.i] {
+			continue
+		}
+		s := state{(it.i / 4) % g.w, (it.i / 4) / g.w, it.i % 4}
+		if onBorder(to, s.x, s.y) && it.cost > 0 {
+			end = it.i
+			break
+		}
+		for nd := range 4 {
+			if nd == (s.d+2)%4 {
 				continue
 			}
-			if onBorder(to, s.x, s.y) && c > 0 {
-				end = idx(s)
-				break
+			nx, ny := s.x+dx[nd], s.y+dy[nd]
+			if nx < 0 || ny < 0 || nx >= g.w || ny >= g.h {
+				continue
 			}
-			for nd := range 4 {
-				if nd == (s.d+2)%4 {
-					continue
-				}
-				nx, ny := s.x+dx[nd], s.y+dy[nd]
-				if nx < 0 || ny < 0 || nx >= g.w || ny >= g.h {
-					continue
-				}
-				cc := g.cells[ny][nx]
-				step := 1
-				if nd != s.d {
-					step += 2
-				}
-				switch cc.kind {
-				case cellText, cellCorner:
-					continue
-				case cellHoriz, cellVert:
-					if (cc.kind == cellHoriz) != (nd%2 == 1) {
-						continue // never run along a border
-					}
-					if cc.box != to {
-						step += 6
-					}
-				case cellLine:
-					if cc.lineH == (nd%2 == 0) {
-						continue // never share a line's run
-					}
-					step += 8
-				}
-				push(state{nx, ny, nd}, c+step, idx(s))
+			cc := g.cells[ny][nx]
+			step := 1
+			if nd != s.d {
+				step += turnCost
 			}
+			switch cc.kind {
+			case cellText, cellCorner:
+				continue
+			case cellHoriz, cellVert:
+				if (cc.kind == cellHoriz) != (nd%2 == 1) {
+					continue // never run along a border
+				}
+				switch {
+				case cc.box == to:
+				case allowed[cc.box]:
+					step += borderCost
+				default:
+					step += foreignCost
+				}
+			case cellLine:
+				if cc.lineH == (nd%2 == 0) {
+					continue // never share a line's run
+				}
+				step += lineCost
+			}
+			push(state{nx, ny, nd}, it.cost+step, it.i)
 		}
 	}
 	if end < 0 {

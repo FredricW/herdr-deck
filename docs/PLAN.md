@@ -369,7 +369,10 @@ lists what the user chose.
   geometry with a heavy border, routes its edges (changed ones, then
   unchanged up to six) through free cells with a shortest-path search
   (crossing a border or line costs extra; borders and earlier lines stay
-  whole; only the arrow point goes on the target's border), dims boxes
+  whole; only the arrow point goes on the target's border; crossing into
+  a box that is neither end nor holds one costs more than any route that
+  avoids such boxes, so lines go around siblings through the gaps and
+  through one only when nothing else connects), dims boxes
   at no end, and swaps the legend for the detail. Canvases are cached by
   result, width and selection (8). A click selects a box or finding and
   a second click acts. `↵` opens the site in the diff preview at its line
