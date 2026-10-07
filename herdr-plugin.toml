@@ -1,6 +1,6 @@
 id = "herdr-deck"
 name = "Deck"
-version = "0.1.6"
+version = "0.1.7"
 min_herdr_version = "0.9.3"
 description = "A status pane next to each herdr-projects coordinator: tasks, threads, links and dev servers."
 platforms = ["macos", "linux"]
