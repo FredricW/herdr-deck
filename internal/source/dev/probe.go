@@ -3,6 +3,7 @@ package dev
 import (
 	"context"
 	"net"
+	"net/http"
 	"strconv"
 	"sync"
 	"time"
@@ -23,12 +24,19 @@ type Prober struct {
 	// Dial connects to addr, or fails; nil uses a TCP dial with
 	// ProbeTimeout. Tests replace it.
 	Dial func(ctx context.Context, addr string) error
+	// Get asks for url and returns its HTTP status; nil uses a GET with
+	// HTTPTimeout. Tests replace it.
+	Get func(ctx context.Context, url string) (int, error)
 	// Now is the clock for the cache; nil means time.Now.
 	Now func() time.Time
 
 	mu    sync.Mutex
 	cache map[int]probe
+	http  map[check]probe
 }
+
+// HTTPTimeout bounds a readiness GET (spec section 6.1).
+const HTTPTimeout = 2 * time.Second
 
 type probe struct {
 	up bool
@@ -83,6 +91,96 @@ func (p *Prober) Listening(ctx context.Context, ports []int) map[int]bool {
 	}
 	p.mu.Unlock()
 	return out
+}
+
+// Ready runs the checks that ask over HTTP, in parallel, those not asked
+// in the last moment, and reports which answered 200–399. Checks without a
+// path are Listening's.
+func (p *Prober) Ready(ctx context.Context, checks []check) map[check]bool {
+	now := p.now()
+	out := map[check]bool{}
+	var todo []check
+	p.mu.Lock()
+	for _, c := range checks {
+		if _, dup := out[c]; dup || c.Path == "" || c.Port == 0 {
+			continue
+		}
+		if r, ok := p.http[c]; ok && now.Sub(r.at) < probeTTL {
+			out[c] = r.up
+			continue
+		}
+		out[c] = false
+		todo = append(todo, c)
+	}
+	p.mu.Unlock()
+	var wg sync.WaitGroup
+	var mu sync.Mutex
+	for _, c := range todo {
+		wg.Go(func() {
+			ok := p.ask(ctx, c)
+			mu.Lock()
+			out[c] = ok
+			mu.Unlock()
+		})
+	}
+	wg.Wait()
+	p.mu.Lock()
+	if p.http == nil {
+		p.http = map[check]probe{}
+	}
+	for _, c := range todo {
+		p.http[c] = probe{up: out[c], at: now}
+	}
+	p.mu.Unlock()
+	return out
+}
+
+// Check runs one check now, without the cache: while the deck waits for a
+// service to get ready.
+func (p *Prober) Check(ctx context.Context, c check) bool {
+	if c.Port == 0 {
+		return false
+	}
+	if c.Path != "" {
+		return p.ask(ctx, c)
+	}
+	for _, host := range []string{"127.0.0.1", "::1"} {
+		if p.dial(ctx, net.JoinHostPort(host, strconv.Itoa(c.Port))) == nil {
+			return true
+		}
+	}
+	return false
+}
+
+// ask GETs the check's path on 127.0.0.1, then on ::1.
+func (p *Prober) ask(ctx context.Context, c check) bool {
+	for _, host := range []string{"127.0.0.1", "[::1]"} {
+		url := "http://" + host + ":" + strconv.Itoa(c.Port) + c.Path
+		if code, err := p.get(ctx, url); err == nil && code >= 200 && code < 400 {
+			return true
+		}
+	}
+	return false
+}
+
+func (p *Prober) get(ctx context.Context, url string) (int, error) {
+	if p.Get != nil {
+		return p.Get(ctx, url)
+	}
+	ctx, cancel := context.WithTimeout(ctx, HTTPTimeout)
+	defer cancel()
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
+	if err != nil {
+		return 0, err
+	}
+	// Redirects count as an answer: 3xx is ready.
+	client := http.Client{CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }}
+	resp, err := client.Do(req)
+	if err != nil {
+		return 0, err
+	}
+	resp.Body.Close()
+	return resp.StatusCode, nil
 }
 
 func (p *Prober) dial(ctx context.Context, addr string) error {

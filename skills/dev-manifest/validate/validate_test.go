@@ -50,7 +50,9 @@ func TestErrors(t *testing.T) {
 	tests := []struct {
 		name, manifest, want string
 	}{
-		{"schema", `{"version": 2}`, "schema:"},
+		{"schema", `{"version": 1, "ports": "web"}`, "schema:"},
+		{"version", `{"version": 2}`, "version 2 is not supported"},
+		{"unknown key", `{"version": 1, "servcies": {}}`, "schema: unknown key servcies"},
 		{"unknown variable", `{"version": 1, "commands": {"x": "echo $HOME"}}`, "unknown variable $HOME"},
 		{"lone dollar", `{"version": 1, "commands": {"x": "echo $"}}`, "a lone $"},
 		{"undefined port", `{"version": 1, "links": [{"url": "http://localhost:$PORT_web"}]}`, `no port "web"`},

@@ -95,10 +95,12 @@ type Options struct {
 	// DiffTree starts the Files section in the tree view (diff.view =
 	// "tree"); d t switches views for the session.
 	DiffTree bool
-	// StartDev runs the dev manifest's `up` command for a thread's
-	// worktree and returns the line the footer shows. Tests replace it so
-	// no dev server is ever started.
+	// StartDev runs dev for a thread's worktree (the dev manifest's
+	// commands.dev, or its services) and returns the line the footer
+	// shows; StopDev stops what dev started. Tests replace them so no dev
+	// server is ever started.
 	StartDev func(t deck.Thread) (string, error)
+	StopDev  func(t deck.Thread) (string, error)
 	// Now is the clock for ages; Location the zone clock times show in.
 	Now      func() time.Time
 	Location *time.Location
@@ -162,6 +164,7 @@ type (
 	devUpMsg      struct {
 		status string
 		err    error
+		stop   bool
 	}
 	diffMsg struct {
 		key  string
@@ -213,6 +216,7 @@ type Model struct {
 	tree      bool          // the Files tab shows a folder tree
 	desktop   bool          // the Figma chooser opens the desktop app
 	status    string        // a one-off message in the footer
+	stopArmed string        // the thread U was pressed on once; a second U stops it
 	notice    string        // "Updated to …", until the first key or click
 
 	width, height int
@@ -556,9 +560,12 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case checkLogMsg:
 		m.setCheckLog(msg)
 	case devUpMsg:
-		if msg.err != nil {
+		switch {
+		case msg.err != nil && msg.stop:
+			m.status = "could not stop dev servers: " + msg.err.Error()
+		case msg.err != nil:
 			m.status = "could not start dev servers: " + msg.err.Error()
-		} else {
+		default:
 			m.status = msg.status
 		}
 		// The drawer shows the log and that the servers are starting.
@@ -872,6 +879,9 @@ func (m *Model) openDiff(t deck.Thread, d deck.Diff, f deck.DiffFile) tea.Cmd {
 
 func (m Model) handleKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	m.status, m.notice = "", ""
+	// U stops on the second press in a row, on the same thread.
+	armed := m.stopArmed
+	m.stopArmed = ""
 	if m.pick.open {
 		return m, m.pickerKey(msg)
 	}
@@ -959,6 +969,8 @@ func (m Model) handleKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		return m, m.openEditor()
 	case key.Matches(msg, m.keys.DevUp):
 		return m, m.startDev()
+	case key.Matches(msg, m.keys.DevStop):
+		return m, m.stopDev(armed)
 	case key.Matches(msg, m.keys.Diff):
 		return m, m.diffKeyPressed()
 	case key.Matches(msg, m.keys.Report):
@@ -1224,20 +1236,10 @@ func (m *Model) openEditor() tea.Cmd {
 	return func() tea.Msg { return openedMsg{what: tilde(path), err: open(path)} }
 }
 
-// startDev runs the dev manifest's `up` command for the selected thread's
-// worktree.
+// startDev runs dev for the selected thread's worktree.
 func (m *Model) startDev() tea.Cmd {
-	r, _ := m.selected()
-	t, ok := r.thread()
-	switch {
-	case r.kind != rowWork || !ok:
-		m.status = "no thread on this row"
-		return nil
-	case t.Worktree == "":
-		m.status = "no worktree on this row"
-		return nil
-	case t.Status == deck.StatusDone:
-		m.status = t.ID + " is done"
+	t, ok := m.devThread()
+	if !ok {
 		return nil
 	}
 	start := m.opt.StartDev
@@ -1250,6 +1252,48 @@ func (m *Model) startDev() tea.Cmd {
 		status, err := start(t)
 		return devUpMsg{status: status, err: err}
 	}
+}
+
+// stopDev stops what dev started in the selected thread's worktree, once U
+// is pressed a second time on it.
+func (m *Model) stopDev(armed string) tea.Cmd {
+	t, ok := m.devThread()
+	if !ok {
+		return nil
+	}
+	stop := m.opt.StopDev
+	if stop == nil {
+		m.status = "stopping dev servers is off"
+		return nil
+	}
+	if armed != t.ID {
+		m.stopArmed = t.ID
+		m.status = "press U again to stop " + t.ID + "'s dev servers"
+		return nil
+	}
+	m.status = "stopping " + t.ID + "'s dev servers…"
+	return func() tea.Msg {
+		status, err := stop(t)
+		return devUpMsg{status: status, err: err, stop: true}
+	}
+}
+
+// devThread is the selected row's thread, when u and U can act on it.
+func (m *Model) devThread() (deck.Thread, bool) {
+	r, _ := m.selected()
+	t, ok := r.thread()
+	switch {
+	case r.kind != rowWork || !ok:
+		m.status = "no thread on this row"
+		return t, false
+	case t.Worktree == "":
+		m.status = "no worktree on this row"
+		return t, false
+	case t.Status == deck.StatusDone:
+		m.status = t.ID + " is done"
+		return t, false
+	}
+	return t, true
 }
 
 // focusPane focuses the herdr pane of the selected row's thread.

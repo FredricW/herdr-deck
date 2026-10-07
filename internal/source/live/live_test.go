@@ -235,10 +235,10 @@ func TestReadDevServers(t *testing.T) {
 		t.Fatal(err)
 	}
 	wt := filepath.Join(root, "worktrees", "t-0001-users")
-	if err := os.MkdirAll(filepath.Join(wt, ".herdr-deck"), 0o755); err != nil {
+	if err := os.MkdirAll(filepath.Join(wt, ".config"), 0o755); err != nil {
 		t.Fatal(err)
 	}
-	write(t, filepath.Join(wt, ".herdr-deck", "dev.json"), `{"state": {"ports": {"web": 4321}}, "links": [{"title": "Web", "url": "http://localhost:$PORT_web"}]}`)
+	write(t, filepath.Join(wt, ".config", "dev.json"), `{"version": 1, "ports": {"web": 4321}, "links": [{"title": "Web", "url": "http://localhost:$PORT_web"}]}`)
 	toml := filepath.Join(proj, "threads", "t-0001.toml")
 	b, err := os.ReadFile(toml)
 	if err != nil {
@@ -250,7 +250,7 @@ func TestReadDevServers(t *testing.T) {
 	src.Dev = &dev.Reader{Prober: dev.Prober{Dial: func(context.Context, string) error { return nil }}}
 	snap := src.Read(context.Background())
 	t1 := snap.Threads[0]
-	if len(t1.DevServers) != 1 || t1.DevServers[0] != (deck.DevServer{Name: "web", Port: 4321, Running: true}) {
+	if len(t1.DevServers) != 1 || t1.DevServers[0] != (deck.DevServer{Name: "web", Title: "web", Port: 4321, Running: true}) {
 		t.Errorf("servers %+v", t1.DevServers)
 	}
 	if got := labels(t1.Links); !strings.Contains(strings.Join(got, ","), "localhost Web") {

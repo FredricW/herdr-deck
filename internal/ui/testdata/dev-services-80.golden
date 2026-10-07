@@ -1,27 +1,27 @@
  Admin rebuild                                               ◐ 2  ◇ 1  ○ 1  ✉ 0
 ────────────────────────────────────────────────────────────────────────────────
- Document select for summary                                           ◇ review
- webshop · t-0004-summary                                               #2320 ✓
+ Templates page                                                 ◐ working  ~40%
+ webshop · t-0003-templates · Writing tests                          ▰▰▰▰▱▱▱▱▱▱
 
-  Overview   Files   Commits   Log 6
+  Overview   Files   Commits   Log 3
 
- ── PR ──
- [5 #2320] open · review required · 2 comments (sam, alex)
- ✓ no failing checks
- checked 1m ago
+
  ── Links ──
- [1 ABC-1191] [2 Figma 598-48083] [3 1138-88367] [4 635-76529]
- ── Dev ──
- ● Frontend :5174
- ○ API :8002 exited
-   /var/state/dev-manifest/logs/t-0004-summary-1a2b3c4d/service.api.log
- [6 Frontend ●] [7 API docs ○]
- ── Thread ──
- thread   t-0004 · Summary select documents
- pane     w21:p1
- branch   hp/admin-rebuild/t-0004-summary
- base     origin/main
+ [1 ABC-1051] [2 Figma Templates]
 
+ ── Dev ──
+ ● Frontend :5181 /src/webshop/.dev/t-0003/logs/frontend.log
+ ◐ API :8011 starting… /src/webshop/.dev/t-0003/logs/api.log
+ ● Postgres :5441
+ · Worker /src/webshop/.dev/t-0003/logs/worker.log
+ ○ docs port store not supported yet
+ [3 Frontend ●]
+
+ ── Thread ──
+ thread   t-0003 · Templates /templates
+ pane     w20:p1
+ branch   hp/admin-rebuild/t-0003-templates
+ base     origin/main
 
 
 ────────────────────────────────────────────────────────────────────────────────

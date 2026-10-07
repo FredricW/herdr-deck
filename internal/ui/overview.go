@@ -90,14 +90,16 @@ func (m Model) overview(d *drawer, r row, links []deck.Link, h int) {
 	if hasDev || len(local.items) > 0 {
 		secs = append(secs, sec{name: "Dev", style: bold, body: func() {
 			if hasDev {
-				g := devGroup(t)
-				if narrow && g.sep == "   " {
-					g.sep = "  "
+				gs := devGroups(t)
+				for i := range gs {
+					if narrow && gs[i].sep == "   " {
+						gs[i].sep = "  "
+					}
 				}
 				if t.DevUp == nil && len(t.DevServers) == 0 && strings.HasPrefix(t.DevNote, "not started") {
-					g.items = append(g.items, span("·", dim), span("u starts it", dim))
+					gs[0].items = append(gs[0].items, span("·", dim), span("u starts it", dim))
 				}
-				d.flow(g)
+				d.flow(gs...)
 			}
 			g, _ := m.chips(d, links, prLink, func(l deck.Link) bool { return l.Kind == deck.LinkLocalhost })
 			d.flow(g)

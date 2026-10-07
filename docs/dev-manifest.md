@@ -1,7 +1,9 @@
 # Dev manifest, version 1
 
-Status: **approved** (2026-10-04). Nothing implements it yet; herdr-deck
-still reads `.herdr-deck/dev.json` (see the README's *Dev servers*).
+Status: **approved** (2026-10-04). herdr-deck implements lookup, ports
+from fixed numbers and state files, services, `dev` and `stop`, run records
+and logs; the port store, `start <service>`, other commands, seeding and
+drift come later (see the README's *Dev servers*).
 
 A dev manifest is a committed file, `.config/dev.json`, that tells any tool how
 to work a repository's checkout: which services it runs and on which ports,

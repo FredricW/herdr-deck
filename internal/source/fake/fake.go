@@ -126,10 +126,13 @@ func Snapshot(slug string, now time.Time) deck.Snapshot {
 					ev(now, 3*time.Hour, deck.EventLaunched, "launched in pane w20:p1", "", "threads/t-0003.toml"),
 					ev(now, 3*time.Hour+time.Minute, deck.EventCreated, "created from origin/main", "", "threads/t-0003.toml"),
 				},
+				// Services from a .config/dev.json whose ports the
+				// project's dev script writes in a state file.
 				DevServers: []deck.DevServer{
-					{Name: "frontend", Port: 5181, Running: true},
-					{Name: "api", Port: 8011, Running: true},
-					{Name: "pg", Port: 5441, Running: true},
+					{Name: "frontend", Title: "Frontend", Port: 5181, Running: true, Log: "/src/webshop/.dev/t-0003/logs/frontend.log"},
+					{Name: "api", Title: "API", Port: 8011, Running: true, Log: "/src/webshop/.dev/t-0003/logs/api.log"},
+					{Name: "pg", Title: "Postgres", Port: 5441, Running: true},
+					{Name: "worker", Title: "Worker", Log: "/src/webshop/.dev/t-0003/logs/worker.log"},
 				},
 				Links: []deck.Link{{Kind: deck.LinkLocalhost, Label: "Frontend", URL: "http://localhost:5181"}},
 			},
@@ -155,8 +158,8 @@ func Snapshot(slug string, now time.Time) deck.Snapshot {
 					{Kind: deck.LinkLocalhost, Label: "API docs", URL: "http://localhost:8002/docs", Down: true},
 				},
 				DevServers: []deck.DevServer{
-					{Name: "frontend", Port: 5174, Running: true},
-					{Name: "api", Port: 8002},
+					{Name: "frontend", Title: "Frontend", Port: 5174, Running: true},
+					{Name: "api", Title: "API", Port: 8002, Exited: true, Log: "/var/state/dev-manifest/logs/t-0004-summary-1a2b3c4d/service.api.log"},
 				},
 			},
 		},

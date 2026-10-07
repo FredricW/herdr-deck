@@ -210,6 +210,7 @@ func TestGolden(t *testing.T) {
 		{name: "sources-notes", snap: calm(), keys: keys("!")},
 		{name: "dev-starting", snap: starting(true)},
 		{name: "dev-exited", snap: starting(false)},
+		{name: "dev-services", snap: services(), keys: keys("jz")},
 	}
 	for _, c := range cases {
 		for _, w := range []int{80, 60} {
@@ -258,11 +259,26 @@ func starting(alive bool) deck.Snapshot {
 	return s
 }
 
+// services gives Templates page a service in every state.
+func services() deck.Snapshot {
+	s := calm()
+	for i := range s.Threads {
+		if s.Threads[i].ID != "t-0003" {
+			continue
+		}
+		srv := s.Threads[i].DevServers
+		srv[1].Running, srv[1].Starting = false, true
+		srv = append(srv, deck.DevServer{Name: "docs", Pending: "port store not supported yet"})
+		s.Threads[i].DevServers = srv
+	}
+	return s
+}
+
 func TestDevUpKeepsProblemNote(t *testing.T) {
 	s := starting(false)
 	s.Threads[1].DevNote = "worktree not found"
 	m, _ := newModel(t, s, 80, 40)
-	if sc := screen(m); !strings.Contains(sc, "worktree not found · up exited · see the log") {
+	if sc := screen(m); !strings.Contains(sc, "worktree not found · dev exited · see the log") {
 		t.Errorf("Dev line hides the problem:\n%s", sc)
 	}
 }
