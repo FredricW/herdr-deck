@@ -1,0 +1,36 @@
+ Admin rebuild                                                                        ● 1 needs you  ◐ 1  ◇ 1  ○ 1  ✉ 2
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+    WORK                                                                 THREAD  STATUS              PR      LINKS  DEV
+  Needs you
+ ▸● Users page                                                           t-0002  needs you                   L4
+
+  In progress
+  ◐ Templates page                                                       t-0003  Writing tests               L F    ●●●
+  ◇ Document select for summary                                          t-0004  review required     #2320   L F3   ●○
+
+  On hold until Monday 2026-10-05
+  ○ Subscriptions list                                                   t-0001  idle                        L N    ~○
+
+  + Backlog (3)
+
+
+
+
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+ Users page                                                                                           ● needs you  ~95%
+ webshop · t-0002-members-admin-users                                                                        ▰▰▰▰▰▰▰▰▰▱
+
+  Overview   Files 8   Commits   Impact 10   Log 7                                                            ↓ 20 more
+
+ 10 to look at  ✕ 1 upward  ↻ 1 cycle  ⚠ 1 skip  edges +3 −0 ~3                           vs origin/main · TypeScript  ┃
+ 1 ✕ format → admin/users  upward                                                                          dates.ts:1  ┃
+ 2 ↻ src/format → src/admin → src/format  new cycle                                                        dates.ts:1  ┃
+ 3 ⚠ admin/users → db  skips api                                                                      UsersPage.tsx:2  │
+ 4 + http api.example.com  in api                                                                          users.ts:3  │
+ 5 + dep @tanstack/react-table 8.21.3  dependency                                                                      │
+ ⋯ 5 more                                                                                                              │
+                                                                                                                       │
+ ┌─ webshop ────────────────────────────────────────────────────────────────┐  1 format ─▸ admin/users  ✕ upward       │
+ │                                                                          │  2 admin/users ─▸ db  ⚠ skips api        │
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+ pgdn scroll  z full height  tab focus  [ ] tab  ? help                                                           v9.9.9

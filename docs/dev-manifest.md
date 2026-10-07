@@ -826,6 +826,8 @@ services, commands in object form, links, `ready`, `state`, `env`, `detect`):
 - Settings that only make sense to one tool belong there: keyboard shortcuts,
   issue tracker teams, worktree folders, worktree creation and removal
   commands, database helpers.
+- herdr-deck reads `x-herdr-deck.architecture` (a repository's layers,
+  source roots and language) for its Impact tab; its README describes it.
 - A tool MUST NOT use `x-` keys to change the meaning of standard fields.
 - When two tools need the same extension, it should become a standard field
   in a later revision.

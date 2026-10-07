@@ -15,6 +15,7 @@ import (
 	"github.com/FredricW/herdr-deck/internal/changelog"
 	"github.com/FredricW/herdr-deck/internal/config"
 	"github.com/FredricW/herdr-deck/internal/deck"
+	"github.com/FredricW/herdr-deck/internal/source/arch"
 )
 
 // DefaultTick is how often the deck reloads when no file change says to.
@@ -76,6 +77,10 @@ type Options struct {
 	// CommitFilePatch reads one file's change in a commit for the preview.
 	// It runs off the UI goroutine.
 	CommitFilePatch func(ctx context.Context, t deck.Thread, sha string, f deck.DiffFile) deck.Patch
+	// Arch reads what a thread's branch did to its repository's shape,
+	// for the Impact tab. It runs off the UI goroutine when the selection
+	// moves to another thread and on every reload. Nil turns the tab off.
+	Arch func(context.Context, deck.Thread) *arch.Result
 	// OpenCommit opens the diff tool for commit sha of the worktree at
 	// path, for some files (a rename's old and new path) or, with none,
 	// the whole commit. Tests replace it so no diff tool is ever run.
@@ -244,6 +249,11 @@ type Model struct {
 	commitsSel   string                  // the diffKey last asked for
 	committing   bool                    // a Commits call is running
 	commitsAgain bool                    // the selection moved while it ran
+	archs        map[string]*arch.Result // the last architecture read, by diffKey
+	archSel      string                  // the diffKey last asked for
+	archReading  bool                    // an Arch call is running
+	archAgain    bool                    // the selection moved while it ran
+
 	// Expanded commits (by commitKey), their files once read, and the
 	// reads running.
 	expand         map[string]bool
@@ -301,6 +311,7 @@ func New(snap deck.Snapshot, opt Options) Model {
 		folds:          map[string]bool{},
 		diffs:          map[string]deck.Diff{},
 		commitLists:    map[string]deck.Commits{},
+		archs:          map[string]*arch.Result{},
 		expand:         map[string]bool{},
 		commitFileSets: map[string]commitFiles{},
 		filesReading:   map[string]bool{},
@@ -516,7 +527,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.loaded = true
 		m.SetSnapshot(deck.Snapshot(msg))
 		m.syncPreview()
-		diff := tea.Batch(m.readDiff(true), m.readCommits(true), m.readPatch(true), m.watchPR())
+		diff := tea.Batch(m.readDiff(true), m.readCommits(true), m.readArch(true), m.readPatch(true), m.watchPR())
 		if m.pending {
 			m.pending = false
 			return m, tea.Batch(m.refresh(), diff)
@@ -540,6 +551,8 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, tea.Batch(m.readCommits(true), m.readPatch(false))
 		}
 		return m, m.readPatch(false)
+	case archMsg:
+		return m, m.setArch(msg)
 	case commitFilesMsg:
 		m.setCommitFiles(msg)
 		m.syncPreview()
@@ -614,7 +627,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 // thread, and a patch read when the preview moved to another file.
 func (m Model) followDiff(cmd tea.Cmd) (tea.Model, tea.Cmd) {
 	m.syncPreview()
-	return m, tea.Batch(cmd, m.readDiff(false), m.readCommits(false), m.readPatch(false), m.watchPR())
+	return m, tea.Batch(cmd, m.readDiff(false), m.readCommits(false), m.readArch(false), m.readPatch(false), m.watchPR())
 }
 
 // diffThread is the selected row's thread whose worktree the Files section

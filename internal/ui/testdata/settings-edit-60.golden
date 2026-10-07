@@ -18,8 +18,8 @@
    updates.check           true                    default ┃
    updates.auto_restart    true                    default ┃
                                                            ┃
- [editor] what e opens                                     ┃
- ▸ editor.command          zed {x}                 file    ┃
+ [editor] what e opens                                     │
+ ▸ editor.command          zed {x}                 file    │
      what e opens a worktree with; {path} is the folder    │
      ✕ unknown placeholder {x}; use {path}                 │
      ↵ saves · esc cancels · empty removes it from the     │

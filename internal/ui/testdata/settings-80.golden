@@ -14,8 +14,8 @@
    linear.workspace        acme                                        file    ┃
    linear.status           true                                        default ┃
    linear.api_key_command  none                                        default ┃
-                                                                               ┃
- [github] pull requests                                                        ┃
+                                                                               │
+ [github] pull requests                                                        │
    github.enabled          true                                        default │
                                                                                │
  [figma] Figma links                                                           │

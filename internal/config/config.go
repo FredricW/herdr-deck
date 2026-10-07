@@ -54,6 +54,8 @@ const (
 	EnvDiffTerminal        = "HERDR_DECK_DIFF_TERMINAL"
 	EnvDiffView            = "HERDR_DECK_DIFF_VIEW"
 	EnvDiffLayout          = "HERDR_DECK_DIFF_LAYOUT"
+	EnvArchEnabled         = "HERDR_DECK_ARCH_ENABLED"
+	EnvArchTests           = "HERDR_DECK_ARCH_TESTS"
 	// EnvLinearAPIKey is internal/source/linear's: the key itself, which
 	// wins over linear.api_key_command.
 	EnvLinearAPIKey = "LINEAR_API_KEY"
@@ -133,6 +135,7 @@ type File struct {
 	Updates  *Updates  `toml:"updates"`
 	Editor   *Program  `toml:"editor"`
 	Diff     *Diff     `toml:"diff"`
+	Arch     *Arch     `toml:"arch"`
 	// Old names, by Spec.Key, the earlier flat key (Spec.Old) the file sets
 	// a setting under, such as linear_workspace. Shadowed are the settings
 	// the file also sets in their table: that value wins and the flat
@@ -200,6 +203,13 @@ type Diff struct {
 	Program
 	View   *string `toml:"view"`
 	Layout *string `toml:"layout"`
+}
+
+// Arch is the [arch] table: the Impact tab and how it reads a branch.
+type Arch struct {
+	Enabled *bool `toml:"enabled"`
+	// Tests counts test files in the package graphs.
+	Tests *bool `toml:"tests"`
 }
 
 // Duration is a TOML string such as "5s" or "1m30s".
@@ -361,6 +371,8 @@ func (f *File) decoders(md toml.MetaData) map[string]func(toml.Primitive) error 
 		KeyDiffTerminal:        into(md, &f.Diff, func(t *Diff) **bool { return &t.Terminal }),
 		KeyDiffView:            into(md, &f.Diff, func(t *Diff) **string { return &t.View }),
 		KeyDiffLayout:          into(md, &f.Diff, func(t *Diff) **string { return &t.Layout }),
+		KeyArchEnabled:         into(md, &f.Arch, func(t *Arch) **bool { return &t.Enabled }),
+		KeyArchTests:           into(md, &f.Arch, func(t *Arch) **bool { return &t.Tests }),
 	}
 }
 
@@ -480,6 +492,10 @@ type Settings struct {
 	// header, MinDrawerHeight to MaxDrawerHeight. A dragged height, kept in
 	// the state folder (DrawerFile), wins over it.
 	DrawerHeight float64
+	// ArchEnabled shows the Impact tab (internal/source/arch); ArchTests
+	// counts test files in its package graphs.
+	ArchEnabled bool
+	ArchTests   bool
 	// LinearAPIKeyCommand is the argv of the command that prints the Linear
 	// API key, or nil. $LINEAR_API_KEY wins over it (internal/source/linear).
 	LinearAPIKeyCommand []string
@@ -720,6 +736,23 @@ func Resolve(fl Flags, getenv func(string) string, lookPath func(string) (string
 		}
 		return f.Diff.Layout
 	}); err != nil {
+		return s, err
+	}
+
+	if s.ArchEnabled, err = resolveBool(r, KeyArchEnabled, func(f File) *bool {
+		if f.Arch == nil {
+			return nil
+		}
+		return f.Arch.Enabled
+	}, true); err != nil {
+		return s, err
+	}
+	if s.ArchTests, err = resolveBool(r, KeyArchTests, func(f File) *bool {
+		if f.Arch == nil {
+			return nil
+		}
+		return f.Arch.Tests
+	}, false); err != nil {
 		return s, err
 	}
 

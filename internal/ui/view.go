@@ -150,16 +150,16 @@ func (m Model) layout() frame {
 		// scrollbar: a blank one, so right-aligned text keeps clear of
 		// it, and the bar. It is laid out that narrow first, as most
 		// full views overflow, and again at the full width if it fits.
-		// A row's drawer says what is below in its tab bar; the PR tab,
-		// long like a report, gets a scrollbar too, beside its content
-		// only: the card and tab bar keep the full width.
+		// A row's drawer says what is below in its tab bar; the PR and
+		// Impact tabs, long like a report, get a scrollbar too, beside
+		// their content only: the card and tab bar keep the full width.
 		r, ok := m.selected()
 		switch {
 		case m.width < barMinWidth:
 		case m.mode != modeRow:
 			f.drawer = m.drawerFor(m.width-2, f.drawerH)
 			f.barred = f.drawerBar(0).shown()
-		case ok && r.kind == rowWork && m.curTab() == tabPR:
+		case ok && r.kind == rowWork && (m.curTab() == tabPR || m.curTab() == tabImpact):
 			f.drawer = m.rowDrawer(r, rowLinks(r), m.width, m.width-2, f.drawerH)
 			f.barred = f.drawerBar(0).shown()
 		}
@@ -806,6 +806,8 @@ func (m Model) rowHint(r row, narrow bool) string {
 				return "j k move  ↵ GitHub  space unfold  esc list"
 			}
 			return "j k move  ↵ on GitHub  space unfold  c check log  esc list  ? help"
+		case tabImpact:
+			return "j k scroll  z full height  tab next tab  esc list  ? help"
 		case tabLog:
 			return "j k event  ↵ act  tab next tab  esc list  ? help"
 		}
@@ -825,6 +827,10 @@ func (m Model) rowHint(r row, narrow bool) string {
 		return "1-9 commit  v preview  tab focus  [ ] tab"
 	case tab == tabCommits:
 		return "1-9 preview commit  v preview  tab focus  [ ] tab  ? help"
+	case tab == tabImpact && narrow:
+		return "pgdn scroll  z full  [ ] tab  ? help"
+	case tab == tabImpact:
+		return "pgdn scroll  z full height  tab focus  [ ] tab  ? help"
 	case tab == tabPR && narrow:
 		return "g GitHub  c log  tab focus  [ ] tab  z drawer"
 	case tab == tabPR:

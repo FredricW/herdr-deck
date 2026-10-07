@@ -13,8 +13,8 @@
  ▸ linear.workspace        acme                                        file    ┃
      Linear workspace that bare IDs such as ABC-123 link into; not needed      ┃
      with a Linear API key                                                     ┃
-     the file calls it linear_workspace, its earlier name; saving moves it     ┃
-     into [linear]                                                             ┃
+     the file calls it linear_workspace, its earlier name; saving moves it     │
+     into [linear]                                                             │
    linear.status           true                                        default │
    linear.api_key_command  none                                        default │
                                                                                │

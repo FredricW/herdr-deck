@@ -113,6 +113,10 @@ func (f File) values() map[string]string {
 		str(KeyDiffView, t.View)
 		str(KeyDiffLayout, t.Layout)
 	}
+	if t := f.Arch; t != nil {
+		boolean(KeyArchEnabled, t.Enabled)
+		boolean(KeyArchTests, t.Tests)
+	}
 	return out
 }
 
@@ -151,6 +155,8 @@ const (
 	KeyDiffTerminal        = "diff.terminal"
 	KeyDiffView            = "diff.view"
 	KeyDiffLayout          = "diff.layout"
+	KeyArchEnabled         = "arch.enabled"
+	KeyArchTests           = "arch.tests"
 )
 
 // Spec describes one setting: its names everywhere and how the settings
@@ -200,6 +206,7 @@ var Tables = []struct{ Name, Title string }{
 	{"updates", "new versions of the deck"},
 	{"editor", "what e opens"},
 	{"diff", "what d opens, and the Files tab"},
+	{"arch", "the Impact tab: what a branch did to the shape"},
 }
 
 // Specs are every setting, by table, in the settings page's order.
@@ -264,6 +271,12 @@ var Specs = []Spec{
 	{Key: KeyDiffLayout, Kind: KindChoice, Flag: "--diff-layout", Env: EnvDiffLayout, Choices: DiffLayouts,
 		Default: DiffLayoutUnified,
 		Help:    "the diff preview's layout at start: unified, or split (old left, new right); S switches"},
+	{Key: KeyArchEnabled, Kind: KindBool, Flag: "--arch-enabled", Env: EnvArchEnabled, Restart: true,
+		Default: "true",
+		Help:    "show the Impact tab: the package graphs of a thread's branch and its base, compared"},
+	{Key: KeyArchTests, Kind: KindBool, Flag: "--arch-tests", Env: EnvArchTests, Restart: true,
+		Default: "false",
+		Help:    "count test files in the Impact tab's package graphs"},
 }
 
 // SpecFor returns the spec of key.

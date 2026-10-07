@@ -37,6 +37,8 @@ func (m Model) rowDrawer(r row, links []deck.Link, width, inner, h int) *drawer 
 		m.filesTab(d)
 	case tabCommits:
 		m.commitsTab(d, r)
+	case tabImpact:
+		m.impactTab(d)
 	case tabPR:
 		m.prTab(d, r, links)
 	case tabLog:
@@ -100,15 +102,16 @@ func tabStyle(active, enabled, light bool) lipgloss.Style {
 // tabBar is the tab bar's line and its clickable tabs: each label with one
 // space of padding on its background, one space apart, and the hint at
 // the right, the whole bar one column in from either edge. PR is left out
-// on a row without one.
+// on a row without one, and Impact while it is off.
 func (m Model) tabBar(r row, hasThread bool, active tabKind, hint string, width int) (string, []zone) {
 	var b strings.Builder
 	var zones []zone
 	x := 1
 	for tab := range numTabs {
 		enabled := m.tabEnabled(r, tab)
-		// PR shows only for a thread with a PR; the others show dim.
-		if tab == tabPR && !enabled {
+		// PR shows only for a thread with a PR, and Impact only while
+		// it is on (arch.enabled); the others show dim.
+		if tab == tabPR && !enabled || tab == tabImpact && m.opt.Arch == nil {
 			continue
 		}
 		label := tab.String()
@@ -126,6 +129,8 @@ func (m Model) tabBar(r row, hasThread bool, active tabKind, hint string, width 
 				} else if _, ok := m.commitThread(); ok {
 					label += " …"
 				}
+			case tabImpact:
+				label = m.impactLabel()
 			case tabLog:
 				if t, ok := r.thread(); ok && hasThread {
 					label += " " + strconv.Itoa(len(t.Log))
@@ -162,6 +167,9 @@ func (m Model) tabEnabled(r row, tab tabKind) bool {
 	case tabCommits:
 		_, ok := r.thread()
 		return r.kind == rowWork && ok && m.opt.Commits != nil
+	case tabImpact:
+		_, ok := m.diffThread()
+		return ok && m.opt.Arch != nil
 	case tabPR:
 		t, ok := r.thread()
 		return r.kind == rowWork && ok && t.PR != nil

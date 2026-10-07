@@ -26,6 +26,7 @@ import (
 	"github.com/FredricW/herdr-deck/internal/plugin"
 	"github.com/FredricW/herdr-deck/internal/project"
 	"github.com/FredricW/herdr-deck/internal/restart"
+	"github.com/FredricW/herdr-deck/internal/source/arch"
 	"github.com/FredricW/herdr-deck/internal/source/dev"
 	"github.com/FredricW/herdr-deck/internal/source/diff"
 	"github.com/FredricW/herdr-deck/internal/source/fake"
@@ -158,6 +159,9 @@ func run(args []string) error {
 		opt.CommitPatch = fake.CommitPatch
 		opt.CommitFiles = fake.CommitFiles
 		opt.CommitFilePatch = fake.CommitFilePatch
+		if cfg.ArchEnabled {
+			opt.Arch = fake.Arch
+		}
 		// The sample's worktrees do not exist: e and d only say they opened.
 		opt.OpenEditor = func(string) error { return nil }
 		opt.OpenDiff = func(string, string, []string) error { return nil }
@@ -239,6 +243,10 @@ func run(args []string) error {
 	opt.CommitPatch = diffs.ReadCommitPatch
 	opt.CommitFiles = diffs.ReadCommitFiles
 	opt.CommitFilePatch = diffs.ReadCommitFilePatch
+	if cfg.ArchEnabled {
+		archs := &arch.Reader{Tests: cfg.ArchTests}
+		opt.Arch = archs.Read
+	}
 	opt.StartDev = func(t deck.Thread) (string, error) { return devs.Up(context.Background(), t) }
 	opt.StopDev = func(t deck.Thread) (string, error) { return devs.Stop(context.Background(), t) }
 	// Both switches can change while the deck runs, so the checks are
