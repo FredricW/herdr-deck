@@ -4,16 +4,16 @@
 
 ┌─ herdr-deck ────────▴──────────────────────────────────────────────────── ⋯2 ┐ selected: cmd/herdr-deck
 │                     │                                                        │ cmd/herdr-deck ━▸ source/github
-│ ┏━ ~ cmd/herdr-deck ┴━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓ │ cmd/herdr-deck ─▸ .  unchanged
-│ ┃ +28 −0                                                                   ├┐│ cmd/herdr-deck ─▸ config  unchanged
-│ ┗━━━━━━━━━━━┬━━━━━┬━━━━━━━━━━━━┬━━━━━━━┳━━━━━━━━━━━━━━━━━┬━━━━━━━━━━━━━━━━━┛││ cmd/herdr-deck ─▸ deck  unchanged
-│             │     │            │       ┃                 │                  ││ cmd/herdr-deck ─▸ source/fake  unchang…
-│ ┌─ internal ┼─────┼────────────┼───────╋─────────────────┼───────────── ⋯8 ┐││ cmd/herdr-deck ─▸ source/live  unchang…
-│ │           │     │            │       ┃                 │                 │││ cmd/herdr-deck ─▸ ui  unchanged
-│ │ ┌─ ~ ui ──▾────┐│┌─ source ──┼───────╋─────────────────┼─────────── ⋯6 ┐ │││ 2 more changed edges: select their box
-│ │ │ +539 −28     │││           │       ┃                 │               │ │││ 10 unchanged edges between shown boxes
-│ │ │ api +0 −0 ~1 │││ ┌─ ~ fake ▾────┐ ┌▾ + github ────┐ ┌▾ ~ live ─────┐ │ │││ + new ~ changed − gone ≡ moved in · $ …
-│ │ │              │││ │ +64 −0       │ │ +1007 −0      │ │ +16 −0       │ │ │││
+│ ┏━ ~ cmd/herdr-deck ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓ │ cmd/herdr-deck ═▸ source/fake  changed
+│ ┃ +28 −0                                                                   ┃┐│ cmd/herdr-deck ─▸ .  unchanged
+│ ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛││ cmd/herdr-deck ─▸ config  unchanged
+│                   │            ║       ┃                 │                  ││ cmd/herdr-deck ─▸ deck  unchanged
+│ ┌─ internal ─────────────────────────────────────────────────────────── ⋯8 ┐││ cmd/herdr-deck ─▸ source/live  unchang…
+│ │                 │            ║       ┃                 │                 │││ 4 more changed edges: select their box
+│ │ ┌─ ~ ui ───────┐│┌─ source ──────────────────────────────────────── ⋯6 ┐ │││ 7 unchanged edges between shown boxes
+│ │ │ +539 −28     │││           ║       ┃                 │               │ │││ 1 changed edges into folded packages
+│ │ │ api +0 −0 ~1 │││ ┌─ ~ fake ▾────┐ ┌▾ + github ────┐ ┌▾ ~ live ─────┐ │ │││ edges ━ added ┄ removed ═ changed ─ un…
+│ │ │              │││ │ +64 −0       │ │ +1007 −0      │ │ +16 −0       │ │ │││ + new ~ changed − gone ≡ moved in · $ …
 │ │ │              │││ │ api +2 −0 ~0 │ │ api +16 −0 ~0 │ │ api +0 −0 ~1 │ │ │││
 │ │ │              │││ │              │ │ » ◆1          │ │              │ │ │││
 │ │ │              │││ └──────────────┘ └───────────────┘ └──────────────┘ │ │││
@@ -21,7 +21,7 @@
 │ │ └──────────────┘│└─────────────────────────────────────────────────────┘ │││
 │ │                 │                                                        │││
 │ │ ┌─ ~ config ────▾──────────────────┐ ┌─ ~ deck ────────────────────────┐ │││
-│ │ │ +56 −0                           │ │ +152 −2                         ◂─┼┘│
+│ │ │ +56 −0                           │ │ +152 −2                         ◂─│┘│
 │ │ │ api +3 −0 ~2                     │ │ api +9 −0 ~1                    │ │ │
 │ │ └──────────────────────────────────┘ └─────────────────────────────────┘ │ │
 │ │                                                                          │ │

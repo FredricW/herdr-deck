@@ -9,7 +9,7 @@
 │ │ ┌─ ~ ui ───────────────┐ ┌─ source ──────────────────────────────── ⋯8 ┐ │ │
 │ │ │ +5 −0                │ │                                             │ │ │
 │ │ │                      │ │ ┏━ ~ diff ━━━━━━━━━━━━┓ ┌─ github ────────┐ │ │ │
-│ │ │                      ◂━╋━┫ +24 −0              ┃ │                 │ │ │ │
+│ │ │                      ◂━│━┃ +24 −0              ┃ │                 │ │ │ │
 │ │ │                      │ │ ┃ api +1 −0 ~0        ┃ │                 │ │ │ │
 │ │ │                      │ │ ┃ $⇄≣                 ┃ │                 │ │ │ │
 │ │ │                      │ │ ┗━━━━━━━━━━━━━━━━━━━━━┛ └─────────────────┘ │ │ │
@@ -23,4 +23,5 @@
  source/diff ━▸ ui  ✕ upward
  1 more changed edges: select their box
  0 unchanged edges between shown boxes
+ edges ━ added ┄ removed ═ changed ─ unchanged
  + new ~ changed − gone ≡ moved in · $ env ⇄ http ≣ sql » exec ▤ fs ⊢ flag ◆ dep

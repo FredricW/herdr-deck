@@ -10,6 +10,7 @@ import (
 	"go/token"
 	"path"
 	"regexp"
+	"slices"
 	"strconv"
 	"strings"
 )
@@ -29,6 +30,7 @@ type goFile struct {
 type imp struct {
 	path string
 	line int
+	uses string // what the file uses through it, sorted: "Snapshot Thread"; the edge's fingerprint
 }
 
 // decl is one top-level declaration: its key (kind, receiver, name), a
@@ -140,6 +142,29 @@ func parseGo(src []byte) *goFile {
 		}
 	}
 	g.touches = touches(fset, f, local, g.consts)
+	// What each import is used for: the selectors on its name.
+	used := map[string]map[string]bool{}
+	ast.Inspect(f, func(n ast.Node) bool {
+		if sel, ok := n.(*ast.SelectorExpr); ok {
+			if x, ok := sel.X.(*ast.Ident); ok {
+				if p, ok := local[x.Name]; ok {
+					if used[p] == nil {
+						used[p] = map[string]bool{}
+					}
+					used[p][sel.Sel.Name] = true
+				}
+			}
+		}
+		return true
+	})
+	for i, im := range g.imports {
+		var names []string
+		for n := range used[im.path] {
+			names = append(names, n)
+		}
+		slices.Sort(names)
+		g.imports[i].uses = strings.Join(names, " ")
+	}
 	return g
 }
 

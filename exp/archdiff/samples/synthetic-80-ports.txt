@@ -16,4 +16,5 @@
  1 source/diff ━▸ ui  ✕ upward
  2 ui ━▸ source/github
  0 unchanged edges between shown boxes
+ edges ━ added ┄ removed ═ changed ─ unchanged
  + new ~ changed − gone ≡ moved in · $ env ⇄ http ≣ sql » exec ▤ fs ⊢ flag ◆ dep

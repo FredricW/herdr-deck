@@ -5,6 +5,7 @@ import (
 	"bytes"
 	"fmt"
 	"io"
+	"os"
 	"os/exec"
 	"strconv"
 	"strings"
@@ -13,6 +14,7 @@ import (
 // git runs git in the repository and returns its output.
 func git(repo string, args ...string) ([]byte, error) {
 	cmd := exec.Command("git", append([]string{"-C", repo}, args...)...)
+	cmd.Env = append(os.Environ(), "GIT_OPTIONAL_LOCKS=0") // read only: never refresh the index
 	var stderr bytes.Buffer
 	cmd.Stderr = &stderr
 	out, err := cmd.Output()
@@ -57,6 +59,7 @@ type blobs struct {
 
 func openBlobs(repo string) (*blobs, error) {
 	cmd := exec.Command("git", "-C", repo, "cat-file", "--batch")
+	cmd.Env = append(os.Environ(), "GIT_OPTIONAL_LOCKS=0")
 	in, err := cmd.StdinPipe()
 	if err != nil {
 		return nil, err

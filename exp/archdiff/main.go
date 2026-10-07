@@ -29,11 +29,13 @@ func main() {
 	edges := flag.String("edges", "ports", "canvas edges: ports, lines or focus")
 	selected := flag.String("select", "", "canvas focus box (default: the riskiest edge's source)")
 	color := flag.Bool("color", false, "canvas in ANSI colours")
-	tests := flag.Bool("tests", false, "count _test.go files")
+	tests := flag.Bool("tests", false, "count test files")
+	language := flag.String("lang", "go", "go, or ts for TypeScript and JavaScript")
+	src := flag.String("src", "", "ts: only the files under this folder (e.g. frontend/src)")
 	timing := flag.Bool("time", false, "print timings to stderr")
 	flag.Parse()
 
-	c := canvasOpts{mode: edgeMode(*edges), selected: *selected, color: *color}
+	c := canvasOpts{mode: edgeMode(*edges), selected: *selected, color: *color, lang: lang{*language, strings.TrimSuffix(*src, "/")}}
 	if err := run(*repo, *base, *head, *width, *layersFile, *view, *tests, *timing, c); err != nil {
 		fmt.Fprintln(os.Stderr, "archdiff:", err)
 		os.Exit(1)
@@ -44,6 +46,7 @@ type canvasOpts struct {
 	mode     edgeMode
 	selected string
 	color    bool
+	lang     lang
 }
 
 func run(repo, base, head string, width int, layersFile, view string, tests, timing bool, co canvasOpts) error {
@@ -80,19 +83,22 @@ func run(repo, base, head string, width int, layersFile, view string, tests, tim
 		}
 	}
 
+	if co.lang.src != "" {
+		labelPrefix = co.lang.src + "/"
+	}
 	bl, err := openBlobs(repo)
 	if err != nil {
 		return err
 	}
 	defer bl.close()
 	c := cache{}
-	bs, err := build(repo, b, bl, c, tests)
+	bs, err := build(repo, b, bl, c, tests, co.lang)
 	if err != nil {
 		return err
 	}
 	t1 := time.Now()
 	parsedBase := len(c)
-	hs, err := build(repo, h, bl, c, tests)
+	hs, err := build(repo, h, bl, c, tests, co.lang)
 	if err != nil {
 		return err
 	}
@@ -126,8 +132,13 @@ func run(repo, base, head string, width int, layersFile, view string, tests, tim
 	if view == "canvas" {
 		name := "repo"
 		for _, m := range hs.modules {
-			if m.dir == "." {
-				name = path.Base(m.path)
+			if m.dir == "." && m.path != "" {
+				name = path.Base(m.path) // the Go module
+			}
+		}
+		if name == "repo" {
+			if top, err := git(repo, "rev-parse", "--show-toplevel"); err == nil {
+				name = path.Base(strings.TrimSpace(string(top)))
 			}
 		}
 		r.canvasView(o, name, co.mode, co.selected, co.color)

@@ -38,6 +38,7 @@ func parseMod(dir string, src []byte) module {
 type site struct {
 	file string
 	line int
+	uses string
 }
 
 // edgeKey is a dependency between two nodes. A node is a package directory
@@ -67,10 +68,19 @@ func skipPath(p string, tests bool) bool {
 	return !tests && strings.HasSuffix(p, "_test.go")
 }
 
-func build(repo, rev string, bl *blobs, c cache, tests bool) (*snapshot, error) {
+// lang picks the reader: "go", or "ts" for TypeScript and JavaScript.
+// src limits a TypeScript graph to the files under one folder.
+type lang struct {
+	name, src string
+}
+
+func build(repo, rev string, bl *blobs, c cache, tests bool, ln lang) (*snapshot, error) {
 	es, err := lsTree(repo, rev)
 	if err != nil {
 		return nil, err
+	}
+	if ln.name == "ts" {
+		return buildTS(rev, es, bl, c, tests, ln.src)
 	}
 	s := &snapshot{rev: rev, files: map[string]*goFile{}, pkgs: map[string][]string{}, edges: map[edgeKey][]site{}}
 	for _, e := range es {
@@ -111,7 +121,62 @@ func build(repo, rev string, bl *blobs, c cache, tests bool) (*snapshot, error) 
 				continue
 			}
 			k := edgeKey{from, to}
-			s.edges[k] = append(s.edges[k], site{file, im.line})
+			s.edges[k] = append(s.edges[k], site{file, im.line, im.uses})
+		}
+	}
+	return s, nil
+}
+
+// buildTS is build for TypeScript: the tsconfig files give the aliases,
+// the package.json files the dependencies, and each import resolves to
+// the directory of the file it names.
+func buildTS(rev string, es []entry, bl *blobs, c cache, tests bool, src string) (*snapshot, error) {
+	s := &snapshot{rev: rev, files: map[string]*goFile{}, pkgs: map[string][]string{}, edges: map[edgeKey][]site{}}
+	res := &tsResolver{files: map[string]bool{}}
+	for _, e := range es {
+		res.files[e.path] = true
+		base := path.Base(e.path)
+		isConfig := strings.HasPrefix(base, "tsconfig") && strings.HasSuffix(base, ".json")
+		if strings.Contains(e.path, "node_modules/") || (!isConfig && base != "package.json") {
+			continue
+		}
+		data, err := bl.read(e.blob)
+		if err != nil {
+			return nil, err
+		}
+		if base == "package.json" {
+			s.modules = append(s.modules, parsePackageJSON(path.Dir(e.path), data))
+		} else if cfg := parseTSConfig(path.Dir(e.path), data); cfg != nil {
+			res.configs = append(res.configs, cfg)
+		}
+	}
+	under := func(p string) bool { return src == "" || p == src || strings.HasPrefix(p, src+"/") }
+	for _, e := range es {
+		if !isTSFile(e.path) || !under(e.path) || skipTS(e.path, tests) {
+			continue
+		}
+		g, ok := c[e.blob]
+		if !ok {
+			data, err := bl.read(e.blob)
+			if err != nil {
+				return nil, err
+			}
+			g = parseTS(data)
+			c[e.blob] = g
+		}
+		s.files[e.path] = g
+		dir := path.Dir(e.path)
+		s.pkgs[dir] = append(s.pkgs[dir], e.path)
+	}
+	for file, g := range s.files {
+		from := path.Dir(file)
+		for _, im := range g.imports {
+			to := res.resolve(file, im.path)
+			if to == "" || to == from || (internal(to) && !under(to)) {
+				continue
+			}
+			k := edgeKey{from, to}
+			s.edges[k] = append(s.edges[k], site{file, im.line, im.uses})
 		}
 	}
 	return s, nil
@@ -183,9 +248,10 @@ type layerConfig struct {
 // inferred: a package's depth is the longest import chain below it, and
 // deeper packages sit higher.
 type lanes struct {
-	names  []string
-	closed []bool
-	of     map[string]int
+	names    []string
+	closed   []bool
+	of       map[string]int
+	inferred bool // from the graph, not a config: nothing can violate them
 }
 
 func globMatch(pat, dir string) bool {
@@ -252,7 +318,7 @@ func inferredLanes(edges map[edgeKey][]site, nodes []string) lanes {
 	for _, n := range nodes {
 		top = max(top, walk(n, map[string]bool{}))
 	}
-	l := lanes{of: map[string]int{}}
+	l := lanes{of: map[string]int{}, inferred: true}
 	for d := top; d >= 0; d-- {
 		l.names = append(l.names, "depth "+strconv.Itoa(d))
 		l.closed = append(l.closed, false)
@@ -267,6 +333,9 @@ func inferredLanes(edges map[edgeKey][]site, nodes []string) lanes {
 // against the layering.
 func (l lanes) check(e edgeKey) (string, string) {
 	a, b := l.of[e.from], l.of[e.to]
+	if l.inferred {
+		return "", "" // inferred lanes order the view; with cycles (TS) they would flag noise
+	}
 	if l.names[a] == "unassigned" || l.names[b] == "unassigned" {
 		return "", ""
 	}

@@ -194,11 +194,12 @@ func (n *cnode) title() string {
 // minWidth is the narrowest the box can be on its own: its title (plus
 // the folded count) and its lines, or a child's minimum.
 func (n *cnode) minWidth() int {
-	w := width(n.title()) + 4
+	// The top border holds the title, the in-port markers and the folded count.
+	w := width(n.title()) + 5 + n.portW[0] + 2
 	if n.folded > 0 {
 		w += width(fmt.Sprintf(" ⋯%d", n.folded))
 	}
-	w = max(w, width(n.title())+5+n.portW[0]+2, n.portW[1]+4)
+	w = max(w, n.portW[1]+4)
 	for _, l := range n.lines {
 		w = max(w, width(l)+4)
 	}
@@ -343,7 +344,10 @@ func kindStyle(k rune) style {
 }
 
 func (g *grid) drawBox(n *cnode, heavy bool) {
-	st := kindStyle(n.kind)
+	// Borders stay neutral, so colour belongs to the edges; the change
+	// kind colours only the title. (Yellow borders for changed packages
+	// read as yellow "changed" edges.)
+	st := style{}
 	if !n.impacted {
 		st = style{dim: true}
 	}
@@ -365,7 +369,7 @@ func (g *grid) drawBox(n *cnode, heavy bool) {
 	g.set(x1, y0, tr, st, 'c', n)
 	g.set(x0, y1, bl, st, 'c', n)
 	g.set(x1, y1, br, st, 'c', n)
-	tst := st
+	tst := kindStyle(n.kind)
 	tst.bold = n.impacted && n.pkg
 	tst.dim = !n.impacted
 	end := g.text(x0+2, y0, " "+abbrev(n.title(), n.w-6)+" ", tst, n)
@@ -437,7 +441,7 @@ func (r *result) canvasEdges() []edgeChange {
 			es = append(es, e)
 		}
 	}
-	return es
+	return append(es, r.changedEdges...)
 }
 
 // portLabel is an edge's marker: a plain number. Circled digits (①) were
@@ -459,15 +463,39 @@ func portMark(n int, e edgeChange) string {
 const maxPorts = 20
 
 func edgeStyle(e edgeChange) style {
-	switch {
-	case e.verdict == "up":
-		return style{fg: 31, bold: true}
-	case e.verdict == "skip":
+	switch edgeStatus(e) {
+	case "added":
+		return style{fg: 32, bold: true}
+	case "removed":
+		return style{fg: 31}
+	case "changed":
 		return style{fg: 33, bold: true}
-	case !e.added:
-		return style{fg: 31, dim: true}
 	}
-	return style{fg: 32, bold: true}
+	return style{dim: true}
+}
+
+// edgeStatus is what the change did to an edge. It decides the colour
+// (the diff preview's: green, red, yellow, faint) and, as a second cue
+// without colour, the line: ━ added, ┄ removed, ═ changed, ─ unchanged.
+func edgeStatus(e edgeChange) string {
+	switch {
+	case e.verdict == "same":
+		return "unchanged"
+	case e.changed:
+		return "changed"
+	case e.added:
+		return "added"
+	}
+	return "removed"
+}
+
+// lineGlyphs are a status's straight runs and corners, as
+// horizontal, vertical, ┌ ┐ └ ┘.
+var lineGlyphs = map[string][6]rune{
+	"added":     {'━', '┃', '┏', '┓', '┗', '┛'},
+	"removed":   {'┄', '┆', '┌', '┐', '└', '┘'},
+	"changed":   {'═', '║', '╔', '╗', '╚', '╝'},
+	"unchanged": {'─', '│', '┌', '┐', '└', '┘'},
 }
 
 // mark writes a label on a box's top (in) or bottom (out) border, after
@@ -633,86 +661,48 @@ func (g *grid) route(from, to *cnode, e edgeChange) bool {
 		cells = append(cells, state{(i / 4) % g.w, (i / 4) / g.w, i % 4})
 	}
 	slices.Reverse(cells)
-	heavy := e.added && e.verdict != "same"
 	st := edgeStyle(e)
-	if e.verdict == "same" {
-		st = style{}
-	}
+	status := edgeStatus(e)
 	for i, s := range cells {
 		c := &g.cells[s.y][s.x]
-		var in, out int // directions: 0 right 1 down 2 left 3 up
-		if i > 0 {
-			in = s.d
-		}
-		out = in
+		in := s.d // directions: 0 right 1 down 2 left 3 up
+		out := in
 		if i+1 < len(cells) {
 			out = cells[i+1].d
 		}
-		var r rune
 		switch {
-		case i == 0:
-			r = tee(out, heavy)
 		case i == len(cells)-1:
-			r = []rune("▸▾◂▴")[in]
-		case c.kind == 'h' || c.kind == 'v' || c.kind == 'L':
-			r = cross(heavy)
+			// The arrow point, on the target's border.
+			*c = cell{r: []rune("▸▾◂▴")[in], st: st, kind: c.kind, box: c.box}
+		case c.kind == 'h' || c.kind == 'v' || c.kind == 'c' || c.kind == 'L':
+			// Borders stay whole and an earlier line stays unbroken: this
+			// line stops on one side and goes on at the other.
 		default:
-			r = bend(in, out, heavy, !e.added)
+			*c = cell{r: bend(in, out, status), st: st, kind: 'L', lineH: out%2 == 0, box: c.box}
 		}
-		kind := c.kind
-		if kind == ' ' {
-			kind = 'L'
-		}
-		*c = cell{r: r, st: st, kind: kind, lineH: out%2 == 0, box: c.box}
 	}
 	return true
 }
 
-func tee(out int, heavy bool) rune {
-	t := map[int]rune{0: '├', 1: '┬', 2: '┤', 3: '┴'}
-	if heavy {
-		t = map[int]rune{0: '┣', 1: '┳', 2: '┫', 3: '┻'}
-	}
-	return t[out]
-}
-
-func cross(heavy bool) rune {
-	if heavy {
-		return '╋'
-	}
-	return '┼'
-}
-
 // bend is the glyph for a line cell entered going in and left going out.
-func bend(in, out int, heavy, dashed bool) rune {
+func bend(in, out int, status string) rune {
+	g := lineGlyphs[status]
 	if in%2 == out%2 {
-		switch {
-		case in%2 == 0 && heavy:
-			return '━'
-		case in%2 == 0 && dashed:
-			return '┄'
-		case in%2 == 0:
-			return '─'
-		case heavy:
-			return '┃'
-		case dashed:
-			return '┆'
+		if in%2 == 0 {
+			return g[0]
 		}
-		return '│'
+		return g[1]
 	}
-	// corners by (in, out)
-	light := map[[2]int]rune{
-		{0, 1}: '┐', {0, 3}: '┘', {2, 1}: '┌', {2, 3}: '└',
-		{1, 0}: '└', {1, 2}: '┘', {3, 0}: '┌', {3, 2}: '┐',
+	// corners by (in, out): 0 right 1 down 2 left 3 up
+	switch [2]int{in, out} {
+	case [2]int{2, 1}, [2]int{3, 0}:
+		return g[2]
+	case [2]int{0, 1}, [2]int{3, 2}:
+		return g[3]
+	case [2]int{2, 3}, [2]int{1, 0}:
+		return g[4]
 	}
-	hv := map[[2]int]rune{
-		{0, 1}: '┓', {0, 3}: '┛', {2, 1}: '┏', {2, 3}: '┗',
-		{1, 0}: '┗', {1, 2}: '┛', {3, 0}: '┏', {3, 2}: '┓',
-	}
-	if heavy {
-		return hv[[2]int{in, out}]
-	}
-	return light[[2]int{in, out}]
+	return g[5]
 }
 
 // ---- the view
@@ -749,8 +739,17 @@ func boxesOf(n *cnode, m map[string]*cnode) map[string]*cnode {
 // selected names the focus box (default: the riskiest edge's source).
 func (r *result) canvasView(o *out, repoName string, mode edgeMode, selected string, color bool) {
 	root := r.canvasTree(repoName)
-	es := r.canvasEdges()
 	boxes := boxesOf(root, map[string]*cnode{})
+	// A changed edge may point at a folded package: it is counted, not drawn.
+	var es []edgeChange
+	hidden := 0
+	for _, e := range r.canvasEdges() {
+		if boxes[e.from] == nil || boxes[e.to] == nil {
+			hidden++
+			continue
+		}
+		es = append(es, e)
+	}
 	if selected == "" && len(es) > 0 {
 		selected = es[0].from
 	}
@@ -774,19 +773,23 @@ func (r *result) canvasView(o *out, repoName string, mode edgeMode, selected str
 	root.layout(0, 0, cw, gapY)
 	g := newGrid(cw, root.h)
 	g.drawBox(root, false)
-	var legend []string
+	var legend []legendItem
+	plain := func(f string, a ...any) { legend = append(legend, legendItem{text: fmt.Sprintf(f, a...)}) }
+	edge := func(label string, e edgeChange) {
+		legend = append(legend, legendItem{edgeLegend(label, e), edgeStyle(e)})
+	}
 	var unrouted []string
 	switch mode {
 	case edgePorts:
 		if len(es) <= maxPorts {
 			g.placePorts(boxes, es)
 			for i, e := range es {
-				legend = append(legend, edgeLegend(portLabel(i+1), e))
+				edge(portLabel(i+1), e)
 			}
 			break
 		}
 		g.placeCounts(boxes, es)
-		legend = append(legend, fmt.Sprintf("%d changed edges: ▾ out ▴ in per box", len(es)))
+		plain("%d changed edges: ▾ out ▴ in per box", len(es))
 		var from []string
 		to := map[string][]string{}
 		for _, e := range es {
@@ -797,13 +800,16 @@ func (r *result) canvasView(o *out, repoName string, mode edgeMode, selected str
 			if e.verdict == "up" || e.verdict == "skip" {
 				mark = "⚠"
 			}
-			if !e.added {
+			switch edgeStatus(e) {
+			case "removed":
 				mark += "−"
+			case "changed":
+				mark += "~"
 			}
 			to[e.from] = append(to[e.from], mark+pkgLabel(lastSeg(e.to)))
 		}
 		for _, f := range from {
-			legend = append(legend, fmt.Sprintf("%s ▸ %s", pkgLabel(f), strings.Join(to[f], " ")))
+			plain("%s ▸ %s", pkgLabel(f), strings.Join(to[f], " "))
 		}
 	case edgeLines, edgeFocus:
 		if mode == edgeFocus {
@@ -821,14 +827,22 @@ func (r *result) canvasView(o *out, repoName string, mode edgeMode, selected str
 		}
 		var context []edgeChange
 		if mode == edgeFocus {
+			// Unchanged edges fill up to six lines; a hub with many changed
+			// edges gets none, or its box drowns in lines.
+			room := 6
+			for _, e := range es {
+				if e.from == selected || e.to == selected {
+					room--
+				}
+			}
 			// The selected box's unchanged edges too, light, so its place
 			// in the graph shows; everything not touching it is dimmed.
 			for _, k := range sortedKeys(boolKeys(r.head.edges)) {
-				_, old := r.base.edges[k]
-				if !old || !internal(k.to) || (k.from != selected && k.to != selected) {
+				b, old := r.base.edges[k]
+				if !old || fingerprint(b) != fingerprint(r.head.edges[k]) || !internal(k.to) || (k.from != selected && k.to != selected) {
 					continue
 				}
-				if boxes[k.from] == nil || boxes[k.to] == nil || len(context) == 6 {
+				if boxes[k.from] == nil || boxes[k.to] == nil || len(context) >= room {
 					continue
 				}
 				e := edgeChange{edgeKey: k, added: true, verdict: "same"}
@@ -846,38 +860,42 @@ func (r *result) canvasView(o *out, repoName string, mode edgeMode, selected str
 		}
 		if mode == edgeLines {
 			for _, e := range es {
-				legend = append(legend, edgeLegend("", e))
+				edge("", e)
 			}
 		}
 		if mode == edgeFocus {
-			legend = append(legend, "selected: "+selected)
+			plain("selected: %s", selected)
 			n := 0
 			for _, e := range es {
 				if e.from == selected || e.to == selected {
-					legend = append(legend, edgeLegend("", e))
+					edge("", e)
 				} else {
 					n++
 				}
 			}
 			for _, e := range context {
-				legend = append(legend, fmt.Sprintf("%s ─▸ %s  unchanged", pkgLabel(e.from), pkgLabel(e.to)))
+				edge("", e)
 			}
 			if n > 0 {
-				legend = append(legend, fmt.Sprintf("%d more changed edges: select their box", n))
+				plain("%d more changed edges: select their box", n)
 			}
 		}
 	}
 	unchanged := 0
 	for k := range r.head.edges {
-		if _, ok := r.base.edges[k]; ok && internal(k.to) && boxes[k.from] != nil && boxes[k.to] != nil && boxes[k.from].impacted && boxes[k.to].impacted {
+		if b, ok := r.base.edges[k]; ok && fingerprint(b) == fingerprint(r.head.edges[k]) && internal(k.to) && boxes[k.from] != nil && boxes[k.to] != nil && boxes[k.from].impacted && boxes[k.to].impacted {
 			unchanged++
 		}
 	}
-	legend = append(legend, fmt.Sprintf("%d unchanged edges between shown boxes", unchanged))
-	for _, u := range unrouted {
-		legend = append(legend, "not routed: "+u)
+	plain("%d unchanged edges between shown boxes", unchanged)
+	if hidden > 0 {
+		plain("%d changed edges into folded packages", hidden)
 	}
-	legend = append(legend, "+ new ~ changed − gone ≡ moved in · $ env ⇄ http ≣ sql » exec ▤ fs ⊢ flag ◆ dep")
+	for _, u := range unrouted {
+		plain("not routed: %s", u)
+	}
+	plain("edges ━ added ┄ removed ═ changed ─ unchanged")
+	plain("+ new ~ changed − gone ≡ moved in · $ env ⇄ http ≣ sql » exec ▤ fs ⊢ flag ◆ dep")
 
 	rows := strings.Split(strings.TrimRight(g.String(color), "\n"), "\n")
 	if legendW > 0 {
@@ -889,7 +907,7 @@ func (r *result) canvasView(o *out, repoName string, mode edgeMode, selected str
 			pad := cw - visibleWidth(left)
 			right := ""
 			if i < len(legend) {
-				right = " " + abbrev(legend[i], legendW-1)
+				right = " " + legend[i].render(legendW-1, color)
 			}
 			o.lines = append(o.lines, left+strings.Repeat(" ", max(pad, 0))+right)
 		}
@@ -897,15 +915,13 @@ func (r *result) canvasView(o *out, repoName string, mode edgeMode, selected str
 	}
 	o.lines = append(o.lines, rows...)
 	for _, l := range legend {
-		o.add(" %s", l)
+		o.lines = append(o.lines, " "+l.render(o.w-1, color))
 	}
 }
 
 func edgeLegend(label string, e edgeChange) string {
-	arrow := "━▸"
-	if !e.added {
-		arrow = "┄▸"
-	}
+	status := edgeStatus(e)
+	arrow := string(lineGlyphs[status][0]) + "▸"
 	tag := ""
 	switch e.verdict {
 	case "up":
@@ -913,8 +929,8 @@ func edgeLegend(label string, e edgeChange) string {
 	case "skip":
 		tag = "  ⚠ " + e.why
 	}
-	if !e.added {
-		tag += "  removed"
+	if status != "added" {
+		tag += "  " + status
 	}
 	s := fmt.Sprintf("%s %s %s%s", pkgLabel(e.from), arrow, pkgLabel(e.to), tag)
 	if label != "" {
@@ -923,8 +939,26 @@ func edgeLegend(label string, e edgeChange) string {
 	return s
 }
 
+// legendItem is one legend line and its colour.
+type legendItem struct {
+	text string
+	st   style
+}
+
+func (l legendItem) render(w int, color bool) string {
+	t := abbrev(l.text, w)
+	if !color || l.st == (style{}) {
+		return t
+	}
+	return sgr(l.st) + t + "\x1b[0m"
+}
+
 // pkgLabel names a package in a legend: its path without "internal/".
-func pkgLabel(p string) string { return strings.TrimPrefix(p, "internal/") }
+func pkgLabel(p string) string { return strings.TrimPrefix(p, labelPrefix) }
+
+// labelPrefix is cut from package names in legends: "internal/" for Go,
+// the -src folder for TypeScript.
+var labelPrefix = "internal/"
 
 // visibleWidth counts runes outside ANSI escapes.
 func visibleWidth(s string) int {

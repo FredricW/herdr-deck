@@ -6,10 +6,10 @@
 │                                                                              │ source/diff ━▸ ui  ✕ upward
 │ ┌─ internal ────────────────────────────────────────────────────────── ⋯10 ┐ │ 1 more changed edges: select their box
 │ │                                                                          │ │ 0 unchanged edges between shown boxes
-│ │ ┌─ ~ ui ───────────────┐ ┌─ source ──────────────────────────────── ⋯8 ┐ │ │ + new ~ changed − gone ≡ moved in · $ …
-│ │ │ +5 −0                │ │                                             │ │ │
+│ │ ┌─ ~ ui ───────────────┐ ┌─ source ──────────────────────────────── ⋯8 ┐ │ │ edges ━ added ┄ removed ═ changed ─ un…
+│ │ │ +5 −0                │ │                                             │ │ │ + new ~ changed − gone ≡ moved in · $ …
 │ │ │                      │ │ ┏━ ~ diff ━━━━━━━━━━━━┓ ┌─ github ────────┐ │ │ │
-│ │ │                      ◂━╋━┫ +24 −0              ┃ │                 │ │ │ │
+│ │ │                      ◂━│━┃ +24 −0              ┃ │                 │ │ │ │
 │ │ │                      │ │ ┃ api +1 −0 ~0        ┃ │                 │ │ │ │
 │ │ │                      │ │ ┃ $⇄≣                 ┃ │                 │ │ │ │
 │ │ │                      │ │ ┗━━━━━━━━━━━━━━━━━━━━━┛ └─────────────────┘ │ │ │

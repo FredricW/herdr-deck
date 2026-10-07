@@ -589,6 +589,24 @@ options, all without CGO:
 | typescript-go (tsgo) | yes | — | — | — | Its parser is under `internal/`, so other modules cannot import it, and its API is "not ready" |
 | typescript-language-server | Node | via LSP | — | — | Not installed here. Heavy for a graph |
 
+The prototype now has this scanner, at its smallest
+(`exp/archdiff/tsscan.go`, `-lang ts -src <folder>`). It:
+- blanks out comments, keeping strings and line numbers;
+- finds `import … from`, `export … from`, side-effect imports,
+  `import()` and `require()`;
+- resolves relative paths, tsconfig `paths` aliases (the nearest
+  tsconfig; `extends` is not followed) and `index` files;
+- treats bare specifiers as packages, `node:` and Node built-ins as the
+  standard library, and assets (CSS, JSON, SVG) as no edge at all;
+- reads top-level declarations by regex for the public surface;
+- reads `process.env` / `import.meta.env` and literal `fetch()` URLs as
+  touchpoints.
+
+It skips tests, `node_modules` and build output, and uses no
+dependencies. TypeScript graphs often have cycles, which make inferred
+lanes very deep. So inferred lanes never flag a violation; they only
+order the view.
+
 Type-only imports matter for architecture: `import type { Row } from
 "@acme/db"` in a page is still a dependency on infra's types. That rules
 out esbuild as the only source. Start with a careful scanner (strip
@@ -846,9 +864,10 @@ the samples below are its real output:
   - a signal line: moves in (`≡20←dev,validate`), touchpoint icons
     (`$` env, `⇄` http, `≣` sql, `»` exec, `▤` fs, `⊢` flag) and new
     third-party imports (`◆1`).
-- **Colours** are the deck's named ANSI colours, muted:
-  - green new, yellow changed, red removed, cyan moved;
-  - parents and unchanged boxes faint.
+- **Colours.** The change kind colours only a box's title (green new,
+  yellow changed, red removed, cyan moved). Borders stay neutral, and
+  faint for context boxes, so colour belongs to the edges (see *Edge
+  status* below).
 - **Layout.**
   - A recursive row-packing treemap: children flow left to right in rows
     that wrap at the parent's width. Each row is stretched to fill it,
@@ -863,6 +882,42 @@ the samples below are its real output:
   - Box size encodes content, not change weight. A weight-sized treemap
     was considered, but the text has to fit first in 60–120 columns.
 
+### Edge status
+
+Every edge on the canvas has one of four statuses. Each has its own
+colour, the diff preview's palette, and its own line style, so the
+plain-text output reads without colour:
+
+| Status | Meaning | Colour | Line | Legend |
+|---|---|---|---|---|
+| added | only in the head | green, bold | `━ ┃ ┏ ┓` | `━▸` |
+| removed | only in the base | red | `┄ ┆ ┌ ┐` | `┄▸` |
+| changed | in both, but what the importers use through it changed | yellow, bold | `═ ║ ╔ ╗` | `═▸` |
+| unchanged | in both, the same | faint | `─ │ ┌ ┐` | `─▸` |
+
+- **What "changed" means.** An edge's fingerprint is the set of files
+  that import, and what each one uses through it, with line numbers left
+  out. In Go, the uses are the selectors on the import's name
+  (`deck.Snapshot`); in TypeScript, the names in the import clause. So
+  code that only moves within a file is not a change, while a file that
+  starts using another function of the same package is.
+- **Where the colours apply.** The same colour goes on the line, its
+  arrow point, the numbered marker and the legend line, in every edge
+  mode.
+- **Risk is not a colour.** An upward or layer-skipping edge keeps its
+  status colour. Its risk shows as `!` on the marker and `✕ upward` or
+  `⚠ skips …` in the legend.
+- **Checked in Catppuccin Mocha**, the user's theme (screenshots in the
+  thread library):
+  - The four statuses are easy to tell apart.
+  - The first version coloured changed packages' box borders yellow,
+    which read as yellow "changed" edges. Borders are now neutral and
+    the title carries the kind.
+  - VHS's line height leaves small gaps between vertical heavy glyphs
+    (`┃`), so a vertical green line looks dashed in the screenshots.
+    The `┄` removed style still differs, but compare in Ghostty before
+    settling the styles.
+
 ### Edges: four options tried or weighed
 
 **A. Ports: numbered markers on the borders, and a legend.** Each
@@ -876,29 +931,34 @@ room for the markers, so none is dropped. PR #43 at 80 columns:
 ┌─ herdr-deck ───────────────────────────────────────────────────────────── ⋯2 ┐
 │ ┌─ ~ cmd/herdr-deck ───────────────────────────────────────────────────────┐ │
 │ │ +28 −0                                                                   │ │
-│ └─1────────────────────────────────────────────────────────────────────────┘ │
+│ └─1─4──────────────────────────────────────────────────────────────────────┘ │
 │ ┌─ internal ─────────────────────────────────────────────────────────── ⋯8 ┐ │
 │ │ ┌─ ~ ui ───────────────────────────────────────────────────────────────┐ │ │
 │ │ │ +539 −28                                                             │ │ │
 │ │ │ api +0 −0 ~1                                                         │ │ │
-│ │ └──────────────────────────────────────────────────────────────────────┘ │ │
+│ │ └─6────────────────────────────────────────────────────────────────────┘ │ │
 │ │ ┌─ source ───────────────────────────────────────────────────────── ⋯6 ┐ │ │
-│ │ │ ┌─ ~ fake ──────────┐ ┌─ + github ─1─3───────┐ ┌─ ~ live ──────────┐ │ │ │
+│ │ │ ┌─ ~ fake ─4────────┐ ┌─ + github ─1─3───────┐ ┌─ ~ live ──────────┐ │ │ │
 │ │ │ │ +64 −0            │ │ +1007 −0             │ │ +16 −0            │ │ │ │
 │ │ │ │ api +2 −0 ~0      │ │ api +16 −0 ~0        │ │ api +0 −0 ~1      │ │ │ │
 │ │ │ │                   │ │ » ◆1                 │ │                   │ │ │ │
-│ │ │ └───────────────────┘ └─2────────────────────┘ └─3─────────────────┘ │ │ │
+│ │ │ └─5─────────────────┘ └─2────────────────────┘ └─3─────────────────┘ │ │ │
 │ │ └──────────────────────────────────────────────────────────────────────┘ │ │
-│ │ ┌─ ~ config ───────────────────────┐ ┌─ ~ deck ─2──────────────────────┐ │ │
-│ │ │ +56 −0                           │ │ +152 −2                         │ │ │
-│ │ │ api +3 −0 ~2                     │ │ api +9 −0 ~1                    │ │ │
-│ │ └──────────────────────────────────┘ └─────────────────────────────────┘ │ │
+│ │ ┌─ ~ config ─────────────────────┐ ┌─ ~ deck ─2─5─6────────────────────┐ │ │
+│ │ │ +56 −0                         │ │ +152 −2                           │ │ │
+│ │ │ api +3 −0 ~2                   │ │ api +9 −0 ~1                      │ │ │
+│ │ └────────────────────────────────┘ └───────────────────────────────────┘ │ │
 │ └──────────────────────────────────────────────────────────────────────────┘ │
 └──────────────────────────────────────────────────────────────────────────────┘
  1 cmd/herdr-deck ━▸ source/github
  2 source/github ━▸ deck
  3 source/live ━▸ source/github
- 10 unchanged edges between shown boxes
+ 4 cmd/herdr-deck ═▸ source/fake  changed
+ 5 source/fake ═▸ deck  changed
+ 6 ui ═▸ deck  changed
+ 7 unchanged edges between shown boxes
+ 1 changed edges into folded packages
+ edges ━ added ┄ removed ═ changed ─ unchanged
  + new ~ changed − gone ≡ moved in · $ env ⇄ http ≣ sql » exec ▤ fs ⊢ flag ◆ dep
 ```
 
@@ -907,14 +967,18 @@ between boxes, found by a shortest-path search on the character grid.
 - A line never runs along a border and never shares a run with another
   line. It can cross a border or another line at a right angle, at an
   extra cost, and turns cost a little.
-- New edges are heavy green (`━┃┏`), an upward edge red, a skip yellow,
-  a removed edge dashed and faint (`┄┆`).
-- A line starts at a tee on the source's border (`┣┳`) and ends in an
-  arrowhead on the target's border (`▸▾◂▴`).
+- **No junction glyphs.** Borders stay whole: where a line crosses one,
+  it stops on one side and goes on at the other, with the border's own
+  `│` or `─` between. A line crossing an earlier line leaves that line
+  unbroken. The line starts next to the source's border, not on it.
+  The only glyph a line puts on a border is its arrow point
+  (`▸▾◂▴`), on the target's border.
+- Lines take their status's colour and style (above).
 - The layout adds a blank row above, between and below the child rows,
   so lines have somewhere to go.
 
-The synthetic commit at 80 columns (the upward edge is red in colour):
+The synthetic commit at 80 columns. The upward edge `diff → ui` is a new
+edge, so it is green; its risk is in the legend:
 
 ```text
 ┌─ herdr-deck ───────────────────────────────────────────────────────────── ⋯3 ┐
@@ -922,9 +986,9 @@ The synthetic commit at 80 columns (the upward edge is red in colour):
 │ ┌─ internal ────────────────────────────────────────────────────────── ⋯10 ┐ │
 │ │                                                                          │ │
 │ │ ┌─ ~ ui ───────────────┐ ┌─ source ──────────────────────────────── ⋯8 ┐ │ │
-│ │ │ +5 −0                ┣━╋━━━━━━━━━━━━━━━━━━━━━━━━━━┓                  │ │ │
+│ │ │ +5 −0                │━│━━━━━━━━━━━━━━━━━━━━━━━━━━┓                  │ │ │
 │ │ │                      │ │ ┌─ ~ diff ────────────┐ ┌▾ github ────────┐ │ │ │
-│ │ │                      ◂━╋━┫ +24 −0              │ │                 │ │ │ │
+│ │ │                      ◂━│━│ +24 −0              │ │                 │ │ │ │
 │ │ │                      │ │ │ api +1 −0 ~0        │ │                 │ │ │ │
 │ │ │                      │ │ │ $⇄≣                 │ │                 │ │ │ │
 │ │ │                      │ │ └─────────────────────┘ └─────────────────┘ │ │ │
@@ -937,20 +1001,23 @@ The synthetic commit at 80 columns (the upward edge is red in colour):
  source/diff ━▸ ui  ✕ upward
  ui ━▸ source/github
  0 unchanged edges between shown boxes
+ edges ━ added ┄ removed ═ changed ─ unchanged
  + new ~ changed − gone ≡ moved in · $ env ⇄ http ≣ sql » exec ▤ fs ⊢ flag ◆ dep
 ```
 
 **C. Focus: lines for the selected box only.** The selected box gets a
-heavy border, with its changed edges (heavy) and up to six unchanged
-edges (light) routed. Everything not connected to it is dimmed. The
+heavy border, and its added, removed and changed edges are routed. If
+fewer than six lines result, unchanged edges (faint) fill up to six, so
+a hub doesn't drown in lines. Everything not connected to the selected
+box is dimmed. The
 legend counts the other changed edges ("3 more changed edges: select
 their box"). In the deck, `j`/`k` would move the selection box by box.
 See `pr52-dev-manifest-80-focus.txt` and the 120-column screenshot.
 
 **D. Counts** are the dense form of A: `▾N` out and `▴N` in per box,
 with the legend grouped by source. The prototype switches to counts
-beyond 20 changed edges. The whole history of herdr-deck (34 new
-edges) at 80 columns, in `dense-history-80-ports.txt`:
+beyond 20 changed edges. The whole history of herdr-deck (47 edges between shown boxes: 34 new
+and 13 changed) at 80 columns, in `dense-history-80-ports.txt`:
 
 ```text
 ┌─ + herdr-deck ─▴1────────────────────────────────────────────────────────────┐
@@ -959,22 +1026,22 @@ edges) at 80 columns, in `dense-history-80-ports.txt`:
 │ ┌─ ~ cmd/herdr-deck ───────────────────────────────────────────────────────┐ │
 │ │ +925 −34                                                                 │ │
 │ │ $                                                                        │ │
-│ └─▾11──────────────────────────────────────────────────────────────────────┘ │
+│ └─▾17──────────────────────────────────────────────────────────────────────┘ │
 │ ┌─ internal ───────────────────────────────────────────────────────────────┐ │
-│ │ ┌─ + plugin ─▴1──┐ ┌─ + markdown ───┐ ┌─ + syntax ─▴1─┐ ┌─ ~ ui ───────┐ │ │
+│ │ ┌─ + plugin ─▴1──┐ ┌─ + markdown ───┐ ┌─ + syntax ─▴1─┐ ┌─ ~ ui ─▴1────┐ │ │
 │ │ │ +654 −0        │ │ +177 −0        │ │ +140 −0       │ │ +8482 −866   │ │ │
 │ │ │ api +27 −0 ~0  │ │ api +1 −0 ~0   │ │ api +4 −0 ~0  │ │ api +5 −0 ~1 │ │ │
 │ │ │ ▤              │ │ ◆2             │ │ ◆2            │ │ ≣            │ │ │
-│ │ └─▾6─────────────┘ └────────────────┘ └───────────────┘ └─▾4───────────┘ │ │
+│ │ └─▾6─────────────┘ └────────────────┘ └───────────────┘ └─▾5───────────┘ │ │
 │ │ ┌─ source ─────────────────────────────────────────────────────────────┐ │ │
  ⋯
- 34 changed edges: ▾ out ▴ in per box
- cmd/herdr-deck ▸ . changelog config plugin restart dev diff github linear proj…
- config ▸ deck launch
  plugin ▸ config deck project herdr linear tasks
  source/dev ▸ deck manifest
  source/dev/manifest ▸ schema
  source/diff ▸ deck
+ source/fake ▸ diff ~deck
+ source/github ▸ deck
+ source/linear ▸ deck
  ⋯
 ```
 
@@ -992,14 +1059,15 @@ edges) at 80 columns, in `dense-history-80-ports.txt`:
 
 | | A ports | B routed lines | C focus | D counts |
 |---|---|---|---|---|
-| Height | the canvas only | **+25–45 %** (gap rows): #52 is 25 rows with ports, 36 with lines at 80 columns; the dense history 51 against 65 | as B | as A |
+| Height | the canvas only | **+50–100 %** (gap rows): #52 is 26 rows with ports, 37 with lines at 80 columns | as B | as A |
 | 3–5 edges (#43, #52, synthetic) | clear, but you read the legend for direction | clear and direct; the best-looking at 120 columns | clear | — |
 | Nested source and target (`dev → dev/manifest`) | fine | fine (`┣━▸` inside the parent) | fine | fine |
 | Lines through unrelated boxes | — | **yes**: #52's `validate → manifest` runs down through `internal`, `source` and `dev`, which reads as if `dev` were involved | rarely, few lines | — |
-| Line crossing a border vs a junction | — | **ambiguous**: `╋` on a border looks like a tee into that box | as B | — |
-| Dense (34 edges, `dense-history-80-*`) | markers become a number soup; past 20 they switch to D | **unreadable spaghetti** (excerpt below) | still fine: one box's edges | readable: which boxes are hubs, and the legend groups by source |
+| Line crossing a border | — | borders stay whole, and only the arrow point marks the target. A line through a nested box's walls still suggests that the box is involved | as B, rarer | — |
+| Dense (47 edges, `dense-history-80-*`) | markers become a number soup; past 20 they switch to D | **unreadable spaghetti** (excerpt below) | still fine: one box's edges | readable: which boxes are hubs, and the legend groups by source |
 | 60 columns | works: nesting costs 2 columns per level, chains collapse, legend below | lines squeeze into one-column gaps; only 1–3 edges stay readable | as B | works |
-| Plain text, no colour | `!` marks risk | upward edges look like the others | as B | `!` not shown; red only |
+| Plain text, no colour | `!` marks risk; markers can't show status, the legend's `━▸ ┄▸ ═▸` does | line style shows status; risk only in the legend | as B | the legend's `−` and `~` marks |
+| Changed edges | listed and marked like the others | double lines can outnumber the new edges: PR #43 has 3 changed against 3 new | as B, for one box | counted |
 | Cost | trivial | a grid search per edge, < 5 ms here | as B for one box | trivial |
 
 The routed lines on the dense history at 80 columns (from
@@ -1011,23 +1079,23 @@ The routed lines on the dense history at 80 columns (from
 │ api +1 −0 ~0                                                                 │
 │                                                                              │
 │ ┌─ ~ cmd/herdr-deck ───────────────────────────────────────────────────────┐ │
-◂━┫ +925 −34                                                                 │ │
-│┏┫ $              ┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓               ┣┓│
-│┃└┳────────────┳──╋──┳──────────────┳───┳─────────────────┳─╋────────────┳─┳┘┃│
-│┃ ┃            ┃  ┃  ┃              ┃ ┏━╋━━━━━━━━━━━━┓    ┃ ┃            ┃ ┃ ┃│
-│┃┌╋ internal ──╋──╋──╋──────────────╋─╋─╋────────────╋────╋─╋────────────╋─╋┐┃│
-│┃│┃            ┃  ┃┏━╋━━━━━━━━━━━━━━╋━╋━╋━┓          ┃    ┃ ┃            ┃ ┃│┃│
-│┃│┃┌─ + plugin ▾──┻┻┐┃┌─ + markdown ╋─▾┐┃┌╋ + syntax ╋───┐┃┌╋ ~ ui ──────╋┐┃│┃│
-│┃│┃│ +654 −0        │┃│ +177 −0     ┃  │┃│┃+140 −0   ┗━━━╋╋┫┃+8482 −866  ┃│┃│┃│
-│┃│┃│ api +27 −0 ~0  │┃│ api +1 −0 ~0┃  │┃│┃api +4 −0 ~0  ◂╋┫┃api +5 −0 ~1┃│┃│┃│
-│┃│┃│ ▤              │┃│ ◆2          ┃  │┃│┃◆2 ┏━━━━━━━━━━╋╋┫┃≣           ┃│┃│┃│
-│┃│┃└┳────────┳────┳┳┘┃└─────────────╋──┘┃└╋───╋──────────┘┃└╋───────┳────╋┘┃│┃│
-│┃│┃ ┃        ┃    ┃┗━╋━━━━━━━━━━┓   ┃   ┃ ┗━━━╋━━━━━━━┓   ┃ ┃       ┃    ┃ ┃│┃│
-│┃│┃┌╋ source ╋────╋──╋──────────╋───╋───╋─────╋───────╋───╋─╋───────╋────╋┐┃│┃│
-│┃│┃│┃ ┏━━━━━━┛    ┃  ┃        ┏━╋━━━┛   ┗┓    ┃     ┏━╋━━━┛ ┗━━━━━━┓┃    ┃│┃│┃│
-│┃│┃│┃┌╋ + dev ────╋──▾───────┐┃┌╋ + diff ▾────╋────┐┃┌╋ ~ fake ────╋╋───┐┃│┃│┃│
-│┃│┃│┃│┃+1793 −0   ┗━━━━━━━━━┓│┃│┃+1050 −0     ┃    ◂╋┫┃+680 −44    ┃┃   │┃│┃│┃│
-│┃│┃│┃│┃api +24 −0 ~0        ┃│┃│┃api +16 −0 ~0┃    │┃│┃api +9 −0 ~0┃┃   │┃│┃│┃│
+◂━│ +925 −34                                                                 │ │
+│┏│ $              ┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓               │┓│
+│┃└──────────────────────────────────────────────────────────────────────────┘┃│
+│┃ ┃            ┃ ║┃  ┃ ║            ┃║┏━┃━━━━━━━━━━━━┓ ║║ ┃ ┃      ║     ┃ ┃ ┃│
+│┃┌─ internal ───────────────────────────────────────────────────────────────┐┃│
+│┃│┃            ┃ ║┃┏━┃━━━━━━━━━━━━━━┃━━━┃━┓          ┃ ║║ ┃ ┃      ║     ┃ ┃│┃│
+│┃│┃┌─ + plugin ▾────┐┃┌─ + markdown ──▾┐┃┌─ + syntax ────┐┃┌─ ~ ui ▾──────┐┃│┃│
+│┃│┃│ +654 −0     ╚═╗│┃│║+177 −0     ┃║ │┃│┃+140 −0   ┗━━━◂┃│┃+8482 −866  ┃│┃│┃│
+│┃│┃│ api +27 −0 ~0 ║│┃│║api +1 −0 ~0┃║ │┃│┃api +4 −0 ~0║║│┃│┃api +5 −0 ~1┃│┃│┃│
+│┃│┃│ ▤             ║│┃│║◆2          ┃║ │┃│┃◆2 ┏━━━━━━━━━━│┃│┃≣           ┃│┃│┃│
+│┃│┃└────────────────┘┃└────────────────┘┃└───────────────┘┃└──────────────┘┃│┃│
+│┃│┃ ┃        ┃    ┃┗━┃━━━━━━━━━━┓   ┃╚══┃ ┗━━━━━━━━━━━┓╝╚═┃═┃═══════┃╗ ║ ┃ ┃│┃│
+│┃│┃┌─ source ─────────────────────────────────────────────────────────────┐┃│┃│
+│┃│┃│┃ ┏━━━━━━┛    ┃╚╗┃ ║      ┏━━━━━┛   ┗┓════┃╗    ┏━━━━━┛ ┗━━━━━━┓┃║ ║ ┃│┃│┃│
+│┃│┃│┃┌─ + dev ───────▾───────┐┃┌─ + diff ▾─────────┐┃┌▾ ~ fake ─────────┐┃│┃│┃│
+│┃│┃│┃│┃+1793 −0   ┗━━━━━━━━━┓│┃│┃+1050 −0     ┃║   ◂┃│┃+680 −44    ┃┃║ ║│┃│┃│┃│
+│┃│┃│┃│┃api +24 −0 ~0║  ║    ┃│┃│┃api +16 −0 ~0┃║   │┃│┃api +9 −0 ~0┃┃║ ║│┃│┃│┃│
  ⋯
 ```
 
@@ -1039,6 +1107,12 @@ Two lessons came from rendering, not from planning:
   the screenshots, so exec became `»`.
 - **Markers can be dropped silently.** The first version dropped ports
   that didn't fit a narrow box; the layout now reserves room for them.
+- **Box colour competes with edge colour.** When borders took the
+  change kind's colour, a yellow "changed" box border and a yellow
+  "changed" edge looked alike. Now only the title is coloured.
+- **"Changed" edges are common.** Any file that starts using one more
+  function of a package changes that edge. If the canvas gets noisy in
+  use, show changed edges in the focus mode only.
 
 ### Recommendation for the deck
 
@@ -1058,7 +1132,7 @@ default (A), counts when dense (D), and focus lines for the selected box
   answers "which boxes are hubs". The *Look here first* list and the
   lane matrix answer the rest, and the tab should open on those.
 - **Height.** The canvas is taller than the drawer at its normal height:
-  #52 needs 25 rows at 80 columns, the dense history 51. So it belongs
+  #52 needs 26 rows at 80 columns, the dense history 91. So it belongs
   at full height (`z`) with the scrollbar, or in the 120-column split
   next to the selection's detail (§3). The tab still opens on *Look
   here first*. The views cycle with `t`: first → lanes → canvas →

@@ -12,7 +12,8 @@ type edgeChange struct {
 	edgeKey
 	added   bool
 	sites   []site // where the import is written (head for added, base for removed)
-	verdict string // "", "skip", "up"
+	verdict string // "", "skip", "up"; "same" for an unchanged edge drawn as context
+	changed bool   // in both base and head, but what its importers use through it changed
 	why     string
 	risk    int
 }
@@ -69,6 +70,7 @@ type result struct {
 	changedPkgs   map[string]bool
 	weights       map[string]weight
 	edges         []edgeChange
+	changedEdges  []edgeChange // internal edges in both, whose fingerprint changed
 	cycles        [][]string
 	touches       []touchChange
 	deps          []depChange
@@ -120,10 +122,10 @@ func analyse(base, head *snapshot, cs []change, cfg *layerConfig) *result {
 		r.lanes = inferredLanes(union, nodes)
 	}
 
-	// Weights from the changed Go files.
+	// Weights from the changed source files the graph has read.
 	for _, c := range cs {
 		for _, p := range []string{c.old, c.new} {
-			if p == "" || !strings.HasSuffix(p, ".go") {
+			if p == "" {
 				continue
 			}
 			if _, ok := base.files[p]; !ok {
@@ -182,6 +184,14 @@ func analyse(base, head *snapshot, cs []change, cfg *layerConfig) *result {
 	})
 
 	r.cycles = newCycles(compEdges(base.edges), compEdges(head.edges))
+	for _, k := range sortedKeys(boolKeys(head.edges)) {
+		b, ok := base.edges[k]
+		if ok && internal(k.to) && fingerprint(b) != fingerprint(head.edges[k]) {
+			e := edgeChange{edgeKey: k, added: true, changed: true, sites: head.edges[k], risk: 15}
+			e.verdict, e.why = r.lanes.check(k)
+			r.changedEdges = append(r.changedEdges, e)
+		}
+	}
 
 	// Declarations and touchpoints of the changed files, both sides.
 	movedFrom := map[keyed]bool{}
@@ -205,7 +215,7 @@ func analyse(base, head *snapshot, cs []change, cfg *layerConfig) *result {
 				k := path.Dir(c.new) + "\x00" + t.String()
 				ht[k]++
 				if _, ok := htSite[k]; !ok {
-					htSite[k] = site{c.new, t.line}
+					htSite[k] = site{file: c.new, line: t.line}
 				}
 			}
 		}
@@ -341,6 +351,18 @@ func sortedKeyed(m map[keyed]decl) []keyed {
 	}
 	slices.SortFunc(ks, func(a, b keyed) int { return cmp.Or(cmp.Compare(a.pkg, b.pkg), cmp.Compare(a.key, b.key)) })
 	return ks
+}
+
+// fingerprint is what an edge consists of: which files import, and what
+// each uses through it. Line numbers are left out, so code moving within
+// a file does not count as a change.
+func fingerprint(ss []site) string {
+	var parts []string
+	for _, s := range ss {
+		parts = append(parts, s.file+"|"+s.uses)
+	}
+	slices.Sort(parts)
+	return strings.Join(parts, "\n")
 }
 
 func addRequires(dst map[string]string, m module) {

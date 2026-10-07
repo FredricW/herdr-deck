@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"slices"
 	"testing"
 )
@@ -134,6 +135,82 @@ func TestCanvasLayout(t *testing.T) {
 					}
 				}
 			})
+		}
+	}
+}
+
+// The TypeScript reader on a made-up shop app: imports of every form,
+// comments that look like imports, aliases, index files and packages.
+func TestTypeScript(t *testing.T) {
+	src := []byte(`import React, { useState } from "react";
+import type { Row } from "@/api/users";
+import { formatDate as fmt } from '../lib/format';
+// import { ghost } from "@/ghost";
+/* import { ghost2 } from "@/ghost2"; */
+import "./styles.css";
+export { columns } from "./columns";
+const url = "https://example.com//not-a-comment";
+const Chart = React.lazy(() => import("@/components/chart"));
+const legacy = require("./legacy");
+
+export function UsersPage() {
+  const size = process.env.NEXT_PUBLIC_PAGE_SIZE;
+  return fetch("https://api.example.com/users");
+}
+
+export const PAGE = 20;
+function helper() {}
+`)
+	g := parseTS(src)
+	var specs []string
+	for _, im := range g.imports {
+		specs = append(specs, im.path+" ["+im.uses+"]")
+	}
+	slices.Sort(specs)
+	want := []string{
+		"../lib/format [fmt formatDate]", "./columns [columns]", "./legacy []", "./styles.css []",
+		"@/api/users [Row]", "@/components/chart []", "react [React useState]",
+	}
+	if !slices.Equal(specs, want) {
+		t.Errorf("imports = %q\nwant %q", specs, want)
+	}
+	var decls []string
+	for _, d := range g.decls {
+		decls = append(decls, fmt.Sprint(d.key, " ", d.exported))
+	}
+	if want := []string{"const url false", "const Chart false", "const legacy false", "function UsersPage true", "const PAGE true", "function helper false"}; !slices.Equal(decls, want) {
+		t.Errorf("decls = %q", decls)
+	}
+	var ts []string
+	for _, x := range g.touches {
+		ts = append(ts, x.String())
+	}
+	if want := []string{"env NEXT_PUBLIC_PAGE_SIZE", "http api.example.com"}; !slices.Equal(ts, want) {
+		t.Errorf("touches = %q", ts)
+	}
+
+	cfg := parseTSConfig("web", []byte(`{
+  // comments and trailing commas are allowed
+  "compilerOptions": { "paths": { "@/*": ["./src/*"], }, },
+}`))
+	res := &tsResolver{configs: []*tsconfig{cfg}, files: map[string]bool{
+		"web/src/pages/users/index.tsx": true, "web/src/pages/users/columns.ts": true,
+		"web/src/api/users.ts": true, "web/src/lib/format.ts": true,
+		"web/src/components/chart/index.tsx": true, "web/src/pages/users/styles.css": true,
+	}}
+	from := "web/src/pages/users/index.tsx"
+	for spec, want := range map[string]string{
+		"@/api/users":             "web/src/api",
+		"../../lib/format":        "web/src/lib",
+		"./columns":               "web/src/pages/users",
+		"@/components/chart":      "web/src/components/chart",
+		"./styles.css":            "",
+		"react":                   "ext:react",
+		"@tanstack/react-table/x": "ext:@tanstack/react-table",
+		"node:fs":                 "std:fs",
+	} {
+		if got := res.resolve(from, spec); got != want {
+			t.Errorf("resolve %q = %q, want %q", spec, got, want)
 		}
 	}
 }
