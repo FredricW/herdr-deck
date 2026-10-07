@@ -807,10 +807,11 @@ G1 (why the PR is not merging), G2 (a failed check's log tail) and G3
   (`mergeReason`) with a line to the PR tab, the PR tab, and the log view
   (`modeCheck`, full height like the report).
 - The PR tab (2026-10-06), after Commits and only for a thread with a PR:
+  first, with no heading, what the PR is (title chip, author, opened and
+  updated, head → base, labels, reviewers and requests,
+  additions/deletions/files; the user put it first on 2026-10-07), then
   *Status* (state, review decision, auto-merge, `mergeReason`, checks,
-  `checked`), *About* (title chip, author, opened and updated, head → base,
-  labels, reviewers and requests, additions/deletions/files),
-  *Description* (the body through internal/markdown) and *Comments* (issue
+  `checked`), *Description* (the body through internal/markdown) and *Comments* (issue
   comments, reviews and review threads, resolved ones included, in time
   order; apps' comments and resolved threads fold to one line). The body
   and conversation (`deck.PRDetail`, `detailFields`: title, body, labels,

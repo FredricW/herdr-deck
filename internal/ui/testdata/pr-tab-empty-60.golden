@@ -5,6 +5,11 @@
 
   Overview   Files   Commits   PR   Log 6
 
+ [5 #2320] Document select for summary
+ author  robin · opened 2d ago · updated 20m ago
+ branch  t-0004-summary → main
+ changes +214 −12 · 11 files
+
  ── Status ──
  open · review required
  ✕ blocked: checks failing, checks running, review required
@@ -12,17 +17,12 @@
  ✓ 2 passed
  checked just now
 
- ── About ──
- [5 #2320] Document select for summary
- author  robin · opened 2d ago · updated 20m ago
- branch  t-0004-summary → main
- changes +214 −12 · 11 files
-
  ── Description ──
  No description.
 
  ── Comments ──
  No comments yet.
+
 
 ────────────────────────────────────────────────────────────
  g GitHub  c log  tab focus  [ ] tab  z drawer        v9.9.9

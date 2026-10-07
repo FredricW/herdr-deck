@@ -12,7 +12,7 @@ worktree's dev servers, and refreshes as they change. As a herdr plugin it
 opens next to each coordinator by itself. See [docs/PLAN.md](docs/PLAN.md)
 for the plan and milestones.
 
-![The deck on sample data: Users page needs you and is pinned on top; the drawer below shows its card and Overview tab, then ] shows its Files, Commits and Log tabs; moving down the list keeps the tab, the review row shows its PR, links and dev servers, then its PR tab with the status, description and comments, and the folded Backlog opens and shuts with space.](docs/demo/hero.gif)
+![The deck on sample data: Users page needs you and is pinned on top; the drawer below shows its card and Overview tab, then ] shows its Files, Commits and Log tabs; moving down the list keeps the tab, the review row shows its PR, links and dev servers, then its PR tab with what the PR is, its status, description and comments, and the folded Backlog opens and shuts with space.](docs/demo/hero.gif)
 
 ## Install as a herdr plugin
 
@@ -281,13 +281,13 @@ which has the rest:
   the deck can read, so its page opens instead. Logs are read only when you
   ask, kept in memory (never on disk) and not read again for the same job.
 - The **PR tab** (after Commits, only on a row whose thread has a PR)
-  has four sections. *Status*: the state (open, draft, merged, closed),
-  the review decision and auto-merge, why it is not merging, the checks
-  as above, and when it was checked. *About*: the number and title as a
+  opens on what the PR is, with no heading: the number and title as a
   chip that opens the PR, the author, when it was opened and updated, head
   → base branch, labels, who reviewed and where they stand (`✓ alex  ✕
   sam`) and who is asked (`◌ frontend asked`), and `+214 −12 · 11 files`.
-  *Description*: the PR's body rendered as Markdown. *Comments*: the
+  Three sections follow. *Status*: the state (open, draft, merged,
+  closed), the review decision and auto-merge, why it is not merging, the
+  checks as above, and when it was checked. *Description*: the PR's body rendered as Markdown. *Comments*: the
   conversation in time order: comments, reviews (approved, requested
   changes, reviewed, with their text) and review threads with their file
   and line, each with its author, age and text as Markdown. An app's

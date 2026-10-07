@@ -43,6 +43,49 @@ func (m Model) prTab(d *drawer, r row, links []deck.Link) {
 		d.line(head)
 	}
 
+	// About first, with no heading: the tab opens on what the PR is.
+	title := group{sep: " ", hang: 2}
+	if prLink >= 0 {
+		title.items = append(title.items, m.chip(d, links[prLink], prLink, false))
+	} else {
+		title.items = append(title.items, span(fmt.Sprintf("#%d", pr.Number), reviewStyle))
+	}
+	if det != nil {
+		title.items = append(title.items, words(det.Title, bold).items...)
+	}
+	d.flow(title)
+	if det == nil {
+		d.flow(m.detailMissing(pr))
+	} else {
+		who := group{sep: " ", items: []item{span(det.Author, plain)}}
+		if !det.Created.IsZero() {
+			who.items = append(who.items, span("· opened "+ago(m.opt.Now().Sub(det.Created)), dim))
+		}
+		if !det.Updated.IsZero() {
+			who.items = append(who.items, span("· updated "+ago(m.opt.Now().Sub(det.Updated)), dim))
+		}
+		d.field("author", false, who)
+		if det.Head != "" {
+			d.field("branch", false, group{sep: " ", items: []item{span(m.shortBranch(det.Head), plain), span("→", dim), span(det.Base, plain)}})
+		}
+		if len(det.Labels) > 0 {
+			g := group{sep: " "}
+			for _, l := range det.Labels {
+				g.items = append(g.items, span(l, workStyle))
+			}
+			d.field("labels", false, g)
+		}
+		if g := reviewersGroup(pr, det); len(g.items) > 0 {
+			d.field("reviews", false, g)
+		}
+		if det.ChangedFiles > 0 || det.Additions+det.Deletions > 0 {
+			d.field("changes", false, group{sep: " ", items: []item{
+				span(fmt.Sprintf("+%d", det.Additions), okStyle), span(fmt.Sprintf("−%d", det.Deletions), failStyle),
+				span(fmt.Sprintf("· %d %s", det.ChangedFiles, plural(det.ChangedFiles, "file")), dim),
+			}})
+		}
+	}
+
 	heading("Status", "")
 	d.flow(prStateGroup(pr))
 	if text, st := mergeReason(pr); text != "" {
@@ -60,19 +103,7 @@ func (m Model) prTab(d *drawer, r row, links []deck.Link) {
 		d.flow(words("checked "+ago(m.opt.Now().Sub(pr.CheckedAt)), dim))
 	}
 
-	heading("About", "")
-	title := group{sep: " ", hang: 2}
-	if prLink >= 0 {
-		title.items = append(title.items, m.chip(d, links[prLink], prLink, false))
-	} else {
-		title.items = append(title.items, span(fmt.Sprintf("#%d", pr.Number), reviewStyle))
-	}
-	if det != nil {
-		title.items = append(title.items, words(det.Title, bold).items...)
-	}
-	d.flow(title)
 	if det == nil {
-		d.flow(m.detailMissing(pr))
 		// The regular read has the unresolved review threads already.
 		if len(pr.Threads) > 0 {
 			heading("Review threads", fmt.Sprintf("%d unresolved", len(pr.Threads)))
@@ -85,33 +116,6 @@ func (m Model) prTab(d *drawer, r row, links []deck.Link) {
 			}
 		}
 		return
-	}
-	who := group{sep: " ", items: []item{span(det.Author, plain)}}
-	if !det.Created.IsZero() {
-		who.items = append(who.items, span("· opened "+ago(m.opt.Now().Sub(det.Created)), dim))
-	}
-	if !det.Updated.IsZero() {
-		who.items = append(who.items, span("· updated "+ago(m.opt.Now().Sub(det.Updated)), dim))
-	}
-	d.field("author", false, who)
-	if det.Head != "" {
-		d.field("branch", false, group{sep: " ", items: []item{span(m.shortBranch(det.Head), plain), span("→", dim), span(det.Base, plain)}})
-	}
-	if len(det.Labels) > 0 {
-		g := group{sep: " "}
-		for _, l := range det.Labels {
-			g.items = append(g.items, span(l, workStyle))
-		}
-		d.field("labels", false, g)
-	}
-	if g := reviewersGroup(pr, det); len(g.items) > 0 {
-		d.field("reviews", false, g)
-	}
-	if det.ChangedFiles > 0 || det.Additions+det.Deletions > 0 {
-		d.field("changes", false, group{sep: " ", items: []item{
-			span(fmt.Sprintf("+%d", det.Additions), okStyle), span(fmt.Sprintf("−%d", det.Deletions), failStyle),
-			span(fmt.Sprintf("· %d %s", det.ChangedFiles, plural(det.ChangedFiles, "file")), dim),
-		}})
 	}
 
 	heading("Description", "")

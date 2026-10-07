@@ -16,13 +16,13 @@
  Document select for summary                       ◇ review
  webshop · t-0004-summary                         #2320 ✕ 1
 
-  Overview   Files   Commits   PR   Log 6         ↓ 15 more
+  Overview   Files   Commits   PR   Log 6         ↓ 14 more
 
- ── Status ──                                              ┃
- open · review required                                    ┃
+ [5 #2320]                                                 ┃
+ reading the description and comments…                     ┃
+                                                           │
+ ── Status ──                                              │
+ open · review required                                    │
  ✕ blocked: checks failing, checks running, review         │
- required (sam)                                            │
- ✕ 1 failing: [lint]  ◌ 1 running: test (macos-latest) 6m  │
- ✓ 2 passed                                                │
 ────────────────────────────────────────────────────────────
  g GitHub  c log  tab focus  [ ] tab  z drawer        v9.9.9

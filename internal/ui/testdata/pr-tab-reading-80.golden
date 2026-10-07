@@ -16,13 +16,13 @@
  Document select for summary                                           ◇ review
  webshop · t-0004-summary                                     #2320 ✕ 1 failing
 
-  Overview   Files   Commits   PR   Log 6              ↓ About · Review threads
+  Overview   Files   Commits   PR   Log 6                      ↓ Review threads
 
- ── Status ──                                                                  ┃
- open · review required                                                        ┃
- ✕ blocked: checks failing, checks running, review required (sam)              │
- ✕ 1 failing: [lint]  ◌ 1 running: test (macos-latest) 6m  ✓ 2 passed          │
- checked just now                                                              │
+ [5 #2320]                                                                     ┃
+ reading the description and comments…                                         ┃
                                                                                │
+ ── Status ──                                                                  │
+ open · review required                                                        │
+ ✕ blocked: checks failing, checks running, review required (sam)              │
 ────────────────────────────────────────────────────────────────────────────────
  g on GitHub  c check log  pgdn scroll  tab focus  [ ] tab  ? help        v9.9.9

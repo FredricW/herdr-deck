@@ -16,13 +16,13 @@
  Document select for summary                       ◇ review
  webshop · t-0004-summary                           #2320 ✓
 
-  Overview   Files   Commits   PR   Log 6         ↓ 37 more
+  Overview   Files   Commits   PR   Log 6         ↓ 36 more
 
- ── Status ──                                              ┃
- merged                                                    │
- checked just now                                          │
-                                                           │
- ── About ──                                               │
- [5 #2320] Document select for summary                     │
+ [5 #2320] Document select for summary                     ┃
+ author  robin · opened 2d ago · updated 20m ago           │
+ branch  t-0004-summary → main                             │
+ labels  frontend needs-review                             │
+ reviews ○ alex  ✓ kim  ◌ sam asked                        │
+ changes +214 −12 · 11 files                               │
 ────────────────────────────────────────────────────────────
  g GitHub  c log  tab focus  [ ] tab  z drawer        v9.9.9

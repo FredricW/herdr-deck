@@ -24,7 +24,7 @@ Type "]"
 Sleep 1s
 Down
 Sleep 2.2s
-# Its PR tab: status, what it is, then its description and comments.
+# Its PR tab: what it is, its status, then its description and comments.
 Type "["
 Sleep 0.4s
 Type "["

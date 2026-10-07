@@ -5,10 +5,10 @@
 
   Overview   Files   Commits   PR   Log 6         ↓ 17 more
 
- branch  t-0004-summary → main                             │
- labels  frontend needs-review                             │
- reviews ○ alex  ✓ kim  ◌ sam asked                        │
- changes +214 −12 · 11 files                               │
+ required (sam)                                            │
+ ✕ 1 failing: [lint]  ◌ 1 running: test (macos-latest) 6m  │
+ ✓ 2 passed                                                │
+ checked just now                                          │
                                                            ┃
  ── Description ──                                         ┃
  ## Summary                                                ┃

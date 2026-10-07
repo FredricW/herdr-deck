@@ -33,9 +33,9 @@ and versions follow [Semantic Versioning](https://semver.org/).
   `~/.local/state/dev-manifest/` folder, so other tools see what the deck
   started.
 - A PR tab in the drawer, after Commits, on rows whose thread has a pull
-  request: its status (state, why it is not merging, checks with the
-  failing ones as chips, review decision, auto-merge), what it is (title,
-  author, branches, labels, reviewers, size), its description as Markdown,
+  request: what it is (title, author, branches, labels, reviewers, size),
+  its status (state, why it is not merging, checks with the failing ones
+  as chips, review decision, auto-merge), its description as Markdown,
   and its conversation in time order (comments, reviews and review
   threads; apps' comments and resolved threads folded to one line). `↵` or
   a click opens a comment on GitHub. The description and comments are read

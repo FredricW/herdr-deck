@@ -162,6 +162,7 @@ func TestPRTabComments(t *testing.T) {
 func TestPRTabCheckChip(t *testing.T) {
 	m, _ := newModelWith(t, live(), 80, 28, func(opt *Options) { opt.CheckLog = fake.CheckLog })
 	m, _ = press(m, keys(prTabKeys)...)
+	m = scrollTo(t, m, "[lint]")
 	x, y := find(t, m, "[lint]")
 	m, _ = press(m, click(x+1, y))
 	if m.mode != modeCheck || m.logCheck.Name != "lint" {
