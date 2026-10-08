@@ -1,0 +1,40 @@
+ Admin rebuild                                                                        ● 1 needs you  ◐ 1  ◇ 1  ○ 1  ✉ 2
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+ src/api ─▸ src/admin/users · added · 1 site                                                                 users.ts:2
+ @@ -1,5 +1,25 @@                                                                                                      ┃
+   import { get } from "./client";                                                                                     ┃
+▌+ import { overview } from "@/admin/users/overview";                                                                  ┃
+                                                                                                                       ┃
+ − export async function listMembers(): Promise<Member[]> {                                                            ┃
+ −   return get("/api/members");                                                                                       ┃
+ + export type Role = "owner" | "admin" | "member";                                                                    ┃
+ +                                                                                                                     ┃
+ + export interface UsersQuery {                                                                                       ┃
+ +   query?: string;                                                                                                   ┃
+ +   role?: Role | "all";                                                                                              │
+ + }                                                                                                                   │
+ +                                                                                                                     │
+ + // listUsers pages through /api/users; the server filters by role.                                                  │
+ + export async function listUsers(q: UsersQuery = {}): Promise<User[]> {                                              │
+ +   const params = new URLSearchParams();                                                                             │
+ +   if (q.query) params.set("q", q.query);                                                                            │
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+ Users page                                                                                           ● needs you  ~95%
+ webshop · t-0002-members-admin-users                                                                        ▰▰▰▰▰▰▰▰▰▱
+
+  Overview   Files 8   Commits   Impact 10   Log 7                                                             ↓ 4 more
+
+ │ ┌─ src ──────────────────────────────────────────────────────────── ⋯1 ┐ │  ── imports 2 · imported by 2 ──         │
+ │ │                        ┌──────────────┐                              │ │ ▸─▸ admin/users  ✕ upward     users.ts:2 │
+ │ │ ┌─ admin ───────── ⋯3 ┐│┌─ ui ─────┐ ┏▾ ~ api ━━━━━━━┓ ┌─ db ──────┐ │ │  ─▸ db  unchanged            client.ts:1 │
+ │ │ │                     │││          │ ┃ +22 −2        ┃─▸           │ │ │  ◂─ admin/users  changed UsersPage.tsx:3 │
+ │ │ │ ┌─ ~ users ───────┐ │││          │ ┃ api +5 −1 ~0  ┃ │           │ │ │  ◂─ admin/members (fo… MembersPage.tsx:1 ┃
+ │ │ │ │ +38 −20         │─│┘│          │ ┃ ⇄             ┃ │           │ │ │  ── api ──                               ┃
+ │ │ │ │ api +3 −3 ~0    │ │ │          │ ┃               ┃ │           │ │ │  + function fetchOverview                ┃
+ │ │ │ │ $ ◆1            │ │ │          │ ┃               ┃ │           │ │ │  + function listUsers                    ┃
+ │ │ │ └────────────────▴┘ │ │          │ ┃               ┃ │           │ │ │  + function useUsers                     ┃
+ │ │ │                  ┃  │ │          │ ┃               ┃ │           │ │ │  + interface UsersQuery                  ┃
+ │ │ └─────────────────────┘ └──────────┘ ┗━━━━━━━━━━━━━━━┛ └───────────┘ │ │  + type Role                             │
+ │ │                    ┗━━━━━━━━━━━━━━━━━━┛                              │ │  − function listMembers                  │
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+ j k h l move  ↵ open  O own pane  z full height  esc list  ? help                                                v9.9.9

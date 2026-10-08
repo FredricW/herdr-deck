@@ -126,6 +126,7 @@ func analyse(r *Result, base, head *snapshot, files []deck.DiffFile, cfg Config)
 		e.Verdict, e.Why = ln.check(k)
 		if fingerprint(b) != fingerprint(head.edges[k]) {
 			e.Status, e.Risk = Changed, 15
+			e.Gained, e.Lost = usesDiff(b, head.edges[k])
 			changed = append(changed, e)
 			continue
 		}
@@ -393,6 +394,32 @@ func fingerprint(ss []Site) string {
 	}
 	slices.Sort(parts)
 	return strings.Join(parts, "\n")
+}
+
+// usesDiff is the names an edge's importers use through it at head and
+// not at base, and the other way round, each sorted.
+func usesDiff(base, head []Site) (gained, lost []string) {
+	names := func(ss []Site) map[string]bool {
+		m := map[string]bool{}
+		for _, s := range ss {
+			for w := range strings.FieldsSeq(s.Uses) {
+				m[w] = true
+			}
+		}
+		return m
+	}
+	b, h := names(base), names(head)
+	for _, w := range slices.Sorted(maps.Keys(h)) {
+		if !b[w] {
+			gained = append(gained, w)
+		}
+	}
+	for _, w := range slices.Sorted(maps.Keys(b)) {
+		if !h[w] {
+			lost = append(lost, w)
+		}
+	}
+	return gained, lost
 }
 
 func requirements(ms []module) map[string]string {

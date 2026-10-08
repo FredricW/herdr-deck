@@ -93,6 +93,9 @@ func (m *Model) impactKey(msg tea.KeyPressMsg) bool {
 	if m.mode != modeRow || m.curTab() != tabImpact || !m.dfocus {
 		return false
 	}
+	if m.impactEdgeKey(msg) {
+		return true
+	}
 	dir := ""
 	switch msg.String() {
 	case "j", "down":
@@ -140,6 +143,28 @@ func (m *Model) syncImpactSel() {
 		m.isel, m.iselKey = "", diffKey(t)
 	}
 	m.isel = impactSel(l.drawer.impact, l.drawer.stops, m.dcur, m.isel)
+	was := m.iedge
+	m.iedge = impactEdgeAt(l.drawer.impact, l.drawer.stops, m.dcur)
+	if m.iedge != "" && was == "" && m.size == sizeFull {
+		// The edge's code takes the list's place, as the diff preview
+		// does: the drawer goes back to its normal height, where fewer
+		// findings show, so the cursor finds the edge's row again.
+		m.size = sizeNormal
+		m.ensureVisible()
+		l := m.layout()
+		if s := l.drawer.impact.edgeStop(l.drawer.stops, m.iedge); s >= 0 {
+			m.dcur = s
+		}
+	}
+}
+
+// impactEdgeAt is the edge the stop at cur selects (an edge row's), as
+// edgeKey names it, or "".
+func impactEdgeAt(lay *impactLayout, stops []stop, cur int) string {
+	if lay == nil || cur < 0 || cur >= len(stops) || stops[cur].act.kind != actEdge {
+		return ""
+	}
+	return edgeKey(lay.edges[stops[cur].act.n])
 }
 
 // showImpactStop scrolls the drawer to the cursor's stop: a box whole when
@@ -151,14 +176,47 @@ func (m *Model) showImpactStop() {
 		return
 	}
 	lay := l.drawer.impact
-	if a := l.drawer.stops[m.dcur].act; a.kind == actBox {
-		b := lay.boxes[a.n]
-		top, bottom := lay.top+b.y, lay.top+b.y+b.h-1
-		if bottom >= m.drawerOff+l.drawerH {
-			m.drawerOff = min(bottom-l.drawerH+1, top)
-		}
-		m.scrollDrawer(0)
+	top, bottom, ok := impactSpan(lay, l.drawer.stops[m.dcur].act)
+	if !ok {
+		return
 	}
+	if bottom >= m.drawerOff+l.drawerH {
+		m.drawerOff = min(bottom-l.drawerH+1, top)
+	}
+	if top < m.drawerOff {
+		m.drawerOff = top
+	}
+	m.scrollDrawer(0)
+}
+
+// impactSpan is the drawer lines a stop wants in view: a box's, or for an
+// edge row, its line's on the canvas (the row itself may scroll away: the
+// main view's header names the edge); ok is false for other stops.
+func impactSpan(lay *impactLayout, a action) (top, bottom int, ok bool) {
+	switch a.kind {
+	case actBox:
+		b := lay.boxes[a.n]
+		return lay.top + b.y, lay.top + b.y + b.h - 1, true
+	case actEdge:
+		e := lay.edges[a.n]
+		i := lay.c.routedIndex(e.From, e.To)
+		if i < 0 {
+			return 0, 0, false
+		}
+		top, bottom = -1, -1
+		for y, row := range lay.c.g.cells {
+			for _, cl := range row {
+				if cl.edge == i+1 {
+					if top < 0 {
+						top = y
+					}
+					bottom = y
+				}
+			}
+		}
+		return lay.top + top, lay.top + bottom, top >= 0
+	}
+	return 0, 0, false
 }
 
 // impactAct does what ↵ or a second click does on an Impact stop: a
@@ -201,6 +259,14 @@ func (m *Model) impactAct(a action) tea.Cmd {
 		return m.openImpactSite(impactSite{file: pk.Changed[0], base: pk.Status == arch.Removed})
 	case actSite:
 		return m.openImpactSite(lay.sites[a.n])
+	case actEdge:
+		// The selected edge's shown site.
+		_, _, e, ok := m.impactEdge()
+		if !ok || len(e.Sites) == 0 {
+			return nil
+		}
+		s := e.Sites[m.edgeSite(e)]
+		return m.openImpactSite(impactSite{file: s.File, line: s.Line, base: s.Base})
 	}
 	return nil
 }
@@ -283,8 +349,17 @@ func (m *Model) impactClick(l frame, i, x int) (tea.Cmd, bool) {
 	if lay == nil || m.mode != modeRow || m.curTab() != tabImpact {
 		return nil, false
 	}
-	at, first := impactClickStop(l.drawer, i, x)
+	at, first, line := impactClickStop(l.drawer, i, x)
 	onCanvas := i >= lay.top && i < lay.top+lay.c.g.h && x >= lay.left && x < lay.left+lay.c.g.w
+	if line != nil {
+		// A line: the first click selects its edge (with its source
+		// box), a second one opens it.
+		if _, _, e, ok := m.impactEdge(); ok && edgeKey(e) == edgeKey(*line) {
+			return m.act(action{kind: actEdge, n: -1}), true
+		}
+		m.selectEdge(line.From, line.To)
+		return nil, true
+	}
 	switch {
 	case at < 0:
 		return nil, onCanvas // the canvas's background does nothing
@@ -348,6 +423,9 @@ func (m *Model) relocateImpact(prev action) {
 	if s := l.drawer.impact.boxStop(m.isel); s >= 0 {
 		m.dcur = s
 	}
+	if s := l.drawer.impact.edgeStop(l.drawer.stops, m.iedge); prev.kind == actEdge && s >= 0 {
+		m.dcur = s
+	}
 	if prev.kind == actFinding || prev.kind == actFindMore {
 		for i, s := range l.drawer.stops {
 			if s.act == prev {
@@ -357,4 +435,72 @@ func (m *Model) relocateImpact(prev action) {
 	}
 	m.syncImpactSel()
 	m.moveDrawerCursor(0)
+}
+
+// impactEdgeKey handles the keys of a selected box's edges: n and N (and,
+// with an edge selected, ] and [) go to its next and previous edge; with
+// an edge selected, tab and shift+tab (or . and ,) show its next and
+// previous site, and esc goes back to its box, a second esc to the list.
+func (m *Model) impactEdgeKey(msg tea.KeyPressMsg) bool {
+	l := m.layout()
+	if l.drawer == nil || l.drawer.impact == nil || l.drawer.impact.sel == "" {
+		return false
+	}
+	lay, stops := l.drawer.impact, l.drawer.stops
+	_, _, e, onEdge := m.impactEdge()
+	dir := 0
+	switch k := msg.String(); {
+	case k == "n", k == "]" && onEdge:
+		dir = 1
+	case k == "N", k == "[" && onEdge:
+		dir = -1
+	case onEdge && (k == "tab" || k == "."):
+		m.cycleSite(e, 1)
+		return true
+	case onEdge && (k == "shift+tab" || k == ","):
+		m.cycleSite(e, -1)
+		return true
+	case onEdge && k == "esc":
+		if s := lay.boxStop(m.isel); s >= 0 {
+			m.dcur = s
+		}
+		m.syncImpactSel()
+		m.showImpactStop()
+		return true
+	default:
+		return false
+	}
+	at := edgeCycle(stops, m.dcur, dir)
+	if stops[at].act.kind != actEdge {
+		m.status = lay.sel + " has no imports to step through"
+		return true
+	}
+	m.dcur = at
+	m.syncImpactSel()
+	m.showImpactStop()
+	return true
+}
+
+// selectEdge selects the edge from → to with its source box: the cursor
+// on its row in the box's detail.
+func (m *Model) selectEdge(from, to string) {
+	t, _, ok := m.archResult()
+	if !ok {
+		return
+	}
+	m.focusDrawer()
+	m.choosing = noKind
+	m.isel, m.iselKey = from, diffKey(t)
+	l := m.layout()
+	if l.drawer == nil || l.drawer.impact == nil {
+		return
+	}
+	if s := l.drawer.impact.boxStop(from); s >= 0 {
+		m.dcur = s
+	}
+	if s := l.drawer.impact.edgeStop(l.drawer.stops, from+"\x00"+to); s >= 0 {
+		m.dcur = s
+	}
+	m.syncImpactSel()
+	m.showImpactStop()
 }

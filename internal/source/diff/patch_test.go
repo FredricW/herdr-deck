@@ -220,3 +220,18 @@ func TestReadPatchSkipsFIFO(t *testing.T) {
 		t.Fatal("ReadPatch blocked on a FIFO")
 	}
 }
+
+func TestReadFileAt(t *testing.T) {
+	var got []string
+	r := &Reader{Git: func(_ context.Context, dir string, args ...string) ([]byte, error) {
+		got = append(got, dir+" "+strings.Join(args, " "))
+		return []byte("package a\n"), nil
+	}}
+	b, err := r.ReadFileAt(context.Background(), deck.Thread{Worktree: "/wt"}, "abc123", "a/a.go")
+	if err != nil || string(b) != "package a\n" || len(got) != 1 || got[0] != "/wt show abc123:a/a.go" {
+		t.Errorf("%q %v %v", b, err, got)
+	}
+	if _, err := r.ReadFileAt(context.Background(), deck.Thread{}, "abc123", "a/a.go"); err == nil {
+		t.Error("read without a worktree")
+	}
+}

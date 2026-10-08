@@ -3,9 +3,9 @@
  Users page                               ● needs you  ~95%
  webshop · t-0002-members-admin-users            ▰▰▰▰▰▰▰▰▰▱
 
-  Overview   Files 8   Commits   Impact 9   Log … ↓ 18 more
+  Overview   Files 8   Commits   Impact 10   Log… ↓ 16 more
 
- 9 to look at  ✕ 1 upward  ↻ 1 cycle  ⚠ 1 skip  edges +3…  ┃
+ 10 to look at  ✕ 1 upward  ↻ 1 cycle  ⚠ 1 skip  edges +…  ┃
  1 ✕ api → admin/users  upward                             ┃
  2 ↻ src/api → src/admin → src/api  new cycle              ┃
  3 ⚠ admin/users → db  skips api                           ┃
@@ -13,34 +13,34 @@
  5 + dep @tanstack/react-table 8.21.3  dependency          ┃
  6 + admin/users → @tanstack/react-table  third-party      ┃
  7 + env VITE_USERS_PAGE_SIZE  in admin/users              ┃
- 8 ~ api admin/users  −2 ~1 +2                             ┃
- 9 ~ api api  −0 ~1 +1                                     ┃
+ 8 + admin/users → ui                                      ┃
+ 9 ~ api admin/users  −3 ~0 +3                             ┃
+ · ~ api api  −1 ~0 +5                                     ┃
                                                            ┃
  ┌─ webshop ────────────────────────────────────────────┐  ┃
  │                                                      │  ┃
- │ ┌─ src ──────────────────────────────────────── ⋯2 ┐ │  ┃
- │ │              │                                   │ │  ┃
- │ │ ┌─ admin ──────────── ⋯3 ┐ ┌─ ~ api ───────────┐ │ │  ┃
- │ │ │            │           │ │ +3 −1             │ │ │  ┃
- │ │ │ ┏━ ~ users ▾━━━━━━━━━┓ │ │ api +1 −0 ~1      │ │ │  ┃
- │ │ │ ┃ +17 −8             ◂─│─│ ⇄                 │ │ │  ┃
- │ │ │ ┃ api +2 −2 ~1       ┃─│─▸                   │ │ │  ┃
- │ │ │ ┃ $ ◆1               ┃ │ │                   │ │ │  ┃
- │ │ │ ┗━━━━━━━━━━━━━━━━━━━━┛ │ │                   │ │ │  ┃
- │ │ │     │                  │ │                   │ │ │  ┃
- │ │ └────────────────────────┘ └───────────────────┘ │ │  ┃
- │ │       │                                          │ │  ┃
- │ │ ┌─ db ▾────────────────────────────────────────┐ │ │  │
- │ │ └──────────────────────────────────────────────┘ │ │  │
+ │ ┌─ src ──────────────────────────────────────── ⋯1 ┐ │  ┃
+ │ │                                                  │ │  ┃
+ │ │ ┌─ admin ─────────────── ⋯3 ┐ ┌─ ui ───────────┐ │ │  ┃
+ │ │ │                           │ │                │ │ │  ┃
+ │ │ │ ┌─ ~ users ─────────────┐ │ │                │ │ │  ┃
+ │ │ │ │ +38 −20               │ │ │                │ │ │  ┃
+ │ │ │ │ api +3 −3 ~0          │ │ │                │ │ │  ┃
+ │ │ │ │ $ ◆1                  │ │ │                │ │ │  ┃
+ │ │ │ └──────▴────────────────┘ │ │                │ │ │  ┃
+ │ │ │        ││                 │ │                │ │ │  ┃
+ │ │ └───────────────────────────┘ └────────────────┘ │ │  ┃
+ │ │          ││                                      │ │  ┃
+ │ │ ┏━ ~ api ━▾━━━━━━━━━━━━━━┓ ┌─ db ──────────────┐ │ │  │
+ │ │ ┃ +22 −2                 ┃─▸                   │ │ │  │
+ │ │ ┃ api +5 −1 ~0           ┃ │                   │ │ │  │
+ │ │ ┃ ⇄                      ┃ │                   │ │ │  │
+ │ │ ┗━━━━━━━━━━━━━━━━━━━━━━━━┛ └───────────────────┘ │ │  │
  │ │                                                  │ │  │
  │ └──────────────────────────────────────────────────┘ │  │
  │                                                      │  │
  └──────────────────────────────────────────────────────┘  │
- ~ users · src/admin/users · pages                         │
- +17 −8 in 5 files                                         │
- ── imports 5 · imported by 2 ──                           │
- ─▸ db  ⚠ skips api                       UsersPage.tsx:2  │
- ─▸ @tanstack/react-table  third-party   UsersTable.tsx:1  │
- ─▸ api  changed                          UsersPage.tsx:1  │
+ ~ api · src/api · api                                     │
+ +22 −2 in 1 file                                          │
 ────────────────────────────────────────────────────────────
  hjkl move  ↵ open  O pane  esc list                  v9.9.9

@@ -211,6 +211,8 @@ func (m Model) render() string {
 	switch {
 	case m.preview:
 		lines = append(lines, m.previewLines(w, f.listH)...)
+	case f.listH > 0 && m.edgeShown():
+		lines = append(lines, m.shownEdgeLines(w, f.listH)...)
 	case f.listH > 0 || m.effectiveSize() != sizeFull:
 		lines = append(lines, dim.Render(fit(m.columnTitles(w), w)))
 		lines = append(lines, m.listLines(w, f.listH)...)

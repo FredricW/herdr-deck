@@ -88,9 +88,9 @@ func TestCanvasSample(t *testing.T) {
 // Go's maps hand things out in.
 func TestCanvasDeterministic(t *testing.T) {
 	for _, w := range []int{60, 80, 120} {
-		first := strings.Join(newCanvas(sampleShop(), w).rows(), "\n")
+		first := strings.Join(newCanvas(sampleShop(), w).rows(-1), "\n")
 		for range 20 {
-			if again := strings.Join(newCanvas(sampleShop(), w).rows(), "\n"); again != first {
+			if again := strings.Join(newCanvas(sampleShop(), w).rows(-1), "\n"); again != first {
 				t.Fatalf("width %d: the canvas changed:\n%s\n---\n%s", w, ansi.Strip(first), ansi.Strip(again))
 			}
 		}
@@ -105,7 +105,7 @@ func TestCanvasNoOverlap(t *testing.T) {
 		if c.root.w > max(w, minInner+4) {
 			t.Errorf("width %d: the root is %d wide", w, c.root.w)
 		}
-		for i, row := range c.rows() {
+		for i, row := range c.rows(-1) {
 			if got := ansi.StringWidth(row); got != c.g.w {
 				t.Errorf("width %d: row %d is %d wide, want %d", w, i, got, c.g.w)
 			}
@@ -230,7 +230,7 @@ func TestCanvasCounts(t *testing.T) {
 	if !c.counts || len(c.edges) != 24 {
 		t.Fatalf("counts %v with %d edges", c.counts, len(c.edges))
 	}
-	plain := ansi.Strip(strings.Join(c.rows(), "\n"))
+	plain := ansi.Strip(strings.Join(c.rows(-1), "\n"))
 	if !strings.Contains(plain, "▾3") || !strings.Contains(plain, "▴3") {
 		t.Errorf("no counts:\n%s", plain)
 	}
@@ -437,7 +437,7 @@ func lineCellsIn(g *grid, b *cbox) int {
 // is shorter.
 func TestRouteAvoidsSiblings(t *testing.T) {
 	g, bx, cv := threeInARow(true)
-	if !g.route(bx["a"], bx["c"], arch.Added, cv.lineOf(bx["a"], bx["c"])) {
+	if !g.route(bx["a"], bx["c"], arch.Added, cv.lineOf(bx["a"], bx["c"]), 1) {
 		t.Fatal("no route")
 	}
 	if n := lineCellsIn(g, bx["b"]); n > 0 {
@@ -469,7 +469,7 @@ func TestRouteAvoidsSiblings(t *testing.T) {
 // leaving its borders whole.
 func TestRouteThroughASiblingWhenItMust(t *testing.T) {
 	g, bx, cv := threeInARow(false)
-	if !g.route(bx["a"], bx["c"], arch.Added, cv.lineOf(bx["a"], bx["c"])) {
+	if !g.route(bx["a"], bx["c"], arch.Added, cv.lineOf(bx["a"], bx["c"]), 1) {
 		t.Fatal("no route")
 	}
 	if n := lineCellsIn(g, bx["b"]); n == 0 {

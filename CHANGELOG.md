@@ -30,6 +30,12 @@ and versions follow [Semantic Versioning](https://semver.org/).
   its API changes, touchpoints and files; `↵` shows the line in the diff
   preview. `O` opens the Impact view in a herdr pane of its own, zoomed to
   the whole tab (`herdr-deck arch`); `q` closes it.
+- Select an edge on the Impact canvas: `n` and `N` step through the
+  selected box's imports, or click a line. Its line turns heavy, and the
+  main view shows its code: the hunk with the import marked (the base
+  side for a removed one, the file around it when its line did not
+  change), with the names a changed import gained and lost; `tab` steps
+  through the files that import it, and `esc` goes back to the box.
 
 ## [0.1.7] - 2026-10-07
 

@@ -288,3 +288,22 @@ func (w *limitWriter) Write(b []byte) (int, error) {
 	}
 	return w.buf.Write(b)
 }
+
+// maxFileAt is the most of a file ReadFileAt reads.
+const maxFileAt = 1 << 20
+
+// ReadFileAt reads path as commit rev has it (`git show rev:path`) in t's
+// worktree, for showing a line the branch did not change around it. A
+// file over 1 MB is cut there.
+func (r *Reader) ReadFileAt(ctx context.Context, t deck.Thread, rev, path string) ([]byte, error) {
+	if t.Worktree == "" || rev == "" {
+		return nil, errors.New("no worktree or commit")
+	}
+	ctx, cancel := context.WithTimeout(ctx, Timeout)
+	defer cancel()
+	if r.Git != nil {
+		return r.Git(ctx, t.Worktree, "show", rev+":"+path)
+	}
+	out, _, err := execGitLimit(ctx, t.Worktree, maxFileAt, "show", rev+":"+path)
+	return out, err
+}

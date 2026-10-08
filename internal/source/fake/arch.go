@@ -2,7 +2,11 @@ package fake
 
 import (
 	"context"
+	"fmt"
 	"maps"
+	"regexp"
+	"strconv"
+	"strings"
 	"sync"
 
 	"github.com/FredricW/herdr-deck/internal/deck"
@@ -11,10 +15,10 @@ import (
 
 // Arch is the Impact tab's sample: what t-0002's branch did to the made-up
 // webshop's shape, read from the files below as the deck reads a real
-// repository. It matches the Files sample: UsersPage changed, UsersTable
-// is new, UsersList is gone, stats.ts became overview.ts and the users API
-// changed (plus package.json, for the new dependency). Other threads
-// changed nothing.
+// repository. It matches the Files sample, its changed files built from
+// the sample patches: UsersPage changed, UsersTable is new, UsersList is
+// gone, stats.ts became overview.ts and the users API changed (plus
+// package.json, for the new dependency). Other threads changed nothing.
 func Arch(_ context.Context, t deck.Thread) *arch.Result {
 	if t.ID != "t-0002" {
 		return &arch.Result{Base: "origin/main", Note: "no changes to the shape"}
@@ -23,17 +27,103 @@ func Arch(_ context.Context, t deck.Thread) *arch.Result {
 }
 
 var sampleArch = sync.OnceValue(func() *arch.Result {
-	after := maps.Clone(webshopBase)
-	maps.Copy(after, webshopChange)
-	for p, src := range after {
-		if src == "" {
-			delete(after, p)
-		}
-	}
-	return arch.FromFiles("webshop", "origin/main", webshopBase, after, arch.Config{})
+	return arch.FromFiles("webshop", "origin/main", sampleFiles(false), sampleFiles(true), arch.Config{})
 })
 
-// webshopBase is the sample repository at the merge-base.
+// FileAt is a file of the sample repository as commit rev has it: the
+// merge-base ("0000000") or the branch's head, for the Impact tab's view
+// of an import the branch did not change. ReadFileAt's sample.
+func FileAt(_ context.Context, _ deck.Thread, rev, path string) ([]byte, error) {
+	src, ok := sampleFiles(rev != sampleArch().MergeBase)[path]
+	if !ok {
+		return nil, fmt.Errorf("%s: not in %s", path, rev)
+	}
+	return []byte(src), nil
+}
+
+// sampleFiles is the sample repository at the merge-base or at the head:
+// the files below, and the changed ones as the Files tab's sample patches
+// show them, so a line the Impact tab points at is the line the diff has.
+func sampleFiles(head bool) map[string]string {
+	files := maps.Clone(webshopBase)
+	if head {
+		maps.Copy(files, webshopChange)
+	}
+	for _, p := range []string{"src/admin/users/UsersPage.tsx", "src/api/users.ts", "src/admin/users/UsersList.tsx", "src/admin/users/UsersTable.tsx"} {
+		old, now := patchSides(patches[p])
+		if head {
+			old = now
+		}
+		files[p] = old
+	}
+	// stats.ts became overview.ts.
+	old, now := patchSides(patches["src/admin/users/overview.ts"])
+	if head {
+		files["src/admin/users/overview.ts"] = now
+	} else {
+		files["src/admin/users/stats.ts"] = old
+	}
+	for p, src := range files {
+		if src == "" {
+			delete(files, p)
+		}
+	}
+	return files
+}
+
+var hunkHeader = regexp.MustCompile(`^@@ -(\d+)(?:,(\d+))? \+(\d+)(?:,(\d+))? @@`)
+
+// patchSides rebuilds the old and the new file from a patch's hunks, with
+// blank lines where the hunks show nothing; "" for a side the file does
+// not have (an added file has no old side).
+func patchSides(patch string) (old, now string) {
+	olds, news := map[int]string{}, map[int]string{}
+	var o, n int
+	hasOld, hasNew := false, false
+	for line := range strings.Lines(patch) {
+		line = strings.TrimSuffix(line, "\n")
+		if m := hunkHeader.FindStringSubmatch(line); m != nil {
+			o, _ = strconv.Atoi(m[1])
+			n, _ = strconv.Atoi(m[3])
+			hasOld = hasOld || m[1] != "0" || m[2] != "0"
+			hasNew = hasNew || m[3] != "0" || m[4] != "0"
+			continue
+		}
+		if line == "" {
+			continue
+		}
+		switch text := line[1:]; line[0] {
+		case ' ':
+			olds[o], news[n] = text, text
+			o++
+			n++
+		case '-':
+			olds[o] = text
+			o++
+		case '+':
+			news[n] = text
+			n++
+		}
+	}
+	join := func(m map[int]string, has bool) string {
+		if !has {
+			return ""
+		}
+		last := 0
+		for k := range m {
+			last = max(last, k)
+		}
+		var b strings.Builder
+		for i := 1; i <= last; i++ {
+			b.WriteString(m[i] + "\n")
+		}
+		return b.String()
+	}
+	return join(olds, hasOld), join(news, hasNew)
+}
+
+// webshopBase is the sample repository at the merge-base, but for the
+// files the sample patches change (sampleFiles adds those).
 var webshopBase = map[string]string{
 	".config/dev.json": `{
   "services": { "frontend": { "run": "pnpm dev", "ports": ["frontend"] } },
@@ -61,17 +151,6 @@ import { MembersPage } from '@/admin/members/MembersPage'
 import { TemplatesPage } from '@/admin/templates/TemplatesPage'
 export const routes = [UsersPage, MembersPage, TemplatesPage]
 `,
-	"src/admin/users/UsersPage.tsx": `import { fetchUsers } from '@/api/users'
-import { UsersList } from './UsersList'
-import { userStats } from './stats'
-export function UsersPage() { return UsersList(fetchUsers(), userStats()) }
-`,
-	"src/admin/users/UsersList.tsx": `import { Button } from '@/ui/Button'
-export function UsersList(users: unknown, stats: unknown) { return Button(users, stats) }
-`,
-	"src/admin/users/stats.ts": `import { formatCount } from '@/format/numbers'
-export function userStats() { return formatCount(0) }
-`,
 	"src/admin/members/MembersPage.tsx": `import { fetchMembers } from '@/api/members'
 import { Button } from '@/ui/Button'
 export function MembersPage() { return Button(fetchMembers()) }
@@ -85,13 +164,11 @@ export function SettingsPage() { return Button() }
 	"src/api/client.ts": `import { query } from '@/db'
 export function get(path: string) { return query(path) }
 `,
-	"src/api/users.ts": `import { get } from './client'
-export function fetchUsers() { return get('/users') }
-`,
 	"src/api/members.ts": `import { get } from './client'
 export function fetchMembers() { return get('/members') }
 `,
 	"src/ui/Button.tsx":     "export function Button(...args: unknown[]) { return args }\n",
+	"src/ui/Table.tsx":      "export function Table(props: unknown) { return props }\nexport type Column<T> = { key: keyof T }\n",
 	"src/format/numbers.ts": "export function formatCount(n: number) { return String(n) }\n",
 	"src/format/dates.ts":   "export function formatDate(d: Date) { return d.toISOString() }\n",
 	"src/db/index.ts": `export function query(sql: string) { return sql }
@@ -99,37 +176,7 @@ export function userCounts() { return 0 }
 `,
 }
 
-// webshopChange is t-0002's branch: files it adds or changes, and "" for
-// the ones it deletes.
+// webshopChange is the rest of t-0002's branch: the new dependency.
 var webshopChange = map[string]string{
 	"package.json": `{"name": "webshop", "dependencies": {"react": "19.1.0", "@tanstack/react-table": "8.21.3"}}`,
-	"src/admin/users/UsersPage.tsx": `import { fetchUsers, fetchOverview } from '@/api/users'
-import { userCounts } from '@/db'
-import { UsersTable } from './UsersTable'
-import { overview } from './overview'
-const pageSize = Number(import.meta.env.VITE_USERS_PAGE_SIZE)
-export function UsersPage() {
-  const counts = userCounts()
-  return UsersTable(fetchUsers(pageSize), overview(fetchOverview(), counts))
-}
-`,
-	"src/admin/users/UsersTable.tsx": `import { useReactTable } from '@tanstack/react-table'
-import { Button } from '@/ui/Button'
-import { formatDate } from '@/format/dates'
-export function UsersTable(users: unknown, overview: unknown) {
-  return Button(useReactTable(users), overview, formatDate(new Date()))
-}
-`,
-	"src/admin/users/UsersList.tsx": "",
-	"src/admin/users/stats.ts":      "",
-	"src/admin/users/overview.ts": `import { formatCount } from '@/format/numbers'
-export function overview(data: unknown, counts: number) { return formatCount(counts) + String(data) }
-`,
-	// The API reaching up into a page for a helper: the upward edge, and
-	// with the pages' imports of the API, a cycle.
-	"src/api/users.ts": `import { get } from './client'
-import { overview } from '@/admin/users/overview'
-export function fetchUsers(limit?: number) { return get('/users?limit=' + limit) }
-export function fetchOverview() { return overview(fetch("https://api.example.com/admin/users/overview"), 0) }
-`,
 }

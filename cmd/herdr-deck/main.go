@@ -178,6 +178,7 @@ func run(args []string) error {
 		opt.CommitPatch = fake.CommitPatch
 		opt.CommitFiles = fake.CommitFiles
 		opt.CommitFilePatch = fake.CommitFilePatch
+		opt.FileAt = fake.FileAt
 		if cfg.ArchEnabled {
 			opt.Arch = fake.Arch
 			opt.OpenImpact = impactPane("arch", "--fake")
@@ -263,6 +264,7 @@ func run(args []string) error {
 	opt.CommitPatch = diffs.ReadCommitPatch
 	opt.CommitFiles = diffs.ReadCommitFiles
 	opt.CommitFilePatch = diffs.ReadCommitFilePatch
+	opt.FileAt = diffs.ReadFileAt
 	if cfg.ArchEnabled {
 		archs := &arch.Reader{Tests: cfg.ArchTests}
 		opt.Arch = archs.Read
@@ -542,8 +544,13 @@ func runArch(args []string) error {
 		return err
 	}
 	_, runner, _ := paneRunner(os.Getenv)
+	diffs := &diff.Reader{}
 	opt := ui.ImpactOptions{
-		Tick: cfg.RefreshInterval,
+		Tick:   cfg.RefreshInterval,
+		Split:  cfg.DiffLayout == config.DiffLayoutSplit,
+		Diff:   diffs.Read,
+		Patch:  diffs.ReadPatch,
+		FileAt: diffs.ReadFileAt,
 		OpenDiff: func(path, base string, files []string) error {
 			return runner.Run(cfg.Diff, launch.DiffArgv(cfg.Diff, path, base, files...), path)
 		},
@@ -552,6 +559,7 @@ func runArch(args []string) error {
 	if *demo {
 		threads = fake.Snapshot("admin-rebuild", time.Now()).Threads
 		opt.Read = fake.Arch
+		opt.Diff, opt.Patch, opt.FileAt = fake.Diff, fake.Patch, fake.FileAt
 		opt.OpenDiff = func(string, string, []string) error { return nil }
 		if *id == "" {
 			*id = "t-0002"
