@@ -774,18 +774,26 @@ func (c *canvas) routedIndex(from, to string) int {
 	return -1
 }
 
-// lineAt is the routed edge whose line covers cell (x, y), or failing
-// that one step away (up, down, left, right, in that order), as an index
-// into routed; -1 for none. Where lines cross, the cell is the line drawn
-// first, the one on top.
+// lineAt is the routed edge whose line covers cell (x, y) (its arrow
+// point included), or failing that a line cell one step away (up, down,
+// left, right, in that order), as an index into routed; -1 for none.
+// Arrow points sit on box borders, so a near miss never counts them: a
+// click just inside a box is the box's. Where lines cross, the cell is
+// the line drawn first, the one on top.
 func (c *canvas) lineAt(x, y int) int {
-	for _, d := range [][2]int{{0, 0}, {0, -1}, {0, 1}, {-1, 0}, {1, 0}} {
+	if x < 0 || y < 0 || x >= c.g.w || y >= c.g.h {
+		return -1
+	}
+	if e := c.g.cells[y][x].edge; e > 0 {
+		return e - 1
+	}
+	for _, d := range [][2]int{{0, -1}, {0, 1}, {-1, 0}, {1, 0}} {
 		nx, ny := x+d[0], y+d[1]
 		if nx < 0 || ny < 0 || nx >= c.g.w || ny >= c.g.h {
 			continue
 		}
-		if e := c.g.cells[ny][nx].edge; e > 0 {
-			return e - 1
+		if cl := c.g.cells[ny][nx]; cl.edge > 0 && cl.kind == cellLine {
+			return cl.edge - 1
 		}
 	}
 	return -1

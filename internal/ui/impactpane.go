@@ -47,6 +47,7 @@ type ImpactPane struct {
 	opt           ImpactOptions
 	res           *arch.Result
 	diff          deck.Diff
+	diffRead      bool
 	reading       bool
 	width, height int
 	light         bool
@@ -61,7 +62,7 @@ type ImpactPane struct {
 
 type paneReadMsg struct {
 	res  *arch.Result
-	diff deck.Diff
+	diff *deck.Diff // nil when it was not read again
 }
 type paneTickMsg struct{}
 
@@ -86,14 +87,28 @@ func (p ImpactPane) Init() tea.Cmd {
 	return tea.Batch(cmds...)
 }
 
-// readCmd reads the branch's shape and its changed files.
+// readCmd reads the branch's shape and, the first time and while an edge
+// is selected (only its code needs them), its changed files, side by side.
 func (p ImpactPane) readCmd() tea.Cmd {
-	read, diff, t := p.opt.Read, p.opt.Diff, p.opt.Thread
+	read, t := p.opt.Read, p.opt.Thread
+	diff := p.opt.Diff
+	if p.diffRead && p.edge == "" {
+		diff = nil
+	}
 	return func() tea.Msg {
-		msg := paneReadMsg{res: read(context.Background(), t)}
+		var msg paneReadMsg
+		done := make(chan struct{})
 		if diff != nil {
-			msg.diff = diff(context.Background(), t)
+			go func() {
+				d := diff(context.Background(), t)
+				msg.diff = &d
+				close(done)
+			}()
+		} else {
+			close(done)
 		}
+		msg.res = read(context.Background(), t)
+		<-done
 		return msg
 	}
 }
@@ -144,7 +159,9 @@ func (p ImpactPane) frame() paneFrame {
 		f.ex, f.ew, f.eh = f.dw+1, p.width-f.dw-1, h-1
 		return f
 	}
-	f.dh = max(h*45/100, 6)
+	// The canvas keeps six rows, short of the code's rule, header and a
+	// row when the pane is small.
+	f.dh = clamp(max(h*45/100, 6), 1, max(h-3, 1))
 	f.ew, f.eh = p.width, max(h-f.dh-2, 1)
 	return f
 }
@@ -187,7 +204,9 @@ func (p ImpactPane) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return p, tea.Batch(cmd, p.tick())
 	case paneReadMsg:
 		p.reading = false
-		p.diff = msg.diff
+		if msg.diff != nil {
+			p.diff, p.diffRead = *msg.diff, true
+		}
 		if p.res != msg.res {
 			first := p.res == nil
 			p.res = msg.res
@@ -201,9 +220,7 @@ func (p ImpactPane) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		cmd := p.readEdge()
 		return p, cmd
 	case edgeViewMsg:
-		p.ecode.keep(msg.key, msg.v)
-		if p.ecode.again {
-			p.ecode.again = false
+		if p.ecode.keep(msg.key, msg.v) {
 			cmd := p.readEdge()
 			return p, cmd
 		}
@@ -240,19 +257,11 @@ func (p *ImpactPane) readEdge() tea.Cmd {
 	if !ok {
 		return nil
 	}
-	s := e.Sites[clamp(p.esite, 0, len(e.Sites)-1)]
-	t, r := p.opt.Thread, p.res
-	key := edgeSiteKey(t, r, s)
-	if _, done := p.ecode.views[key]; done {
-		return nil
+	if !p.diffRead && p.opt.Diff != nil {
+		return nil // the next read brings the diff, and reads it
 	}
-	if p.ecode.reading {
-		p.ecode.again = true
-		return nil
-	}
-	p.ecode.reading, p.ecode.want = true, key
-	rd, d := edgeReaders{patch: p.opt.Patch, fileAt: p.opt.FileAt}, p.diff
-	return func() tea.Msg { return edgeViewMsg{key: key, v: readEdgeView(context.Background(), rd, t, d, r, s)} }
+	rd := edgeReaders{patch: p.opt.Patch, fileAt: p.opt.FileAt}
+	return p.ecode.read(rd, p.opt.Thread, p.diff, p.res, e.Sites[clamp(p.esite, 0, len(e.Sites)-1)])
 }
 
 // move puts the cursor on stop at and selects what it selects.
@@ -435,10 +444,14 @@ func (p *ImpactPane) click(mouse tea.Mouse) tea.Cmd {
 		if p.edge == edgeKey(*line) {
 			return p.act(d, action{kind: actEdge})
 		}
-		// The edge with its source box.
+		// The edge with its source box; failing its row, the box.
 		p.sel = line.From
 		d, _, _ = p.body()
-		if s := d.impact.edgeStop(d.stops, edgeKey(*line)); s >= 0 {
+		s := d.impact.edgeStop(d.stops, edgeKey(*line))
+		if s < 0 {
+			s = d.impact.boxStop(line.From)
+		}
+		if s >= 0 {
 			p.move(d, s)
 		}
 		return nil

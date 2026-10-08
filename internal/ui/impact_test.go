@@ -314,7 +314,7 @@ func TestImpactPane(t *testing.T) {
 	if s := ansi.Strip(p.render()); !strings.Contains(s, "reading the change's shape") {
 		t.Errorf("before the read:\n%s", s)
 	}
-	feed(paneReadMsg{res: fake.Arch(context.Background(), th), diff: fake.Diff(context.Background(), th)})
+	feed(paneReadMsg{res: fake.Arch(context.Background(), th), diff: ptr(fake.Diff(context.Background(), th))})
 	pg := p
 	pg.width, pg.height = 100, 40
 	lines := strings.Split(ansi.Strip(p.render()), "\n")

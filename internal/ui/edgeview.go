@@ -38,21 +38,41 @@ type edgeViewMsg struct {
 	v   edgeView
 }
 
-// edgeCodes are the edge views read, the one wanted and the read running.
+// edgeCodes are the edge views read, and whether a read runs and another
+// is wanted after it.
 type edgeCodes struct {
 	views   map[string]edgeView
-	want    string
 	reading bool
 	again   bool
 }
 
-// keep stores a view, starting over once there are many.
-func (ec *edgeCodes) keep(key string, v edgeView) {
+// keep stores a view, starting over once there are many, and says
+// whether another read was asked for meanwhile.
+func (ec *edgeCodes) keep(key string, v edgeView) (again bool) {
 	if ec.views == nil || len(ec.views) > 32 {
 		ec.views = map[string]edgeView{}
 	}
 	ec.views[key] = v
 	ec.reading = false
+	again, ec.again = ec.again, false
+	return again
+}
+
+// read reads site s of an edge of r, unless it was read; one read runs
+// at a time, and a move meanwhile reads again when it ends. d is the
+// branch's diff, which must be read first: without it every import would
+// look unchanged, and be kept so.
+func (ec *edgeCodes) read(rd edgeReaders, t deck.Thread, d deck.Diff, r *arch.Result, s arch.Site) tea.Cmd {
+	key := edgeSiteKey(t, r, s)
+	if _, done := ec.views[key]; done {
+		return nil
+	}
+	if ec.reading {
+		ec.again = true
+		return nil
+	}
+	ec.reading = true
+	return func() tea.Msg { return edgeViewMsg{key: key, v: readEdgeView(context.Background(), rd, t, d, r, s)} }
 }
 
 // edgeSiteKey names a site of a result's edge for the cache.
@@ -103,6 +123,9 @@ func hunkAt(p deck.Patch, line int, base bool) (deck.Patch, int, bool) {
 	for i, l := range p.Lines {
 		switch l.Kind {
 		case deck.LineFile:
+			if at >= 0 {
+				return deck.Patch{Lines: p.Lines[start:i]}, at - start, true
+			}
 			start = -1
 		case deck.LineHunk:
 			if at >= 0 {
@@ -276,19 +299,11 @@ func (m *Model) readEdge() tea.Cmd {
 	if !ok || len(e.Sites) == 0 {
 		return nil
 	}
-	s := e.Sites[m.edgeSite(e)]
-	key := edgeSiteKey(t, r, s)
-	if _, done := m.ecode.views[key]; done {
-		return nil
+	_, d, read := m.diff()
+	if !read && m.opt.Diff != nil {
+		return nil // the diff's arrival reads it
 	}
-	if m.ecode.reading {
-		m.ecode.again = true
-		return nil
-	}
-	m.ecode.reading, m.ecode.want = true, key
-	_, d, _ := m.diff()
-	rd := edgeReaders{patch: m.opt.Patch, fileAt: m.opt.FileAt}
-	return func() tea.Msg { return edgeViewMsg{key: key, v: readEdgeView(context.Background(), rd, t, d, r, s)} }
+	return m.ecode.read(edgeReaders{patch: m.opt.Patch, fileAt: m.opt.FileAt}, t, d, r, e.Sites[m.edgeSite(e)])
 }
 
 // shownEdgeLines draws the selected edge's code in the list's place.

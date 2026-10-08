@@ -90,9 +90,11 @@ func TestLineAt(t *testing.T) {
 			if c.g.cells[y][x].edge != 0 {
 				continue
 			}
-			next := 0
+			next := 0 // a line cell next to it; arrow points do not count
 			for _, d := range [][2]int{{0, -1}, {0, 1}, {-1, 0}, {1, 0}} {
-				next = max(next, c.g.cells[y+d[1]][x+d[0]].edge)
+				if n := c.g.cells[y+d[1]][x+d[0]]; n.kind == cellLine {
+					next = max(next, n.edge)
+				}
 			}
 			got := c.lineAt(x, y)
 			switch {
@@ -391,7 +393,7 @@ func TestPaneEdge(t *testing.T) {
 			}
 		}
 		step(tea.WindowSizeMsg{Width: w, Height: 40})
-		step(paneReadMsg{res: fake.Arch(context.Background(), th), diff: fake.Diff(context.Background(), th)})
+		step(paneReadMsg{res: fake.Arch(context.Background(), th), diff: ptr(fake.Diff(context.Background(), th))})
 		step(tea.KeyPressMsg{Code: 'n', Text: "n"})
 		if p.edge == "" {
 			t.Fatalf("%d: no edge selected", w)
@@ -465,5 +467,86 @@ func TestEdgeFromFullHeight(t *testing.T) {
 	m, _ = press(m, keys("n")...)
 	if d, lay := impactLay(t, m); edgeKey(lay.edges[d.stops[m.dcur].act.n]) != m.iedge || m.iedge == "" {
 		t.Errorf("the second n: %q", m.iedge)
+	}
+}
+
+func ptr[T any](v T) *T { return &v }
+
+// A file header after the matched hunk ends it, rather than breaking it.
+func TestHunkAtBeforeAFile(t *testing.T) {
+	p := diff.ParsePatch([]byte("@@ -1,2 +1,3 @@\n a\n+b\n c\n"), diff.MaxPatchLines)
+	p.Lines = append(p.Lines, deck.PatchLine{Kind: deck.LineFile, Text: "other.go"}, deck.PatchLine{Kind: deck.LineContext, Text: "x"})
+	h, mark, ok := hunkAt(p, 2, false)
+	if !ok || h.Lines[mark].Text != "b" || len(h.Lines) != 4 {
+		t.Errorf("%v %d %+v", ok, mark, h.Lines)
+	}
+}
+
+// The edge's code waits for the branch's diff: read without it, an added
+// import would look unchanged and be kept so. A new result reads it again.
+func TestEdgeWaitsForTheDiff(t *testing.T) {
+	m := edgeModel(t, 80, 40)
+	m, _ = press(m, keys("n")...)
+	delete(m.diffs, diffKey(fakeSnap().Threads[1]))
+	clear(m.ecode.views)
+	if cmd := m.readEdge(); cmd != nil {
+		t.Error("an edge read ran without the diff")
+	}
+	m, _ = press(m, diffMsg{key: diffKey(fakeSnap().Threads[1]), diff: fake.Diff(context.Background(), fakeSnap().Threads[1])})
+	if len(m.ecode.views) != 1 {
+		t.Fatalf("after the diff: %d views", len(m.ecode.views))
+	}
+	for _, v := range m.ecode.views {
+		if v.note != "" {
+			t.Errorf("the added import reads %q", v.note)
+		}
+	}
+	// A new result, a new head: the code is read for it.
+	r := *fake.Arch(context.Background(), fakeSnap().Threads[1])
+	r.Head = "2222222"
+	m, _ = press(m, archMsg{key: diffKey(fakeSnap().Threads[1]), res: &r})
+	if len(m.ecode.views) != 2 {
+		t.Errorf("after a new head: %d views", len(m.ecode.views))
+	}
+}
+
+// A click just inside a box, next to an arrow point on its border, is the
+// box's, not the arrow's edge.
+func TestArrowNeighbourIsTheBox(t *testing.T) {
+	r := sampleShop()
+	c := newCanvas(r, 120)
+	c.focus(r, "internal/ui")
+	checked := 0
+	for y, row := range c.g.cells {
+		for x, cl := range row {
+			if !isArrow(cl.r) {
+				continue
+			}
+			for _, d := range [][2]int{{0, 1}, {0, -1}, {1, 0}, {-1, 0}} {
+				nx, ny := x+d[0], y+d[1]
+				if nx < 0 || ny < 0 || nx >= c.g.w || ny >= c.g.h {
+					continue
+				}
+				n := c.g.cells[ny][nx]
+				if n.kind != cellFree || cl.box == nil || c.pkgAt(nx, ny) != cl.box {
+					continue
+				}
+				near := false
+				for _, e := range [][2]int{{0, -1}, {0, 1}, {-1, 0}, {1, 0}} {
+					if mx, my := nx+e[0], ny+e[1]; mx >= 0 && my >= 0 && mx < c.g.w && my < c.g.h && c.g.cells[my][mx].kind == cellLine {
+						near = true
+					}
+				}
+				if !near {
+					checked++
+					if got := c.lineAt(nx, ny); got >= 0 {
+						t.Errorf("inside %s at %d,%d: edge %d", cl.box.path, nx, ny, got)
+					}
+				}
+			}
+		}
+	}
+	if checked == 0 {
+		t.Error("no cell inside a box next to an arrow")
 	}
 }

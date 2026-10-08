@@ -557,9 +557,9 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.syncPreview()
 		if m.diffAgain {
 			m.diffAgain = false
-			return m, tea.Batch(m.readDiff(true), m.readPatch(false))
+			return m, tea.Batch(m.readDiff(true), m.readPatch(false), m.readEdge())
 		}
-		return m, m.readPatch(false)
+		return m, tea.Batch(m.readPatch(false), m.readEdge())
 	case commitsMsg:
 		m.committing = false
 		m.setCommits(msg.key, msg.commits)
@@ -570,9 +570,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		return m, m.readPatch(false)
 	case edgeViewMsg:
-		m.ecode.keep(msg.key, msg.v)
-		if m.ecode.again {
-			m.ecode.again = false
+		if m.ecode.keep(msg.key, msg.v) {
 			return m, m.readEdge()
 		}
 	case archMsg:
@@ -584,7 +582,8 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if changed {
 			m.relocateImpact(prev)
 		}
-		return m, cmd
+		// A new head is a new site key: read the selected edge's code.
+		return m, tea.Batch(cmd, m.readEdge())
 	case commitFilesMsg:
 		m.setCommitFiles(msg)
 		m.syncPreview()
