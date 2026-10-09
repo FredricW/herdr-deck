@@ -5,8 +5,11 @@ package dev
 import (
 	"context"
 	"os"
+	"os/exec"
 	"path/filepath"
+	"strconv"
 	"strings"
+	"syscall"
 	"testing"
 	"time"
 )
@@ -70,6 +73,64 @@ func TestStopGroup(t *testing.T) {
 	// Signalling a group that is gone is not an error.
 	if err := signalGroup(pid, false); err != nil {
 		t.Errorf("signal a gone group: %v", err)
+	}
+}
+
+// groupGone tells a group that is gone from one this process may not
+// signal: EPERM counts as gone only when the leader has no group left.
+func TestGroupGone(t *testing.T) {
+	leaderGone := func() error { return syscall.ESRCH }
+	leaderHere := func() error { return nil }
+	for _, c := range []struct {
+		name   string
+		err    error
+		leader func() error
+		want   bool
+	}{
+		{"signalled", nil, leaderHere, true},
+		{"no such group", syscall.ESRCH, leaderHere, true},
+		{"only zombies left (Darwin)", syscall.EPERM, leaderGone, true},
+		{"someone else's live group", syscall.EPERM, leaderHere, false},
+		{"another error", syscall.EINVAL, leaderGone, false},
+	} {
+		if got := groupGone(c.err, c.leader); got != c.want {
+			t.Errorf("%s: %v, want %v", c.name, got, c.want)
+		}
+	}
+}
+
+// A group whose leader exited but is not reaped yet (a zombie) and then
+// one whose leader is reaped are both gone: signalling them is not an
+// error. The leader is this test's child, so it stays a zombie until the
+// test reaps it, which pins the state the race used to hit.
+func TestSignalGoneGroup(t *testing.T) {
+	dir := t.TempDir()
+	pid, err := startDetached(Command{Name: "service.x", Shell: "exit 0", Dir: dir, Log: filepath.Join(dir, "x.log")})
+	if err != nil {
+		t.Fatal(err)
+	}
+	deadline := time.Now().Add(5 * time.Second)
+	for {
+		out, _ := exec.Command("ps", "-o", "stat=", "-p", strconv.Itoa(pid)).Output()
+		if strings.HasPrefix(strings.TrimSpace(string(out)), "Z") {
+			break
+		}
+		if time.Now().After(deadline) {
+			t.Fatalf("pid %d is not a zombie: %q", pid, out)
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+	for _, force := range []bool{false, true} {
+		if err := signalGroup(pid, force); err != nil {
+			t.Errorf("a zombie's group (force %v): %v", force, err)
+		}
+	}
+	var ws syscall.WaitStatus
+	if _, err := syscall.Wait4(pid, &ws, 0, nil); err != nil {
+		t.Fatal(err)
+	}
+	if err := signalGroup(pid, false); err != nil {
+		t.Errorf("a reaped leader's group: %v", err)
 	}
 }
 

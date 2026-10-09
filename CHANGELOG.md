@@ -24,6 +24,12 @@ and versions follow [Semantic Versioning](https://semver.org/).
   `.config/dev.json` under `x-herdr-deck.architecture`; the new `[arch]`
   settings turn the tab off (`enabled`) or count test files (`tests`).
 
+### Fixed
+
+- On macOS, `U U` no longer fails with "operation not permitted" when a
+  dev server exits just as it stops it: a process group with only
+  exited processes left counts as stopped.
+
 ## [0.1.7] - 2026-10-07
 
 ### Added
