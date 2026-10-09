@@ -586,3 +586,43 @@ func TestApplyProjects(t *testing.T) {
 		t.Errorf("applied after a failed read: %+v", l[0])
 	}
 }
+
+// OpenPane splits below the target, zooms the new pane when asked, then
+// types the line and Enter into it.
+func TestOpenPane(t *testing.T) {
+	s := newServer(t, func(req request, w *bufio.Writer) bool {
+		switch req.Method {
+		case "pane.split":
+			w.WriteString(`{"id":"` + req.ID + `","result":{"pane":{"pane_id":"w1:p9"}}}`)
+		default:
+			w.WriteString(`{"id":"` + req.ID + `","result":{"type":"ok"}}`)
+		}
+		w.WriteString("\n")
+		return true
+	})
+	c := Client{Socket: s.path}
+	if err := c.OpenPane(context.Background(), "w1:p2", "/src/wt", "exec herdr-deck arch", map[string]string{"HERDR_DECK_ARCH_TESTS": "true"}, true); err != nil {
+		t.Fatal(err)
+	}
+	var got []string
+	for _, r := range s.requests() {
+		got = append(got, r.Method+" "+string(r.Params))
+	}
+	want := []string{
+		`pane.split {"cwd":"/src/wt","direction":"down","env":{"HERDR_DECK_ARCH_TESTS":"true"},"focus":true,"target_pane_id":"w1:p2"}`,
+		`pane.zoom {"mode":"on","pane_id":"w1:p9"}`,
+		`pane.send_input {"keys":["Enter"],"pane_id":"w1:p9","text":"exec herdr-deck arch"}`,
+	}
+	if strings.Join(got, "\n") != strings.Join(want, "\n") {
+		t.Errorf("requests:\n%s\nwant:\n%s", strings.Join(got, "\n"), strings.Join(want, "\n"))
+	}
+	// Without zoom, as the editor opens: no pane.zoom.
+	if err := c.OpenPane(context.Background(), "w1:p2", "/src/wt", "nvim .", nil, false); err != nil {
+		t.Fatal(err)
+	}
+	for _, r := range s.requests()[3:] {
+		if r.Method == "pane.zoom" {
+			t.Error("zoomed without being asked")
+		}
+	}
+}

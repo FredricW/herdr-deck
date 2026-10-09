@@ -157,7 +157,11 @@ func (m *Model) syncPreview() {
 	case !ok, m.mode != modeRow, !m.dfocus, m.curTab() != m.prevTab, m.effectiveSize() != sizeNormal,
 		m.prevThread != "" && m.prevThread != diffKey(t):
 		m.preview = false
+		m.prevGoto = previewGoto{}
 		return
+	}
+	if k != m.prevGoto.key {
+		m.prevGoto = previewGoto{} // the preview moved on before the line came
 	}
 	m.prevThread = diffKey(t)
 	if k != m.prevKey {
@@ -166,6 +170,7 @@ func (m *Model) syncPreview() {
 	}
 	m.relayoutPreview()
 	m.scrollPreview(0)
+	m.applyGoto()
 }
 
 // readPatch reads the previewed file's diff, again when force is set, else

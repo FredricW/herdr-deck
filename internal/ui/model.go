@@ -81,6 +81,9 @@ type Options struct {
 	// for the Impact tab. It runs off the UI goroutine when the selection
 	// moves to another thread and on every reload. Nil turns the tab off.
 	Arch func(context.Context, deck.Thread) *arch.Result
+	// OpenImpact opens a thread's Impact view in a herdr pane of its own
+	// (herdr-deck arch). Nil means there is no herdr to open one in.
+	OpenImpact func(t deck.Thread) error
 	// OpenCommit opens the diff tool for commit sha of the worktree at
 	// path, for some files (a rename's old and new path) or, with none,
 	// the whole commit. Tests replace it so no diff tool is ever run.
@@ -253,6 +256,11 @@ type Model struct {
 	archSel      string                  // the diffKey last asked for
 	archReading  bool                    // an Arch call is running
 	archAgain    bool                    // the selection moved while it ran
+	// The Impact tab's selected box (for the thread iselKey), whether it
+	// shows every finding, and its drawn canvases.
+	isel, iselKey string
+	iall          bool
+	icache        *canvasCache
 
 	// Expanded commits (by commitKey), their files once read, and the
 	// reads running.
@@ -273,6 +281,7 @@ type Model struct {
 	patchSel   string             // the patchKey last asked for
 	patching   bool               // a Patch call is running
 	patchAgain bool               // the preview moved while it ran
+	prevGoto   previewGoto        // a line to scroll to once its patch is read
 
 	set  settingsPage
 	pick picker
@@ -312,6 +321,7 @@ func New(snap deck.Snapshot, opt Options) Model {
 		diffs:          map[string]deck.Diff{},
 		commitLists:    map[string]deck.Commits{},
 		archs:          map[string]*arch.Result{},
+		icache:         &canvasCache{},
 		expand:         map[string]bool{},
 		commitFileSets: map[string]commitFiles{},
 		filesReading:   map[string]bool{},
@@ -552,7 +562,15 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		return m, m.readPatch(false)
 	case archMsg:
-		return m, m.setArch(msg)
+		// A reload reads again and mostly gets the same result back; only
+		// a new one moves the stops, and the cursor with them.
+		changed := m.archs[msg.key] != msg.res
+		prev, _ := m.impactStopAct()
+		cmd := m.setArch(msg)
+		if changed {
+			m.relocateImpact(prev)
+		}
+		return m, cmd
 	case commitFilesMsg:
 		m.setCommitFiles(msg)
 		m.syncPreview()
@@ -563,6 +581,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		clear(m.patches)
 		m.patches[msg.key] = msg.data
 		m.scrollPreview(0)
+		m.applyGoto()
 		if m.patchAgain {
 			m.patchAgain = false
 			return m, m.readPatch(false)
@@ -777,6 +796,7 @@ func (m *Model) switchTab(tab tabKind) {
 	m.choosing = noKind
 	m.tab = tab
 	m.dcur = 0
+	m.syncImpactSel()
 }
 
 // cycleTab moves to the next (dir 1) or previous (-1) tab that has
@@ -868,6 +888,8 @@ func (m *Model) act(a action) tea.Cmd {
 		return m.openComment(a.n)
 	case actFold:
 		m.toggleComment(a.n)
+	case actFinding, actFindMore, actBox, actSite:
+		return m.impactAct(a)
 	}
 	return nil
 }
@@ -936,6 +958,9 @@ func (m Model) handleKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	if m.prOnlyKey(msg) {
 		return m, nil
 	}
+	if m.impactKey(msg) {
+		return m, nil
+	}
 	if m.previewKey(msg) {
 		return m, nil
 	}
@@ -952,6 +977,7 @@ func (m Model) handleKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		} else if r, ok := m.selected(); ok && r.kind == rowWork && m.size != sizeHidden {
 			m.setMode(modeRow)
 			m.dfocus, m.dcur = true, 0
+			m.syncImpactSel()
 		}
 	case key.Matches(msg, m.keys.Unfocus):
 		if m.dfocus {
@@ -1001,12 +1027,14 @@ func (m Model) handleKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	case key.Matches(msg, m.keys.Report):
 		m.toggleReport()
 	case key.Matches(msg, m.keys.Drawer):
+		prev, _ := m.impactStopAct()
 		m.size = (m.size + 1) % 3
 		if m.size == sizeHidden {
 			m.dfocus = false
 		}
 		m.drawerOff = 0
 		m.ensureVisible()
+		m.relocateImpact(prev)
 	case key.Matches(msg, m.keys.Grow):
 		return m, m.resizeDrawer(1)
 	case key.Matches(msg, m.keys.Shrink):
@@ -1021,6 +1049,9 @@ func (m Model) handleKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		m.toggleMode(modeNews)
 	case key.Matches(msg, m.keys.Projects):
 		m.openPicker()
+	case key.Matches(msg, m.keys.ImpactPane):
+		cmd := m.openImpactPane()
+		return m, cmd
 	case key.Matches(msg, m.keys.PageDown):
 		m.scrollDrawer(max(m.layout().drawerH/2, 1))
 	case key.Matches(msg, m.keys.PageUp):
@@ -1414,6 +1445,9 @@ func (m *Model) handleClick(mouse tea.Mouse) (tea.Model, tea.Cmd) {
 		i := m.drawerOff + mouse.Y - l.drawerTop
 		if i >= len(dl) {
 			break
+		}
+		if cmd, done := m.impactClick(l, i, mouse.X); done {
+			return *m, cmd
 		}
 		if s := dl[i].setting; s > 0 && !m.set.editing {
 			m.set.cursor = s - 1

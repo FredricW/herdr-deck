@@ -6,6 +6,7 @@ import (
 	"slices"
 	"strings"
 	"testing"
+	"unicode"
 
 	"github.com/charmbracelet/x/ansi"
 
@@ -261,5 +262,240 @@ func TestCanvasTree(t *testing.T) {
 			names = append(names, k.name)
 		}
 		t.Errorf("root's boxes = %q; want app/web/ui collapsed into one", names)
+	}
+}
+
+// Stepping goes to a box whose edge lies that way, and from a box with
+// something straight ahead, to that one.
+func TestCanvasStep(t *testing.T) {
+	c := newCanvas(sampleShop(), 120)
+	boxes := c.selectable()
+	if len(boxes) < 4 {
+		t.Fatalf("%d selectable boxes", len(boxes))
+	}
+	dirs := []struct {
+		name   string
+		dx, dy int
+		ahead  func(from, to *cbox) bool
+	}{
+		{"down", 0, 1, func(f, b *cbox) bool { return b.y > f.y }},
+		{"up", 0, -1, func(f, b *cbox) bool { return b.y < f.y }},
+		{"right", 1, 0, func(f, b *cbox) bool { return b.x > f.x }},
+		{"left", -1, 0, func(f, b *cbox) bool { return b.x < f.x }},
+	}
+	for _, from := range boxes {
+		for _, d := range dirs {
+			to := c.step(from, d.dx, d.dy)
+			if to == nil {
+				for _, b := range boxes {
+					if b != from && d.ahead(from, b) {
+						t.Errorf("%s from %s: none, but %s lies that way", d.name, from.path, b.path)
+					}
+				}
+				continue
+			}
+			if !d.ahead(from, to) || !to.pkg {
+				t.Errorf("%s from %s: %s", d.name, from.path, to.path)
+			}
+		}
+	}
+	// Siblings in one row: right goes to the next one, left comes back.
+	for i, a := range boxes {
+		for _, b := range boxes[i+1:] {
+			if a.y == b.y && a.h == b.h && b.x == a.x+a.w+1 {
+				if got := c.step(a, 1, 0); got != b {
+					t.Errorf("right from %s = %v, want %s", a.path, got, b.path)
+				}
+				if got := c.step(b, -1, 0); got != a {
+					t.Errorf("left from %s = %v, want %s", b.path, got, a.path)
+				}
+			}
+		}
+	}
+}
+
+// A selection draws its box's edges as lines in their status colours, ┄
+// for a removed one, each ending in an arrow point on the target's
+// border; borders stay whole and get no junction glyphs, and boxes at
+// neither end of a line dim.
+func TestCanvasFocus(t *testing.T) {
+	r := sampleShop()
+	c := newCanvas(r, 120)
+	sel := "internal/ui"
+	if unrouted := c.focus(r, sel); unrouted != 0 {
+		t.Errorf("%d edges found no route", unrouted)
+	}
+	edges := c.focusEdges(r, sel)
+	statuses := map[arch.Status]bool{}
+	for _, e := range edges {
+		statuses[e.Status] = true
+	}
+	if !statuses[arch.Added] || !statuses[arch.Removed] || !statuses[arch.Changed] {
+		t.Fatalf("the selection lacks a status: %v", edges)
+	}
+	lineCells := map[cstyle]map[rune]bool{}
+	arrows := map[cstyle]int{}
+	for y, row := range c.g.cells {
+		for x, cl := range row {
+			if strings.ContainsRune("┼├┤┬┴╋┣┫┳┻", cl.r) {
+				t.Errorf("a junction glyph %q at %d,%d", cl.r, x, y)
+			}
+			switch {
+			case cl.kind == cellLine:
+				if lineCells[cl.st] == nil {
+					lineCells[cl.st] = map[rune]bool{}
+				}
+				lineCells[cl.st][cl.r] = true
+			case isArrow(cl.r):
+				arrows[cl.st]++
+				if cl.kind != cellHoriz && cl.kind != cellVert {
+					t.Errorf("an arrow off a border at %d,%d", x, y)
+				}
+			case cl.kind == cellHoriz && !strings.ContainsRune("─━", cl.r) && !unicode.IsDigit(cl.r) && cl.r != '!' && cl.r != ' ' && !strings.ContainsRune(" ⋯▾▴", cl.r):
+				t.Errorf("a broken horizontal border %q at %d,%d", cl.r, x, y)
+			case cl.kind == cellVert && !strings.ContainsRune("│┃", cl.r):
+				t.Errorf("a broken vertical border %q at %d,%d", cl.r, x, y)
+			}
+		}
+	}
+	for _, st := range []cstyle{csAdded, csEdgeMod, csRemoved} {
+		if arrows[st] == 0 {
+			t.Errorf("no %v arrow", st)
+		}
+	}
+	if !lineCells[csRemoved]['┄'] && !lineCells[csRemoved]['┆'] {
+		t.Errorf("the removed edge is not dotted: %v", lineCells[csRemoved])
+	}
+	for _, st := range []cstyle{csAdded, csEdgeMod} {
+		if lineCells[st]['┄'] || lineCells[st]['┆'] {
+			t.Errorf("a %v line is dotted", st)
+		}
+	}
+	// The selected box is heavy; a box at no end of its lines is dim.
+	b := c.boxes[sel]
+	if c.g.cells[b.y][b.x].r != '┏' {
+		t.Errorf("the selection's corner is %q", c.g.cells[b.y][b.x].r)
+	}
+	keep := map[string]bool{sel: true}
+	for _, e := range edges {
+		keep[e.From], keep[e.To] = true, true
+	}
+	for p, bx := range c.boxes {
+		if !keep[p] && bx.pkg {
+			if st := c.g.cells[bx.y][bx.x].st; st != csFaint {
+				t.Errorf("%s is not dimmed: %v", p, st)
+			}
+		}
+	}
+}
+
+// A click lands on the innermost package box under it.
+func TestCanvasPkgAt(t *testing.T) {
+	c := newCanvas(sampleShop(), 120)
+	for _, b := range c.selectable() {
+		if got := c.pkgAt(b.x+1, b.y+1); got != b {
+			t.Errorf("inside %s: %v", b.path, got)
+		}
+	}
+	if got := c.pkgAt(0, 0); got != nil && got.path != "." {
+		t.Errorf("the root's corner: %v", got.path)
+	}
+}
+
+// threeInARow is a root with boxes a, b and c side by side; b sits
+// between a and c. gaps leaves free rows above and below them.
+func threeInARow(gaps bool) (*grid, map[string]*cbox, *canvas) {
+	box := func(p string, x, y, w, h int) *cbox {
+		return &cbox{path: p, name: p, pkg: true, impacted: true, x: x, y: y, w: w, h: h}
+	}
+	top, h, rootH := 2, 5, 9
+	if !gaps {
+		top, h, rootH = 1, 7, 9
+	}
+	a, b, c := box("a", 2, top, 8, h), box("b", 11, top, 8, h), box("c", 20, top, 8, h)
+	root := &cbox{path: ".", name: "repo", impacted: true, x: 0, y: 0, w: 30, h: rootH, children: []*cbox{a, b, c}}
+	g := newGrid(30, rootH)
+	g.drawBox(root, nil)
+	cv := &canvas{root: root, g: g}
+	return g, map[string]*cbox{"a": a, "b": b, "c": c}, cv
+}
+
+// lineCellsIn counts the line cells inside box b, borders included.
+func lineCellsIn(g *grid, b *cbox) int {
+	n := 0
+	for y := b.y; y < b.y+b.h; y++ {
+		for x := b.x; x < b.x+b.w; x++ {
+			if g.cells[y][x].kind == cellLine {
+				n++
+			}
+		}
+	}
+	return n
+}
+
+// A line from a to c goes around b along the gap rows, though through b
+// is shorter.
+func TestRouteAvoidsSiblings(t *testing.T) {
+	g, bx, cv := threeInARow(true)
+	if !g.route(bx["a"], bx["c"], arch.Added, cv.lineOf(bx["a"], bx["c"])) {
+		t.Fatal("no route")
+	}
+	if n := lineCellsIn(g, bx["b"]); n > 0 {
+		t.Errorf("the line runs through b (%d cells)", n)
+	}
+	arrows := 0
+	for y := range g.h {
+		for x := range g.w {
+			if isArrow(g.cells[y][x].r) {
+				arrows++
+				if g.cells[y][x].box != bx["c"] {
+					t.Errorf("an arrow on %s's border", g.cells[y][x].box.path)
+				}
+			}
+		}
+	}
+	if arrows != 1 {
+		t.Errorf("%d arrows", arrows)
+	}
+	// b's borders stay whole.
+	for y := bx["b"].y; y < bx["b"].y+bx["b"].h; y++ {
+		if r := g.cells[y][bx["b"].x].r; !strings.ContainsRune("┌│└", r) {
+			t.Errorf("b's left border has %q", r)
+		}
+	}
+}
+
+// When b walls the way from top to bottom, the line still goes through it,
+// leaving its borders whole.
+func TestRouteThroughASiblingWhenItMust(t *testing.T) {
+	g, bx, cv := threeInARow(false)
+	if !g.route(bx["a"], bx["c"], arch.Added, cv.lineOf(bx["a"], bx["c"])) {
+		t.Fatal("no route")
+	}
+	if n := lineCellsIn(g, bx["b"]); n == 0 {
+		t.Error("the line found another way, so this fixture tests nothing")
+	}
+	for y := bx["b"].y + 1; y < bx["b"].y+bx["b"].h-1; y++ {
+		for _, x := range []int{bx["b"].x, bx["b"].x + bx["b"].w - 1} {
+			if r := g.cells[y][x].r; r != '│' {
+				t.Errorf("b's border at %d,%d is %q", x, y, r)
+			}
+		}
+	}
+}
+
+// The boxes holding an end are the cheap ones to cross: the endpoints and
+// their ancestors, not their siblings.
+func TestLineOf(t *testing.T) {
+	c := newCanvas(sampleShop(), 120)
+	ui, store := c.boxes["internal/ui"], c.boxes["internal/source/store"]
+	allowed := c.lineOf(ui, store)
+	for _, p := range []string{"internal/ui", "internal/source/store", "internal/source", ".", "internal"} {
+		if b := c.boxes[p]; b != nil && !allowed[b] {
+			t.Errorf("%s is not allowed", p)
+		}
+	}
+	if b := c.boxes["internal/source/orders"]; b != nil && allowed[b] {
+		t.Error("a sibling is allowed")
 	}
 }

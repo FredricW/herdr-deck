@@ -324,10 +324,31 @@ The user's choices (2026-10-07): `─` for added, changed and unchanged
 edges, told apart by colour alone, and `┄` for removed ones; borders stay
 unbroken where lines cross, the only glyph a line puts on a border being
 its arrow point (`▸▾◂▴`) on the target; numbered markers at rest, lines
-only for the selected box. The second PR adds the selection: arrows or
-hjkl move it spatially, a click picks a box, its edges are drawn as lines
-and the rest dims, a detail lists its edges, API changes and touchpoints,
-`↵` goes to the code, and the view opens in a herdr pane of its own.
+only for the selected box.
+
+With the drawer focused, the cursor selects: a finding selects its box,
+and on the canvas the arrows or hjkl step to the nearest box that way. The
+selected box gets a heavy border (neutral, bold), its imports are lines
+in their status colours, the other boxes dim, and the detail takes the
+legend's place:
+
+```text
+ │ │ │ ┏━ ~ users ▾━━━━━━━━━┓ │ │ api +1 −0 ~1      │ │ │
+ │ │ │ ┃ +17 −8             ◂─│─│ ⇄                 │ │ │
+ │ │ │ ┃ api +2 −2 ~1       ┃─│─▸                   │ │ │
+ │ │ │ ┗━━━━━━━━━━━━━━━━━━━━┛ │ │                   │ │ │
+ │ │ │     │                  │ │                   │ │ │
+ │ │ └────────────────────────┘ └───────────────────┘ │ │
+ │ │       │                                          │ │
+ │ │ ┌─ db ▾────────────────────────────────────────┐ │ │
+ ~ users · src/admin/users · pages
+ +17 −8 in 5 files
+ ── imports 5 · imported by 2 ──
+ ─▸ db  ⚠ skips api                       UsersPage.tsx:2
+ ─▸ @tanstack/react-table  third-party   UsersTable.tsx:1
+```
+
+`O` opens the same view in a herdr pane of its own, zoomed to the tab.
 
 ## Data the deck does not read yet
 

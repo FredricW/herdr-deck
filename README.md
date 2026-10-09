@@ -12,7 +12,7 @@ worktree's dev servers, and refreshes as they change. As a herdr plugin it
 opens next to each coordinator by itself. See [docs/PLAN.md](docs/PLAN.md)
 for the plan and milestones.
 
-![The deck on sample data: Users page needs you and is pinned on top; the drawer below shows its card and Overview tab, then ] shows its Files, Commits and Log tabs; moving down the list keeps the tab, the review row shows its PR, links and dev servers, then its PR tab with what the PR is, its status, description and comments, and the folded Backlog opens and shuts with space.](docs/demo/hero.gif)
+![The deck on sample data: Users page needs you and is pinned on top; the drawer below shows its card and Overview tab, then ] shows its Files, Commits, Impact and Log tabs; moving down the list keeps the tab, the review row shows its PR, links and dev servers, then its PR tab with what the PR is, its status, description and comments, and the folded Backlog opens and shuts with space.](docs/demo/hero.gif)
 
 ## Install as a herdr plugin
 
@@ -770,6 +770,8 @@ only threads waiting on you. The deck never marks an item handled.
 | `g` on Commits | in the focused drawer, open the commit under the cursor in the PR on GitHub (see Commits) |
 | `space` `→` `l` / `←` `h` on Commits | in the focused drawer, expand the commit under the cursor to its files / collapse it (`space` toggles); from the list, `space` folds and `l` is Linear as before |
 | `space` `→` `l` / `←` `h` on PR | in the focused drawer, unfold an app's comment or a resolved review thread / fold it; `↵` opens the comment under the cursor on GitHub |
+| `j` `k` `h` `l`, arrows on Impact | in the focused drawer: move through the findings, then from box to box on the canvas (the nearest box that way), then the selected box's detail; `↵` shows a finding's or import's line in the diff preview, a box's first changed file (see Impact) |
+| `O` | open the row's Impact view in a herdr pane of its own, zoomed; `q` closes it |
 | `J` / `K` | scroll the preview a line (`pgup` / `pgdn` a page) |
 | `S` (or `\|`) | while the preview shows: switch between the unified and the split (old \| new) layout for the session (see Diff preview) |
 | `r` | the thread's report, full height, rendered as Markdown |
@@ -791,7 +793,8 @@ Mouse: click a row to select it, a list heading to fold it, a tab to show
 it, a chip to open its link, a changed file or a commit to preview it (the
 total line opens the whole diff in the diff tool), a PR comment to open it
 on GitHub (its `▸` to unfold it), a Log event to act on it (a report shows it, a PR
-event opens the PR, the rest focus the pane), `! N` for the sources, the
+event opens the PR, the rest focus the pane), a box or a finding on Impact to select
+it (a second click opens it), `! N` for the sources, the
 other-projects line for the project picker. A click on a row's PR number
 (the PR column, `#2320`, or at 60 columns the start of STATUS) selects the
 row and shows its PR tab; a second click on it, with that tab showing,
@@ -1101,6 +1104,37 @@ by colour (and a word), removed ones as `┄▸`. Past 20 changed imports the
 boxes show counts instead, `▾3` out and `▴2` in, and the legend groups the
 imports by source.
 
+**Selecting a box.** `tab` gives the drawer the focus, and the cursor
+starts on Look here first. `j`/`k` move through the findings; each one
+selects its box. Past the last finding the cursor goes into the canvas,
+where the arrows and `h`/`j`/`k`/`l` move to the nearest box that way;
+past the canvas's edge, `j` goes on into the detail and `k` back to the
+findings. A click on a box or a finding selects it, and a second click acts
+as `↵` does. The selected box gets a heavy border and its imports are drawn
+as lines to the boxes at their other end: `─` for an added (green), changed
+(yellow) or unchanged (faint) import, `┄` for a removed one (red). A line
+starts next to its source's border and ends in an arrow point (`▸▾◂▴`) on
+its target's; borders stay whole where lines cross them, and the boxes at
+neither end of a line dim. Beside or below the canvas, the detail replaces
+the legend: the box's imports and the packages importing it (each with its
+status and the file and line that make it), its API changes, new
+touchpoints and changed files. `↵` on a finding, an import or a touchpoint
+shows that file in the diff preview, scrolled to the line; on a box, its
+first changed file; on a file, that file. Without the focus, the canvas is
+back at rest, with its numbered markers.
+
+**Its own pane.** `O` opens the row's Impact view in a herdr pane of its
+own: the deck splits its pane, zooms the new one to the whole tab (herdr's
+zoom key gives the rest back) and runs `herdr-deck arch --project <slug>
+--thread <id>` there, with the flags the deck was started with and its
+`HERDR_DECK_*`, `HERDR_PROJECTS_ROOT` and `XDG_*` variables. It shows every finding and the canvas at the pane's
+width, moves the same way, and, with no Files tab beside it, `↵` opens
+files in the diff tool. It reads again every `ui.refresh_interval`, and `q`
+closes it and its pane. Outside herdr, `O` says it needs herdr; `herdr-deck
+arch --thread <id>` also runs in any terminal.
+
+![The Impact tab on sample data: ] three times shows Impact, its Look here first list with an upward import, a new cycle, a layer skip, an HTTP host and a new dependency, and below it the changed packages as nested boxes with numbered markers on their borders; z gives it the full height; tab focuses it and j moves through the findings, each drawing its box's imports as coloured lines, then into the canvas and from box to box with the arrows; enter on a finding shows its line in the diff preview; then herdr-deck arch shows the same view on its own.](docs/demo/impact.gif)
+
 **Layers.** A repository declares its layers in the shared dev manifest,
 `.config/dev.json`, under the deck's own key (other tools ignore `x-`
 keys), as the head commit has it:
@@ -1147,7 +1181,8 @@ move answers from the cache.
 
 ## Layout
 
-- `cmd/herdr-deck`: flag parsing and wiring.
+- `cmd/herdr-deck`: flag parsing and wiring, and `herdr-deck arch`, the
+  Impact view on its own.
 - `internal/deck`: the plain structs the deck shows (`deck.Snapshot`).
 - `internal/source/*`: produces snapshots and never imports the UI.
   `projects` reads herdr-projects' files and thread list, `tasks` parses

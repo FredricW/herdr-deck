@@ -807,7 +807,10 @@ func (m Model) rowHint(r row, narrow bool) string {
 			}
 			return "j k move  ↵ on GitHub  space unfold  c check log  esc list  ? help"
 		case tabImpact:
-			return "j k scroll  z full height  tab next tab  esc list  ? help"
+			if narrow {
+				return "hjkl move  ↵ open  O pane  esc list"
+			}
+			return "j k h l move  ↵ open  O own pane  z full height  esc list  ? help"
 		case tabLog:
 			return "j k event  ↵ act  tab next tab  esc list  ? help"
 		}
@@ -828,9 +831,9 @@ func (m Model) rowHint(r row, narrow bool) string {
 	case tab == tabCommits:
 		return "1-9 preview commit  v preview  tab focus  [ ] tab  ? help"
 	case tab == tabImpact && narrow:
-		return "pgdn scroll  z full  [ ] tab  ? help"
+		return "tab select  O pane  z full  [ ] tab"
 	case tab == tabImpact:
-		return "pgdn scroll  z full height  tab focus  [ ] tab  ? help"
+		return "tab select boxes  O own pane  z full height  [ ] tab  ? help"
 	case tab == tabPR && narrow:
 		return "g GitHub  c log  tab focus  [ ] tab  z drawer"
 	case tab == tabPR:

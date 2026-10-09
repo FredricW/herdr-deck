@@ -1,7 +1,9 @@
 package ui
 
 import (
+	"container/heap"
 	"fmt"
+	"math"
 	"path"
 	"slices"
 	"strings"
@@ -406,6 +408,7 @@ const (
 	cellHoriz  = 'h' // a horizontal border
 	cellVert   = 'v' // a vertical border
 	cellCorner = 'c'
+	cellLine   = 'L' // a selected box's edge
 )
 
 type ccell struct {
@@ -413,6 +416,8 @@ type ccell struct {
 	st   cstyle
 	kind byte
 	box  *cbox
+	// lineH says a line cell runs horizontally (else vertically).
+	lineH bool
 }
 
 type grid struct {
@@ -449,24 +454,31 @@ func (g *grid) text(x, y int, s string, st cstyle, b *cbox) int {
 	return x
 }
 
-func (g *grid) drawBox(b *cbox) {
+// drawBox draws b and the boxes inside it; the selected box (sel) gets a
+// heavy border, in the same neutral colour.
+func (g *grid) drawBox(b, sel *cbox) {
 	st := csPlain
 	if !b.impacted {
 		st = csFaint
 	}
+	h, v, tl, tr, bl, br := '─', '│', '┌', '┐', '└', '┘'
+	if b == sel {
+		h, v, tl, tr, bl, br = '━', '┃', '┏', '┓', '┗', '┛'
+		st = csBold
+	}
 	x0, y0, x1, y1 := b.x, b.y, b.x+b.w-1, b.y+b.h-1
 	for x := x0 + 1; x < x1; x++ {
-		g.set(x, y0, '─', st, cellHoriz, b)
-		g.set(x, y1, '─', st, cellHoriz, b)
+		g.set(x, y0, h, st, cellHoriz, b)
+		g.set(x, y1, h, st, cellHoriz, b)
 	}
 	for y := y0 + 1; y < y1; y++ {
-		g.set(x0, y, '│', st, cellVert, b)
-		g.set(x1, y, '│', st, cellVert, b)
+		g.set(x0, y, v, st, cellVert, b)
+		g.set(x1, y, v, st, cellVert, b)
 	}
-	g.set(x0, y0, '┌', st, cellCorner, b)
-	g.set(x1, y0, '┐', st, cellCorner, b)
-	g.set(x0, y1, '└', st, cellCorner, b)
-	g.set(x1, y1, '┘', st, cellCorner, b)
+	g.set(x0, y0, tl, st, cellCorner, b)
+	g.set(x1, y0, tr, st, cellCorner, b)
+	g.set(x0, y1, bl, st, cellCorner, b)
+	g.set(x1, y1, br, st, cellCorner, b)
 	end := g.text(x0+2, y0, " "+abbrev(b.title(), b.w-6)+" ", b.titleStyle(), b)
 	if b.folded > 0 {
 		f := fmt.Sprintf(" ⋯%d ", b.folded)
@@ -478,7 +490,7 @@ func (g *grid) drawBox(b *cbox) {
 		g.text(x0+2, y0+1+i, abbrev(l, b.w-4), csPlain, b)
 	}
 	for _, c := range b.children {
-		g.drawBox(c)
+		g.drawBox(c, sel)
 	}
 }
 
@@ -613,7 +625,7 @@ func newCanvas(r *arch.Result, w int) *canvas {
 		c.edges = kept
 	}
 	c.g = newGrid(c.root.w, c.root.h)
-	c.g.drawBox(c.root)
+	c.g.drawBox(c.root, nil)
 	c.markers()
 	return c
 }
@@ -833,4 +845,334 @@ func wrapWords(words []string, w int) []string {
 		out = append(out, cur)
 	}
 	return out
+}
+
+// ---- the selection
+
+// maxLines is how many lines a selection draws at most when its box has
+// few changed edges: unchanged edges fill up to it, so a box's place in the
+// graph shows without a hub drowning in lines.
+const maxLines = 6
+
+// lineGlyphs are a status's straight runs and corners, as horizontal,
+// vertical, ┌ ┐ └ ┘: ─ for every status but removed, which is ┄.
+func lineGlyphs(s arch.Status) [6]rune {
+	if s == arch.Removed {
+		return [6]rune{'┄', '┆', '┌', '┐', '└', '┘'}
+	}
+	return [6]rune{'─', '│', '┌', '┐', '└', '┘'}
+}
+
+// selectable are the boxes the selection can rest on: drawn packages, in
+// reading order (top to bottom, then left to right).
+func (c *canvas) selectable() []*cbox {
+	var out []*cbox
+	c.root.walk(func(b *cbox) {
+		if b.pkg && c.boxes[b.path] == b {
+			out = append(out, b)
+		}
+	})
+	slices.SortStableFunc(out, func(a, b *cbox) int {
+		if a.y != b.y {
+			return a.y - b.y
+		}
+		return a.x - b.x
+	})
+	return out
+}
+
+// pkgAt is the innermost drawn package box holding cell (x, y), or nil.
+func (c *canvas) pkgAt(x, y int) *cbox {
+	var hit *cbox
+	c.root.walk(func(b *cbox) {
+		if b.pkg && c.boxes[b.path] == b && x >= b.x && x < b.x+b.w && y >= b.y && y < b.y+b.h {
+			hit = b // walk visits outer boxes first
+		}
+	})
+	return hit
+}
+
+// step is the selectable box nearest to from in direction (dx, dy): one
+// whose edge lies that way, scored by the distance that way plus twice
+// the gap across it, so a box straight ahead wins over a nearer one off
+// to the side. Ties go to the one first in reading order.
+func (c *canvas) step(from *cbox, dx, dy int) *cbox {
+	var best *cbox
+	bestScore := 0
+	gap := func(a0, a1, b0, b1 int) int { // between [a0,a1) and [b0,b1)
+		switch {
+		case b1 <= a0:
+			return a0 - b1 + 1
+		case a1 <= b0:
+			return b0 - a1 + 1
+		}
+		return 0
+	}
+	for _, b := range c.selectable() {
+		if b == from {
+			continue
+		}
+		var along, across int
+		switch {
+		case dy > 0:
+			along, across = b.y-from.y, gap(from.x, from.x+from.w, b.x, b.x+b.w)
+		case dy < 0:
+			along, across = from.y-b.y, gap(from.x, from.x+from.w, b.x, b.x+b.w)
+		case dx > 0:
+			along, across = b.x-from.x, gap(from.y, from.y+from.h, b.y, b.y+b.h)
+		default:
+			along, across = from.x-b.x, gap(from.y, from.y+from.h, b.y, b.y+b.h)
+		}
+		if along <= 0 {
+			continue
+		}
+		if score := along + 2*across; best == nil || score < bestScore {
+			best, bestScore = b, score
+		}
+	}
+	return best
+}
+
+// focusEdges are the edges a selection of box sel draws: its changed
+// internal edges between drawn boxes, then unchanged ones up to maxLines.
+func (c *canvas) focusEdges(r *arch.Result, sel string) []arch.Edge {
+	var out []arch.Edge
+	for _, e := range c.edges {
+		if e.From == sel || e.To == sel {
+			out = append(out, e)
+		}
+	}
+	for _, e := range r.Edges {
+		if len(out) >= maxLines {
+			break
+		}
+		if e.Status == arch.Unchanged && (e.From == sel || e.To == sel) && c.boxes[e.From] != nil && c.boxes[e.To] != nil {
+			out = append(out, e)
+		}
+	}
+	return out
+}
+
+// focus redraws the canvas for a selected box: a heavy border on it, its
+// edges as lines from its border to the other box's, everything not at
+// either end of one dimmed, and no markers. It returns how many of the
+// edges found no route.
+func (c *canvas) focus(r *arch.Result, sel string) (unrouted int) {
+	b := c.boxes[sel]
+	if b == nil {
+		return 0
+	}
+	c.g = newGrid(c.root.w, c.root.h)
+	c.g.drawBox(c.root, b)
+	keep := map[*cbox]bool{b: true}
+	for _, e := range c.focusEdges(r, sel) {
+		from, to := c.boxes[e.From], c.boxes[e.To]
+		keep[from], keep[to] = true, true
+		if !c.g.route(from, to, e.Status, c.lineOf(from, to)) {
+			unrouted++
+		}
+	}
+	for y := range c.g.cells {
+		for x := range c.g.cells[y] {
+			cl := &c.g.cells[y][x]
+			if cl.kind != cellLine && cl.box != nil && !keep[cl.box] && !isArrow(cl.r) {
+				cl.st = csFaint
+			}
+		}
+	}
+	return unrouted
+}
+
+// lineOf is the boxes a line from a to b may cross cheaply: the two and
+// every box holding either.
+func (c *canvas) lineOf(a, b *cbox) map[*cbox]bool {
+	allowed := map[*cbox]bool{a: true, b: true}
+	var visit func(n *cbox, path []*cbox)
+	visit = func(n *cbox, path []*cbox) {
+		path = append(path, n)
+		if n == a || n == b {
+			for _, p := range path {
+				allowed[p] = true
+			}
+		}
+		for _, k := range n.children {
+			visit(k, path)
+		}
+	}
+	visit(c.root, nil)
+	return allowed
+}
+
+// routeQueue is route's priority queue of grid states by cost.
+type routeQueue []routeItem
+
+type routeItem struct{ cost, i int }
+
+func (q routeQueue) Len() int { return len(q) }
+func (q routeQueue) Less(i, j int) bool {
+	if q[i].cost != q[j].cost {
+		return q[i].cost < q[j].cost
+	}
+	return q[i].i < q[j].i // ties by place, so routes are deterministic
+}
+func (q routeQueue) Swap(i, j int) { q[i], q[j] = q[j], q[i] }
+func (q *routeQueue) Push(x any)   { *q = append(*q, x.(routeItem)) }
+func (q *routeQueue) Pop() any {
+	old := *q
+	it := old[len(old)-1]
+	*q = old[:len(old)-1]
+	return it
+}
+
+func isArrow(r rune) bool { return strings.ContainsRune("▸▾◂▴", r) }
+
+// route draws one edge as an orthogonal line from the source box's border
+// to the target's, through free cells: crossing a border (at a right
+// angle) or another line costs extra and turns cost a little, so routes
+// stay straight. Borders and earlier lines stay whole: the line stops on
+// one side and goes on at the other. The only glyph it puts on a border
+// is its arrow point, on the target's. It reports whether a route exists.
+//
+// The price has two tiers. Crossing the border of the source, the target
+// or a box holding either (allowed) costs a little; crossing the border
+// of any other box, into it or out of it, costs foreignCost, more than
+// the dearest route that crosses none (every state visited once at the
+// dearest step), so a line goes around siblings along the gaps between
+// boxes and runs through one only when nothing else connects. Such a line
+// is drawn the same way, the foreign box's borders left whole.
+func (g *grid) route(from, to *cbox, status arch.Status, allowed map[*cbox]bool) bool {
+	type state struct{ x, y, d int }
+	dx := []int{1, 0, -1, 0}
+	dy := []int{0, 1, 0, -1}
+	onBorder := func(b *cbox, x, y int) bool {
+		c := g.cells[y][x]
+		return c.box == b && (c.kind == cellHoriz || c.kind == cellVert)
+	}
+	const (
+		turnCost   = 2
+		borderCost = 6
+		lineCost   = 8
+	)
+	n := g.w * g.h * 4
+	foreignCost := n * (1 + turnCost + lineCost + borderCost)
+	dist := make([]int, n)
+	prev := make([]int32, n)
+	for i := range dist {
+		dist[i] = math.MaxInt
+		prev[i] = -1
+	}
+	idx := func(s state) int { return (s.y*g.w+s.x)*4 + s.d }
+	q := &routeQueue{}
+	push := func(s state, c, p int) {
+		if c < dist[idx(s)] {
+			dist[idx(s)] = c
+			prev[idx(s)] = int32(p)
+			heap.Push(q, routeItem{cost: c, i: idx(s)})
+		}
+	}
+	for y := from.y; y < from.y+from.h; y++ {
+		for x := from.x; x < from.x+from.w; x++ {
+			if !onBorder(from, x, y) {
+				continue
+			}
+			for d := range 4 {
+				// Leave a border at a right angle.
+				if (g.cells[y][x].kind == cellHoriz) == (d%2 == 1) {
+					push(state{x, y, d}, 0, -1)
+				}
+			}
+		}
+	}
+	end := -1
+	for q.Len() > 0 {
+		it := heap.Pop(q).(routeItem)
+		if it.cost != dist[it.i] {
+			continue
+		}
+		s := state{(it.i / 4) % g.w, (it.i / 4) / g.w, it.i % 4}
+		if onBorder(to, s.x, s.y) && it.cost > 0 {
+			end = it.i
+			break
+		}
+		for nd := range 4 {
+			if nd == (s.d+2)%4 {
+				continue
+			}
+			nx, ny := s.x+dx[nd], s.y+dy[nd]
+			if nx < 0 || ny < 0 || nx >= g.w || ny >= g.h {
+				continue
+			}
+			cc := g.cells[ny][nx]
+			step := 1
+			if nd != s.d {
+				step += turnCost
+			}
+			switch cc.kind {
+			case cellText, cellCorner:
+				continue
+			case cellHoriz, cellVert:
+				if (cc.kind == cellHoriz) != (nd%2 == 1) {
+					continue // never run along a border
+				}
+				switch {
+				case cc.box == to:
+				case allowed[cc.box]:
+					step += borderCost
+				default:
+					step += foreignCost
+				}
+			case cellLine:
+				if cc.lineH == (nd%2 == 0) {
+					continue // never share a line's run
+				}
+				step += lineCost
+			}
+			push(state{nx, ny, nd}, it.cost+step, it.i)
+		}
+	}
+	if end < 0 {
+		return false
+	}
+	var cells []state
+	for i := end; i >= 0; i = int(prev[i]) {
+		cells = append(cells, state{(i / 4) % g.w, (i / 4) / g.w, i % 4})
+	}
+	slices.Reverse(cells)
+	st := edgeStyle(status)
+	gl := lineGlyphs(status)
+	for i, s := range cells {
+		c := &g.cells[s.y][s.x]
+		in, out := s.d, s.d // 0 right, 1 down, 2 left, 3 up
+		if i+1 < len(cells) {
+			out = cells[i+1].d
+		}
+		switch {
+		case i == len(cells)-1:
+			*c = ccell{r: []rune("▸▾◂▴")[in], st: st, kind: c.kind, box: c.box}
+		case c.kind == cellHoriz || c.kind == cellVert || c.kind == cellCorner || c.kind == cellLine:
+			// Borders and earlier lines stay whole.
+		default:
+			*c = ccell{r: bend(in, out, gl), st: st, kind: cellLine, lineH: out%2 == 0, box: c.box}
+		}
+	}
+	return true
+}
+
+// bend is the glyph for a line cell entered going in and left going out.
+func bend(in, out int, g [6]rune) rune {
+	if in%2 == out%2 {
+		if in%2 == 0 {
+			return g[0]
+		}
+		return g[1]
+	}
+	switch [2]int{in, out} {
+	case [2]int{2, 1}, [2]int{3, 0}:
+		return g[2] // ┌
+	case [2]int{0, 1}, [2]int{3, 2}:
+		return g[3] // ┐
+	case [2]int{2, 3}, [2]int{1, 0}:
+		return g[4] // └
+	}
+	return g[5] // ┘
 }

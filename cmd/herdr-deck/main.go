@@ -12,6 +12,7 @@ import (
 	"path/filepath"
 	"runtime/debug"
 	"slices"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -61,6 +62,8 @@ func run(args []string) error {
 			return runUpdate(args[1:])
 		case "config":
 			return runConfig(args[1:], os.Getenv, os.Stdout)
+		case "arch":
+			return runArch(args[1:])
 		}
 	}
 	fs := flag.NewFlagSet("herdr-deck", flag.ContinueOnError)
@@ -71,14 +74,14 @@ func run(args []string) error {
 	showVersion := fs.Bool("version", false, "print the version and commit, then exit")
 	hidden := fl.Register(fs)
 	fs.Usage = func() {
-		fmt.Fprintln(fs.Output(), "Usage: herdr-deck [flags]\n       herdr-deck config migrate [--write]\n       herdr-deck update [--check]\n\nEvery setting's flag is --<table>-<key>, for the config file's [table] key.")
+		fmt.Fprintln(fs.Output(), "Usage: herdr-deck [flags]\n       herdr-deck arch --thread <id> [--project <slug>]\n       herdr-deck config migrate [--write]\n       herdr-deck update [--check]\n\nEvery setting's flag is --<table>-<key>, for the config file's [table] key.")
 		config.PrintDefaults(fs, hidden)
 	}
 	if err := fs.Parse(args); err != nil {
 		return err
 	}
 	if fs.NArg() > 0 {
-		return fmt.Errorf("unexpected argument %q; the commands are config migrate, update and plugin", fs.Arg(0))
+		return fmt.Errorf("unexpected argument %q; the commands are arch, config migrate, update and plugin", fs.Arg(0))
 	}
 	if *showVersion {
 		fmt.Println(versionString())
@@ -89,11 +92,27 @@ func run(args []string) error {
 		return err
 	}
 
-	client := herdr.Client{Socket: herdr.SocketPath(os.Getenv)}
-	runner := launch.Runner{}
-	if self := os.Getenv("HERDR_PANE_ID"); self != "" {
-		runner.Pane = func(argv []string, dir string) error {
-			return client.RunInPane(context.Background(), self, dir, launch.ShellLine(argv))
+	client, runner, self := paneRunner(os.Getenv)
+	// O opens a thread's Impact view in a pane of its own, running this
+	// binary with the flags this deck got and its settings' environment;
+	// outside herdr there is no pane to open.
+	var passed []string
+	fs.Visit(func(f *flag.Flag) {
+		switch f.Name {
+		case "project", "fake", "version":
+		default:
+			passed = append(passed, "--"+f.Name+"="+f.Value.String())
+		}
+	})
+	impactPane := func(args ...string) func(deck.Thread) error {
+		exe, err := os.Executable()
+		if self == "" || err != nil {
+			return nil
+		}
+		args = append(args, passed...)
+		env := settingsEnv(os.Environ())
+		return func(t deck.Thread) error {
+			return client.OpenPane(context.Background(), self, t.Worktree, impactCommand(exe, args, t), env, true)
 		}
 	}
 	// The settings page swaps cur when it saves; everything that runs
@@ -161,6 +180,7 @@ func run(args []string) error {
 		opt.CommitFilePatch = fake.CommitFilePatch
 		if cfg.ArchEnabled {
 			opt.Arch = fake.Arch
+			opt.OpenImpact = impactPane("arch", "--fake")
 		}
 		// The sample's worktrees do not exist: e and d only say they opened.
 		opt.OpenEditor = func(string) error { return nil }
@@ -246,6 +266,7 @@ func run(args []string) error {
 	if cfg.ArchEnabled {
 		archs := &arch.Reader{Tests: cfg.ArchTests}
 		opt.Arch = archs.Read
+		opt.OpenImpact = impactPane("arch", "--project", slug)
 	}
 	opt.StartDev = func(t deck.Thread) (string, error) { return devs.Up(context.Background(), t) }
 	opt.StopDev = func(t deck.Thread) (string, error) { return devs.Stop(context.Background(), t) }
@@ -486,4 +507,114 @@ func runPlugin(args []string) error {
 		env.Links.LinearKeyWorkspace = func() (string, error) { return lin.Workspace(ctx) }
 	}
 	return plugin.Run(ctx, h, env, args)
+}
+
+// impactCommand is the shell line that runs a thread's Impact view in a
+// new pane: exec, so the pane closes when the view quits.
+func impactCommand(exe string, args []string, t deck.Thread) string {
+	argv := append(append([]string{exe}, args...), "--thread", t.ID)
+	return "exec " + launch.ShellLine(argv)
+}
+
+// runArch is `herdr-deck arch --thread <id> [--project <slug>]`: one
+// thread's Impact view, on its own, the whole terminal wide.
+func runArch(args []string) error {
+	fs := flag.NewFlagSet("herdr-deck arch", flag.ContinueOnError)
+	fs.Usage = func() {
+		fmt.Fprintln(fs.Output(), "Usage: herdr-deck arch --thread <id> [--project <slug>] [--config <file>]")
+		fmt.Fprintln(fs.Output(), "\nShows what a thread's branch did to its repository's shape: the drawer's\nImpact tab, on its own. The deck's O opens it in a herdr pane; q closes it.")
+		fs.PrintDefaults()
+	}
+	var fl config.Flags
+	fs.StringVar(&fl.Config, "config", "", "config file (default: $"+config.EnvPath+", else $XDG_CONFIG_HOME/herdr-deck/config.toml or ~/.config/herdr-deck/config.toml)")
+	slugFlag := fs.String("project", "", "project slug (default: $"+project.EnvProject+", else the project folder containing the working directory)")
+	id := fs.String("thread", "", "thread id, such as t-0002")
+	fl.Register(fs) // the deck passes on the setting flags it was given
+	demo := fs.Bool("fake", false, "show the built-in sample instead of a project")
+	if err := fs.Parse(args); err != nil {
+		return err
+	}
+	if fs.NArg() > 0 {
+		return fmt.Errorf("arch: unexpected argument %q", fs.Arg(0))
+	}
+	cfg, err := config.Resolve(fl, os.Getenv, exec.LookPath)
+	if err != nil {
+		return err
+	}
+	_, runner, _ := paneRunner(os.Getenv)
+	opt := ui.ImpactOptions{
+		Tick: cfg.RefreshInterval,
+		OpenDiff: func(path, base string, files []string) error {
+			return runner.Run(cfg.Diff, launch.DiffArgv(cfg.Diff, path, base, files...), path)
+		},
+	}
+	var threads []deck.Thread
+	if *demo {
+		threads = fake.Snapshot("admin-rebuild", time.Now()).Threads
+		opt.Read = fake.Arch
+		opt.OpenDiff = func(string, string, []string) error { return nil }
+		if *id == "" {
+			*id = "t-0002"
+		}
+	} else {
+		if *id == "" {
+			return errors.New("arch: --thread is required")
+		}
+		if cfg.ProjectsRoot == "" {
+			return errors.New("no projects root: set --projects-root, $" + config.EnvProjectsRoot + " or " + config.KeyProjectsRoot + " in the config file")
+		}
+		cwd, _ := os.Getwd()
+		slug, err := project.Slug(*slugFlag, os.Getenv, cwd, cfg.ProjectsRoot)
+		if err != nil {
+			return err
+		}
+		ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+		threads = projects.New(cfg.ProjectsRoot, slug).Read(ctx).Threads
+		cancel()
+		opt.Read = (&arch.Reader{Tests: cfg.ArchTests}).Read
+	}
+	for _, t := range threads {
+		if t.ID == *id {
+			opt.Thread = t
+		}
+	}
+	switch {
+	case opt.Thread.ID == "":
+		return fmt.Errorf("arch: no thread %s", *id)
+	case opt.Thread.Worktree == "":
+		return fmt.Errorf("arch: %s has no worktree", *id)
+	}
+	_, err = tea.NewProgram(ui.NewImpactPane(opt)).Run()
+	return err
+}
+
+// paneRunner is the herdr client, a runner that opens terminal programs in
+// a pane below this one when the deck runs inside herdr, and this pane's
+// id ("" outside herdr).
+func paneRunner(getenv func(string) string) (herdr.Client, launch.Runner, string) {
+	client := herdr.Client{Socket: herdr.SocketPath(getenv)}
+	runner := launch.Runner{}
+	self := getenv("HERDR_PANE_ID")
+	if self != "" {
+		runner.Pane = func(argv []string, dir string) error {
+			return client.RunInPane(context.Background(), self, dir, launch.ShellLine(argv))
+		}
+	}
+	return client, runner, self
+}
+
+// settingsEnv is the part of environ a deck's settings come from, for a
+// pane it opens: herdr starts a pane with its own environment, not the
+// deck's. Secrets such as LINEAR_API_KEY stay out.
+func settingsEnv(environ []string) map[string]string {
+	env := map[string]string{}
+	for _, kv := range environ {
+		k, v, _ := strings.Cut(kv, "=")
+		switch {
+		case strings.HasPrefix(k, "HERDR_DECK_"), k == config.EnvProjectsRoot,
+			k == "XDG_CONFIG_HOME", k == "XDG_STATE_HOME", k == "XDG_CACHE_HOME":
+			env[k] = v
+		}
+	}
+	return env
 }
