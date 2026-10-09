@@ -58,6 +58,7 @@ type ImpactPane struct {
 	status        string
 	cache         *canvasCache
 	ecode         edgeCodes
+	escroll       edgeScroll
 }
 
 type paneReadMsg struct {
@@ -236,11 +237,19 @@ func (p ImpactPane) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		read := p.readEdge()
 		return p, tea.Batch(cmd, read)
 	case tea.MouseWheelMsg:
+		delta := 0
 		switch msg.Mouse().Button {
 		case tea.MouseWheelDown:
-			p.scroll(3)
+			delta = 3
 		case tea.MouseWheelUp:
-			p.scroll(-3)
+			delta = -3
+		}
+		// The wheel scrolls what is under it: the edge's code, or the
+		// canvas; never a selection.
+		if delta != 0 && p.overCode(msg.Mouse()) {
+			p.scrollCode(delta)
+		} else if delta != 0 {
+			p.scroll(delta)
 		}
 	case tea.MouseClickMsg:
 		p.status = ""
@@ -512,8 +521,9 @@ func (p ImpactPane) render() string {
 		// The rows draw as the deck's diff preview draws them.
 		r := Model{light: p.light, split: p.opt.Split, width: f.ew}
 		site := clamp(p.esite, 0, len(e.Sites)-1)
-		v, read := p.ecode.views[edgeSiteKey(t, p.res, e.Sites[site])]
-		code := r.edgeLines(e, v, read, site, f.ew, f.eh)
+		key := edgeSiteKey(t, p.res, e.Sites[site])
+		v, read := p.ecode.views[key]
+		code := r.edgeLines(e, v, read, site, f.ew, f.eh, p.escroll.at(key))
 		if f.ex > 0 {
 			// Beside the canvas, past a divider.
 			for i := range body {
@@ -573,4 +583,30 @@ func impactClickStop(d *drawer, i, x int) (at int, first bool, line *arch.Edge) 
 		}
 	}
 	return -1, false, nil
+}
+
+// overCode says the pointer is over the selected edge's code.
+func (p ImpactPane) overCode(mouse tea.Mouse) bool {
+	f := p.frame()
+	if !f.edge {
+		return false
+	}
+	if f.ex > 0 {
+		return mouse.X >= f.ex && mouse.Y >= 2 && mouse.Y < 2+f.dh
+	}
+	return mouse.Y > 2+f.dh && mouse.Y < 2+f.dh+1+f.eh+1
+}
+
+// scrollCode scrolls the selected edge's code by delta rows.
+func (p *ImpactPane) scrollCode(delta int) {
+	e, ok := p.selectedEdge()
+	if !ok {
+		return
+	}
+	key := edgeSiteKey(p.opt.Thread, p.res, e.Sites[clamp(p.esite, 0, len(e.Sites)-1)])
+	if v, read := p.ecode.views[key]; read {
+		f := p.frame()
+		r := Model{light: p.light, split: p.opt.Split, width: f.ew}
+		p.escroll = r.scrolled(p.escroll, key, v, f.eh, delta)
+	}
 }

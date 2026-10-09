@@ -267,6 +267,7 @@ type Model struct {
 	esite         int    // the selected edge's site shown (for the edge esiteFor)
 	esiteFor      string
 	ecode         edgeCodes
+	escroll       edgeScroll // the main view's edge code, scrolled by the wheel
 	iall          bool
 	icache        *canvasCache
 
@@ -1632,10 +1633,16 @@ func (m *Model) handleWheel(mouse tea.Mouse) {
 		m.pickMove(delta)
 		return
 	}
+	// The wheel scrolls what is under the pointer. It moves the list's
+	// selection only over the list itself, never over a view that has the
+	// list's place (the diff preview, an edge's code).
 	l := m.layout()
+	inList := mouse.Y >= l.listTop-1 && mouse.Y < l.listTop+l.listH
 	switch {
-	case m.preview && mouse.Y >= l.listTop-1 && mouse.Y < l.listTop+l.listH:
+	case m.preview && inList:
 		m.scrollPreview(delta * 3)
+	case m.edgeShown() && inList:
+		m.scrollEdge(delta * 3)
 	case mouse.Y >= l.listTop && mouse.Y < l.listTop+l.listH:
 		m.move(delta)
 	case l.drawerH > 0 && mouse.Y >= l.listTop+l.listH && mouse.Y < l.drawerTop+l.drawerH:

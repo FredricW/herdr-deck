@@ -36,6 +36,8 @@ and versions follow [Semantic Versioning](https://semver.org/).
   side for a removed one, the file around it when its line did not
   change), with the names a changed import gained and lost; `tab` steps
   through the files that import it, and `esc` goes back to the box.
+  The wheel over the code scrolls it, and the wheel over the Impact tab
+  scrolls the tab: neither moves the selected row, box or edge.
 
 ## [0.1.7] - 2026-10-07
 

@@ -803,7 +803,8 @@ other-projects line for the project picker. A click on a row's PR number
 row and shows its PR tab; a second click on it, with that tab showing,
 opens the PR on GitHub, as `g` does from anywhere. A click in the drawer gives it
 the focus. Drag the rule between the list and the drawer to resize them. The wheel moves the list or scrolls the tab under the pointer.
-The wheel over the diff preview scrolls it. A long diff preview or full
+The wheel over the diff preview, or over an Impact edge's code, scrolls it, and the
+wheel over the Impact tab scrolls the tab; neither moves a selection. A long diff preview or full
 view (a report, What's new, help, settings) has a scrollbar at its right
 edge: press on the thumb and drag to scroll, or press on the track to jump
 there.

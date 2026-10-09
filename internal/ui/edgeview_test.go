@@ -191,7 +191,7 @@ func TestEdgeViewByStatus(t *testing.T) {
 	m := Model{width: 80}
 	e := arch.Edge{From: "a", To: "b", Status: arch.Changed, Gained: []string{"Render"}, Lost: []string{"Draw"},
 		Sites: []arch.Site{{File: "a/a.go", Line: 3}, {File: "a/b.go", Line: 4}}}
-	lines := m.edgeLines(e, added, true, 1, 80, 10)
+	lines := m.edgeLines(e, added, true, 1, 80, 10, -1)
 	head := ansi.Strip(lines[0])
 	for _, want := range []string{"a ─▸ b", "changed", "2 sites", "+Render", "−Draw", "site 2/2", "b.go:4"} {
 		if !strings.Contains(head, want) {
@@ -213,7 +213,7 @@ func TestEdgeViewByStatus(t *testing.T) {
 	if marked != 1 {
 		t.Errorf("%d marked rows", marked)
 	}
-	if s := ansi.Strip(strings.Join(m.edgeLines(e, same, true, 0, 80, 10), "\n")); !strings.Contains(s, "import unchanged") {
+	if s := ansi.Strip(strings.Join(m.edgeLines(e, same, true, 0, 80, 10, -1), "\n")); !strings.Contains(s, "import unchanged") {
 		t.Errorf("unchanged view:\n%s", s)
 	}
 }

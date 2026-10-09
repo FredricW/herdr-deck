@@ -207,11 +207,52 @@ func edgeHeader(e arch.Edge, v edgeView, read bool, site, w int) string {
 	return spread(left, right, w)
 }
 
+// edgeScroll is where an edge view is scrolled to: off rows from its top
+// for the site key, or, for any other site (and with off -1), wherever
+// shows the import's row.
+type edgeScroll struct {
+	key string
+	off int
+}
+
+// at is the offset for site key, -1 for "show the import".
+func (s edgeScroll) at(key string) int {
+	if s.key != key {
+		return -1
+	}
+	return s.off
+}
+
+// edgeRows is how many rows an edge view's code takes, and the offset
+// that shows the import's row a third of the way down h rows.
+func (m Model) edgeRows(v edgeView, h int) (total, auto int) {
+	rows := m.layoutRows(v.p)
+	at := 0
+	for k, r := range rows {
+		if v.mark >= 0 && (r.full == v.mark || r.l == v.mark || r.r == v.mark) {
+			at = k
+			break
+		}
+	}
+	return len(rows), clamp(at-h/3, 0, max(len(rows)-h, 0))
+}
+
+// scrolled is the scroll for site key after the wheel moved delta rows
+// over a view of h rows.
+func (m Model) scrolled(s edgeScroll, key string, v edgeView, h, delta int) edgeScroll {
+	total, auto := m.edgeRows(v, h)
+	off := s.at(key)
+	if off < 0 {
+		off = auto
+	}
+	return edgeScroll{key: key, off: clamp(off+delta, 0, max(total-h, 0))}
+}
+
 // edgeLines draws an edge view in h+1 lines w wide: the header, then the
-// code with the import's row marked and in view, and a scrollbar when it
-// overflows. m draws the rows, as the diff preview does: its layout and
-// colours.
-func (m Model) edgeLines(e arch.Edge, v edgeView, read bool, site, w, h int) []string {
+// code scrolled to off (-1: with the import's row marked and in view),
+// and a scrollbar when it overflows. m draws the rows, as the diff
+// preview does: its layout and colours.
+func (m Model) edgeLines(e arch.Edge, v edgeView, read bool, site, w, h, off int) []string {
 	lines := []string{edgeHeader(e, v, read, site, w)}
 	switch {
 	case !read:
@@ -220,15 +261,11 @@ func (m Model) edgeLines(e arch.Edge, v edgeView, read bool, site, w, h int) []s
 		lines = append(lines, dim.Render("  "+v.note))
 	default:
 		rows := m.layoutRows(v.p)
-		at := 0
-		for k, r := range rows {
-			if v.mark >= 0 && (r.full == v.mark || r.l == v.mark || r.r == v.mark) {
-				at = k
-				break
-			}
+		total, auto := m.edgeRows(v, h)
+		if off < 0 {
+			off = auto
 		}
-		total := len(rows)
-		off := clamp(at-h/3, 0, max(total-h, 0))
+		off = clamp(off, 0, max(total-h, 0))
 		bar := scrollbar{total: total, h: h, off: off}
 		cw := w
 		if bar.shown() {
@@ -310,8 +347,21 @@ func (m *Model) readEdge() tea.Cmd {
 func (m Model) shownEdgeLines(w, h int) []string {
 	t, r, e, _ := m.impactEdge()
 	site := m.edgeSite(e)
-	v, read := m.ecode.views[edgeSiteKey(t, r, e.Sites[site])]
-	return m.edgeLines(e, v, read, site, w, h)
+	key := edgeSiteKey(t, r, e.Sites[site])
+	v, read := m.ecode.views[key]
+	return m.edgeLines(e, v, read, site, w, h, m.escroll.at(key))
+}
+
+// scrollEdge scrolls the main view's edge code by delta rows.
+func (m *Model) scrollEdge(delta int) {
+	t, r, e, ok := m.impactEdge()
+	if !ok || len(e.Sites) == 0 {
+		return
+	}
+	key := edgeSiteKey(t, r, e.Sites[m.edgeSite(e)])
+	if v, read := m.ecode.views[key]; read {
+		m.escroll = m.scrolled(m.escroll, key, v, m.layout().listH, delta)
+	}
 }
 
 // cycleSite shows the selected edge's next (dir 1) or previous site.
