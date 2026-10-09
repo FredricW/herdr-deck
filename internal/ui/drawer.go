@@ -35,6 +35,7 @@ const (
 	tabOverview tabKind = iota
 	tabFiles
 	tabCommits
+	tabImpact
 	tabPR
 	tabLog
 	numTabs
@@ -46,6 +47,8 @@ func (t tabKind) String() string {
 		return "Files"
 	case tabCommits:
 		return "Commits"
+	case tabImpact:
+		return "Impact"
 	case tabPR:
 		return "PR"
 	case tabLog:
@@ -497,7 +500,7 @@ func (m Model) helpDrawer(width int) *drawer {
 var helpLines = [][2]string{
 	{"j k", "move; the drawer follows"},
 	{"space", "fold or unfold the list under the cursor"},
-	{"[ ]", "previous / next tab: Overview, Files, Commits, PR, Log"},
+	{"[ ]", "previous / next tab: Overview, Files, Commits, Impact, PR, Log"},
 	{"tab", "focus the drawer: j k move in it, ↵ opens, tab switches tabs, esc returns"},
 	{"1-9", "open the numbered link; on Files and Commits, preview that file or commit"},
 	{"l f n g", "open the first Linear, Figma, Notion or PR link; with several, pick one: a digit, a all, d Figma desktop app, the letter again the first, esc cancels"},
@@ -510,6 +513,7 @@ var helpLines = [][2]string{
 	{"v", "on Files and Commits: preview the file or commit under the cursor in the list's place, coloured by its language; j k pick another, v or esc returns to the list"},
 	{"Files", "↵, a digit or a click previews a file; in the focused drawer d opens it in the diff tool; a opens the whole diff there"},
 	{"Commits", "the branch's commits since its base, newest first: ↵, a digit or a click previews one as git show does; in the focused drawer d opens the commit in the diff tool and g in the PR on GitHub; a opens the whole diff"},
+	{"Impact", "what the branch did to the repository's shape: Look here first (upward and layer-skipping imports, cycles, new dependencies, env, HTTP, SQL and exec touchpoints, API changes), then the changed packages as nested boxes, each changed import a number on its boxes' borders (! upward or skipping a layer) listed in the legend; z gives it the full height"},
 	{"space → l", "in the focused Commits tab: expand the commit to the files it changed (space again, ← or h collapses it; a click on ▸ / ▾ too); ↵ or a click on a file previews its change in that commit, d opens it in the diff tool"},
 	{"J K", "scroll the preview a line; pgup pgdn a page, the wheel over it three lines"},
 	{"S", "switch the preview between unified and split (old on the left, new on the right); diff.layout picks the start; a pane under 100 columns shows unified"},

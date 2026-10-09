@@ -402,6 +402,12 @@ terminal = true
 # The Files tab's starting view: "list", or "tree" for the changed files
 # under their folders. `d t` switches views for the session without saving.
 view = "list"
+
+[arch]
+# The Impact tab; false leaves it out. Read when the deck starts.
+enabled = true
+# Count test files in its package graphs.
+tests = false
 ```
 
 The table below is generated from the deck's own list of settings
@@ -429,6 +435,8 @@ it).
 | `diff.terminal` | `--diff-terminal` | `HERDR_DECK_DIFF_TERMINAL` | `true` |  |
 | `diff.view` | `--diff-view` | `HERDR_DECK_DIFF_VIEW` | `list` | `diff_view` |
 | `diff.layout` | `--diff-layout` | `HERDR_DECK_DIFF_LAYOUT` | `unified` |  |
+| `arch.enabled` | `--arch-enabled` | `HERDR_DECK_ARCH_ENABLED` | `true` |  |
+| `arch.tests` | `--arch-tests` | `HERDR_DECK_ARCH_TESTS` | `false` |  |
 <!-- end of settings table -->
 
 A command and its `terminal` option go together: the source that gives the
@@ -685,12 +693,12 @@ pane (`z` makes it full height, or hides it). It starts with a card: the
 row's title, its status as a glyph and a word (`● needs you`, `◐ working`,
 `◇ review`, …) with the thread's percent, and a dim line with the thread
 id, its title, what it is doing and its pane, with a progress bar or the
-PR's checks at the right. Under the card are four tabs, five with a PR:
+PR's checks at the right. Under the card are five tabs, six with a PR:
 
 ```
  Users page                                   ● needs you  ~95%
  t-0002 · Members /admin/users · pane w1Z:p1         ▰▰▰▰▰▰▰▰▰▱
- Overview   Files 11   Commits 4   Log 7         ↓ Dev · Thread
+ Overview   Files 11   Commits 4   Impact 7   Log 7   ↓ Dev · Thread
  ── Next ──
  → Approve phase 1 (ABC-1256 overview)
  ── Links ──
@@ -706,6 +714,9 @@ PR's checks at the right. Under the card are four tabs, five with a PR:
   report, base, dev log).
 - **Files**: the thread's changed files as a diffstat (see Changed files).
 - **Commits**: the thread branch's own commits, newest first (see Commits).
+- **Impact**: what the branch did to the repository's shape: imports that
+  go upward or skip a layer, cycles, new dependencies and touchpoints, and
+  the changed packages drawn as nested boxes (see Impact).
 - **PR**: the thread's pull request: status, what it is, its description
   and its conversation (see GitHub pull requests). Rows without a PR have
   no PR tab.
@@ -743,7 +754,7 @@ only threads waiting on you. The deck never marks an item handled.
 |---|---|
 | `j` / `k`, `↓` / `↑` | move; the drawer follows |
 | `space` | fold or unfold the list under the cursor (Backlog and Resolved start folded; see `[ui] folded_lists`) |
-| `[` / `]` | previous / next drawer tab: Overview, Files, Commits, PR, Log |
+| `[` / `]` | previous / next drawer tab: Overview, Files, Commits, Impact, PR, Log |
 | `tab` | focus the drawer: `j`/`k` move its cursor, `↵` opens what is under it, `tab`/`shift+tab` switch tabs, `esc` returns to the list |
 | `1`–`9` | open the drawer's numbered link (Figma links in the desktop app with `figma.desktop = true`); on Files and Commits, preview the numbered file or commit |
 | `l` `f` `n` `g` | open the row's Linear / Figma / Notion / PR link; with several, pick one with a digit, `a` for all, `d` for the Figma desktop app, the same letter for the first, `esc` to cancel |
@@ -1027,6 +1038,113 @@ reload. It is cached by HEAD and the upstream, so a reload only runs `git
 rev-parse` and `git status` until the branch moves. The deck never writes
 to the repository.
 
+## Impact
+
+The drawer's Impact tab answers one question a diff hides: did this
+branch change the shape of the system, and where should you look first?
+It compares the package graph of the thread's `HEAD` with the graph of its
+merge-base (the Files tab's), and shows the change, not the system.
+
+```
+ 10 to look at  ✕ 1 upward  ↻ 1 cycle  ⚠ 1 skip  edges +3 −0 ~3   vs origin/main
+ 1 ✕ format → admin/users  upward                                  dates.ts:1
+ 2 ↻ src/format → src/admin → src/format  new cycle                dates.ts:1
+ 3 ⚠ admin/users → db  skips api                              UsersPage.tsx:2
+ 4 + http api.example.com  in api                                  users.ts:3
+ 5 + dep @tanstack/react-table 8.21.3  dependency
+ ⋯ 5 more
+
+ ┌─ webshop ────────────────────────────────────────────────────────────────┐
+ │ ┌─ src ──────────────────────────────────────────────────────────── ⋯1 ┐ │
+ │ │ ┌─ admin ─────────── ⋯3 ┐ ┌─ ~ format ─4──────┐ ┌─ ~ api ─3────────┐ │ │
+ │ │ │ ┌─ ~ users ─1!──────┐ │ │ +2 −1             │ │ +2 −1            │ │ │
+ │ │ │ │ +17 −8            │ │ │ api +0 −0 ~1      │ │ api +1 −0 ~1     │ │ │
+ │ │ │ │ $ ◆1              │ │ │                   │ │ ⇄                │ │ │
+ │ │ │ └─2!─3─4────────────┘ │ └─1!────────────────┘ └──────────────────┘ │ │
+ ⋯
+ 1 format ─▸ admin/users  ✕ upward
+ 2 admin/users ─▸ db  ⚠ skips api
+ 3 admin/users ─▸ api  changed
+```
+
+**Look here first** lists what changed the shape, riskiest first: an
+import that goes upward against the layers (`✕`), a new cycle between
+components (`↻`), an import that skips a closed layer (`⚠`), a new
+third-party dependency, new touchpoints (an environment variable, an HTTP
+host, an SQL table, a program run, a file written, a flag), new and removed
+imports between packages, then API changes. Each row ends with the file and
+line that makes it. An import that moved with its code (the declarations
+moved from one package to another and took the import along) shows once,
+as `≡`, and ranks low. The label counts the rows: `Impact 7`, `Impact ≡`
+for a change that only moved code, `Impact …` until the first read. The
+drawer shows five rows at its normal height and twelve at full height
+(`z`); the canvas is below them.
+
+**The canvas** draws every impacted package (changed, or at either end
+of a changed import) as a box inside boxes for its parent folders, with
+the repository outermost. Unchanged packages under a box are counted on its
+top border (`⋯3`), and a chain of plain folders is one box
+(`internal/source`). A box's title holds its change, `+` new, `~` changed,
+`−` gone, `≡` only moved into, in green, yellow, red or cyan; its
+borders stay neutral. Inside are its line counts, its exported API
+(`api +1 −0 ~1`), and icons for new touchpoints (`$` env, `⇄` http, `≣` sql,
+`»` exec, `▤` fs, `⊢` flag) and new dependencies (`◆1`). The layout is
+the same for the same change at the same width.
+
+Each changed import between two boxes is a number on its source box's
+bottom border and on its target's top border, in its status colour:
+green added, yellow changed (its importers use something else through it),
+red removed. `!` after the number marks an import that goes upward or
+skips a layer. The legend lists them, beside the canvas from 110 columns,
+else below it: added, changed and unchanged imports as `─▸`, told apart
+by colour (and a word), removed ones as `┄▸`. Past 20 changed imports the
+boxes show counts instead, `▾3` out and `▴2` in, and the legend groups the
+imports by source.
+
+**Layers.** A repository declares its layers in the shared dev manifest,
+`.config/dev.json`, under the deck's own key (other tools ignore `x-`
+keys), as the head commit has it:
+
+```json
+{
+  "x-herdr-deck": {
+    "architecture": {
+      "language": "ts",
+      "roots": ["apps/admin/src", "packages"],
+      "layers": [
+        { "name": "entry",  "paths": ["apps/admin/src"] },
+        { "name": "pages",  "paths": ["apps/admin/src/pages/**"] },
+        { "name": "api",    "paths": ["apps/admin/src/api/**"], "closed": true },
+        { "name": "infra",  "paths": ["packages/db/**"] }
+      ]
+    }
+  }
+}
+```
+
+Layers go from the top (entry points) to the bottom (the core); a package
+may import its own layer and any below it. `dir/**` takes a folder and
+everything under it, other paths are globs, and the first layer that
+matches wins; a package no layer matches is `unassigned` and never flagged.
+`closed: true` means callers above must go through that layer, so jumping
+over it is a skip. Without layers the deck orders the boxes by how deep
+each package's imports go, and flags nothing. `roots` limits the graph to
+the folders that hold the source, and `language` (`go` or `ts`) picks the
+reader; without it the language with more files wins.
+
+**How it reads.** Go with the standard library's parser (go.mod gives the
+module, so imports resolve to folders); TypeScript and JavaScript with an
+import scanner that skips comments and resolves relative paths, `index`
+files, tsconfig `paths` aliases and workspace packages (type-only imports
+count). Tests, `testdata`, `vendor`, `node_modules` and build output are
+left out (`arch.tests = true` counts tests). Both commits are read straight
+from git objects (`git ls-tree`, one `git cat-file --batch`): no checkout,
+no index refresh, nothing written. Uncommitted changes are not in it yet.
+The read runs off the UI when the selection moves to another thread and on
+every reload; each file's facts are cached by blob, so a branch's second
+read parses only the files that changed, and a reload whose `HEAD` did not
+move answers from the cache.
+
 ## Layout
 
 - `cmd/herdr-deck`: flag parsing and wiring.
@@ -1037,7 +1155,8 @@ to the repository.
   `dev` reads dev manifests (its `manifest` package parses and checks them,
   for the skill's validator too), probes ports and runs `dev` and `stop`, `diff` reads a
   worktree's changed files and one file's diff with git, `projects.Roster` reads every
-  project for the project picker, `live` combines them and
+  project for the project picker, `arch` reads both commits' package
+  graphs from git objects and compares them for the Impact tab, `live` combines them and
   watches the project folder, `fake` is sample data for tests and `--fake`.
 - `internal/config`: finds and reads `config.toml` and resolves each setting
   (flag > environment > file > default).
@@ -1052,7 +1171,7 @@ to the repository.
   preview (chroma's lexers, named ANSI colours).
 - `internal/ui`: the Bubble Tea model; renders a `deck.Snapshot` and nothing else.
   Its rendering is pinned by `internal/ui/testdata/*.golden` (every state at
-  60 and 80 columns); `go test ./internal/ui -update` rewrites them.
+  60 and 80 columns, some at 120); `go test ./internal/ui -update` rewrites them.
 - `schema`: the dev manifest's JSON Schemas (embedded), checked against the
   spec's examples.
 - `skills/dev-manifest`: the agent skill that writes `.config/dev.json`, its

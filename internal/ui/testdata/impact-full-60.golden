@@ -1,0 +1,28 @@
+ Admin rebuild                      ● 1  ◐ 1  ◇ 1  ○ 1  ✉ 2
+────────────────────────────────────────────────────────────
+ Users page                               ● needs you  ~95%
+ webshop · t-0002-members-admin-users            ▰▰▰▰▰▰▰▰▰▱
+
+  Overview   Files 8   Commits   Impact 10   Log… ↓ 25 more
+
+ 10 to look at  ✕ 1 upward  ↻ 1 cycle  ⚠ 1 skip  edges +…  ┃
+ 1 ✕ format → admin/users  upward                          ┃
+ 2 ↻ src/format → src/admin → src/format  new cycle        ┃
+ 3 ⚠ admin/users → db  skips api                           ┃
+ 4 + http api.example.com  in api                          ┃
+ 5 + dep @tanstack/react-table 8.21.3  dependency          ┃
+ 6 + admin/users → @tanstack/react-table  third-party      ┃
+ 7 + env VITE_USERS_PAGE_SIZE  in admin/users              ┃
+ 8 ~ api admin/users  −2 ~1 +2                             │
+ 9 ~ api api  −0 ~1 +1                                     │
+ · ~ api format  −0 ~1 +0                                  │
+                                                           │
+ ┌─ webshop ────────────────────────────────────────────┐  │
+ │                                                      │  │
+ │ ┌─ src ──────────────────────────────────────── ⋯1 ┐ │  │
+ │ │                                                  │ │  │
+ │ │ ┌─ admin ──────────── ⋯3 ┐ ┌─ ~ format ─4──────┐ │ │  │
+ │ │ │                        │ │ +2 −1             │ │ │  │
+ │ │ │ ┌─ ~ users ─1!───────┐ │ │ api +0 −0 ~1      │ │ │  │
+────────────────────────────────────────────────────────────
+ pgdn scroll  z full  [ ] tab  ? help                 v9.9.9

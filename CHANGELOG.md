@@ -8,6 +8,28 @@ and versions follow [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+
+- An Impact tab in the drawer: what a thread's branch did to its
+  repository's shape. It opens on *Look here first*: imports that go
+  upward against the layers or skip one, new cycles, new third-party
+  dependencies, new env, HTTP, SQL and exec touchpoints, new imports
+  between packages and API changes, riskiest first, each with its file and
+  line. Below it, the changed packages are boxes nested in their folders
+  (unchanged ones counted), with each changed import numbered on its
+  boxes' borders in its colour (green added, yellow changed, red removed)
+  and listed in a legend. It reads Go and TypeScript straight from git
+  objects, without a checkout, and caches every file by its content, so a
+  reload costs almost nothing. A repository can declare its layers in
+  `.config/dev.json` under `x-herdr-deck.architecture`; the new `[arch]`
+  settings turn the tab off (`enabled`) or count test files (`tests`).
+
+### Fixed
+
+- On macOS, `U U` no longer fails with "operation not permitted" when a
+  dev server exits just as it stops it: a process group with only
+  exited processes left counts as stopped.
+
 ## [0.1.7] - 2026-10-07
 
 ### Added

@@ -4,7 +4,8 @@ Static mockups for the next drawer, the detail view under the list in
 [design D](../d-list-detail.md). Nothing here is code. The user chose the
 direction on 2026-10-03: a **header card** on top, then **tabs**:
 **Overview · Files · Log**, with **Commits** added between Files and Log
-later the same day (see [Commits](#commits)). The same day they settled the variants and the
+later the same day (see [Commits](#commits)), and later **PR** and
+**Impact** (see [PR](#pr) and [Impact](#impact)). The same day they settled the variants and the
 open questions; the [decisions](#decisions) are below, and
 [PLAN.md's UI section](../../PLAN.md#ui) describes the result for the build.
 
@@ -275,6 +276,58 @@ showing that PR, opens it on GitHub; `g` opens it from anywhere, as
 before. A second click rather than a double click: the deck gets no
 double-click events, and timing clicks would make the first click's tab
 switch wait.
+
+## Impact
+
+Added on 2026-10-07 (t-0072): an Impact tab between Commits and PR, in the
+same tab style, for a row with a worktree, from the exploration in
+[docs/research/architecture-tab.md](../../research/architecture-tab.md).
+It is named for what it answers, *what did this change touch*, rather than
+*Arch*: the call-stack view (which flows behave differently) is meant to
+join it as its second view. Its label counts the *Look here first* items
+(`Impact 10`), shows `Impact ≡` for a change that only moved code and
+`Impact …` until the first read.
+
+```text
+ Overview   Files 8   Commits 4   Impact 10   Log 7                ↓ 33 more
+ 10 to look at  ✕ 1 upward  ↻ 1 cycle  ⚠ 1 skip  edges +3 −0 ~3  vs origin/main
+ 1 ✕ format → admin/users  upward                                  dates.ts:1
+ 2 ↻ src/format → src/admin → src/format  new cycle                dates.ts:1
+ 3 ⚠ admin/users → db  skips api                              UsersPage.tsx:2
+ 4 + http api.example.com  in api                                  users.ts:3
+ 5 + dep @tanstack/react-table 8.21.3  dependency
+ ⋯ 5 more
+
+ ┌─ webshop ──────────────────────────────────────────────────────────────┐
+ │ ┌─ src ────────────────────────────────────────────────────────── ⋯1 ┐ │
+ │ │ ┌─ admin ───────── ⋯3 ┐ ┌─ ~ format ─4─────┐ ┌─ ~ api ─3──────────┐ │ │
+ │ │ │ ┌─ ~ users ─1!────┐ │ │ +2 −1            │ │ +2 −1              │ │ │
+ │ │ │ │ +17 −8          │ │ │ api +0 −0 ~1     │ │ api +1 −0 ~1       │ │ │
+ │ │ │ └─2!─3─4──────────┘ │ └─1!───────────────┘ └────────────────────┘ │ │
+```
+
+At the normal height the drawer shows the summary and five items; the
+canvas is a scroll (or `z`) away, with the scrollbar the PR tab has. At
+full height twelve items show. Colours:
+
+| Part | Style |
+|---|---|
+| Summary | the count bold; `✕ N upward` red bold, `↻ N cycle` red, `⚠ N skip` yellow; edge counts `+` green, `−` red, `~` yellow; what was compared dim |
+| Item glyphs | `✕` red bold (upward), `⚠` yellow bold (skips a layer), `↻` red (cycle), `+` green, `−` red, `~` yellow, `≡` cyan (moved with its code) |
+| Item reason and site | dim |
+| Box borders | neutral; faint for a folder or package that only gives context |
+| Box titles | `+` new green, `~` changed yellow, `−` gone red, `≡` moved in cyan, all bold; context titles faint |
+| Edge markers and legend lines | the edge's status: added green, changed yellow, removed red (unchanged faint, in the selection's lines); `!` after the number for upward or skipping |
+| Folded count `⋯N`, the keys under the legend | dim |
+
+The user's choices (2026-10-07): `─` for added, changed and unchanged
+edges, told apart by colour alone, and `┄` for removed ones; borders stay
+unbroken where lines cross, the only glyph a line puts on a border being
+its arrow point (`▸▾◂▴`) on the target; numbered markers at rest, lines
+only for the selected box. The second PR adds the selection: arrows or
+hjkl move it spatially, a click picks a box, its edges are drawn as lines
+and the rest dims, a detail lists its edges, API changes and touchpoints,
+`↵` goes to the code, and the view opens in a herdr pane of its own.
 
 ## Data the deck does not read yet
 

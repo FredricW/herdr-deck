@@ -1,0 +1,28 @@
+ Admin rebuild                      ● 1  ◐ 1  ◇ 1  ○ 1  ✉ 2
+────────────────────────────────────────────────────────────
+    WORK                        STATUS           LINKS  DEV
+  Needs you
+ ▸● Users page                  needs you        L4
+
+  In progress
+  ◐ Templates page              Writing tests    L F    ●●●
+  ◇ Document select for summa…  #2320 review     L F3   ●○
+
+  On hold until Monday 2026-10-05
+  ○ Subscriptions list          idle             L N    ~○
+
+  + Backlog (3)
+────────────────────────────────────────────────────────────
+ Users page                               ● needs you  ~95%
+ webshop · t-0002-members-admin-users            ▰▰▰▰▰▰▰▰▰▱
+
+  Overview   Files 8   Commits   Impact 10   Log… ↓ 34 more
+
+ 10 to look at  ✕ 1 upward  ↻ 1 cycle  ⚠ 1 skip  edges +…  ┃
+ 1 ✕ format → admin/users  upward                          │
+ 2 ↻ src/format → src/admin → src/format  new cycle        │
+ 3 ⚠ admin/users → db  skips api                           │
+ 4 + http api.example.com  in api                          │
+ 5 + dep @tanstack/react-table 8.21.3  dependency          │
+────────────────────────────────────────────────────────────
+ pgdn scroll  z full  [ ] tab  ? help                 v9.9.9

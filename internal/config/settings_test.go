@@ -54,6 +54,8 @@ drawer_height = 0.35
 		KeyAutoRestart:     {Text: "true", Source: FromDefault},
 		KeyReuseTabs:       {Text: "true", Source: FromDefault},
 		KeyGitHubEnabled:   {Text: "true", Source: FromDefault},
+		KeyArchEnabled:     {Text: "true", Source: FromDefault},
+		KeyArchTests:       {Text: "false", Source: FromDefault},
 		KeyFigmaDesktop:    {Text: "true", Source: FromFile},
 		KeyRefreshInterval: {Text: "30s", Source: FromFile},
 		KeyDrawerHeight:    {Text: "0.35", Source: FromFile},

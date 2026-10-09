@@ -88,10 +88,28 @@ func signalGroup(pid int, force bool) error {
 	if force {
 		sig = syscall.SIGKILL
 	}
-	if err := syscall.Kill(-pid, sig); err != nil && !errors.Is(err, syscall.ESRCH) {
-		return err
+	err := syscall.Kill(-pid, sig)
+	if groupGone(err, func() error { _, err := syscall.Getpgid(pid); return err }) {
+		return nil
 	}
-	return nil
+	return err
+}
+
+// groupGone says a group signal's error (nil included) means there was
+// nothing left to signal: ESRCH, or EPERM while the group's leader has no
+// group any more (leaderPgid fails with ESRCH). Darwin's killpg answers
+// EPERM rather than ESRCH for a group whose members have all exited but
+// not been reaped: zombies, which it cannot signal. getpgid fails for a
+// zombie and for a reaped leader alike, so that pair means the group is
+// gone; EPERM for a live group is a real permission error, and stays one.
+func groupGone(err error, leaderPgid func() error) bool {
+	switch {
+	case err == nil, errors.Is(err, syscall.ESRCH):
+		return true
+	case errors.Is(err, syscall.EPERM):
+		return errors.Is(leaderPgid(), syscall.ESRCH)
+	}
+	return false
 }
 
 // pidExists tells whether a process with this pid exists.

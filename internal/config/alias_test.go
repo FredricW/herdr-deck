@@ -30,6 +30,8 @@ var samples = map[string]struct{ text, lit, shown, otherLit, other string }{
 	KeyDiffTerminal:        {"false", "false", "false", "true", "true"},
 	KeyDiffView:            {"tree", `"tree"`, "tree", `"list"`, "list"},
 	KeyDiffLayout:          {"split", `"split"`, "split", `"unified"`, "unified"},
+	KeyArchEnabled:         {"false", "false", "false", "true", "true"},
+	KeyArchTests:           {"true", "true", "true", "false", "false"},
 }
 
 func TestSamplesCoverSpecs(t *testing.T) {

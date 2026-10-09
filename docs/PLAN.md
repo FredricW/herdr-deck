@@ -176,13 +176,15 @@ lists what the user chose.
     with no percent, the PR (`#2320` magenta, `✕ 2 failing` red or `✓`
     green). A task with several threads shows the most pressing one.
   - **Tab bar**, one line: ` Overview `, ` Files N `, ` Commits N `,
-    ` Log N ` as plain
+    ` Impact N `, ` Log N ` (` PR ` before Log with a PR) as plain
     labels with one space of padding on each side, on background colours,
     one space apart, no rule or brackets. The active tab is bold dark
     text (256-colour 234, 16 on a light terminal) on blue; inactive tabs plain text on dark grey (256-colour 237,
     254 on a light terminal). `Files N` counts changed files (`Files …`
     until git has answered once), `Commits N` the branch's commits,
-    `Log N` events. A tab with nothing
+    `Impact N` its Look here first items (`Impact ≡` for a pure move,
+    `Impact …` before the first read; no tab with `arch.enabled =
+    false`), `Log N` events. A tab with nothing
     behind it (no thread, a resolved thread's files) is dim, has no count
     and is skipped by keys and clicks. At the right end, dim, what is below
     the drawer's end: Overview's section names at 80 columns, else
@@ -329,6 +331,40 @@ lists what the user chose.
   file previews `git show <sha> -- [old] <path>` (`ReadCommitFilePatch`),
   `d` opens it at that commit (`CommitArgv` with files). The cursor keeps
   its row (sha and path) when rows open, close or arrive above it.
+- **Impact tab** (t-0072, from the exploration in
+  [docs/research/architecture-tab.md](research/architecture-tab.md)).
+  What the branch did to the repository's shape. `internal/source/arch`
+  reads the merge-base (with the thread's base, as Files) and `HEAD` from
+  git objects (`ls-tree`, one `cat-file --batch`; no checkout, optional
+  locks off), parses Go with `go/parser` and TypeScript/JavaScript with an
+  import scanner (comments blanked; relative paths, `index` files,
+  tsconfig `paths`, workspace packages), builds each commit's package
+  graph (a package is a folder), and diffs them: edges added, removed and
+  changed (same importers, different uses), layer verdicts, component
+  cycles, touchpoints (env, http, sql, exec, fs, flag), go.mod /
+  package.json requirements, exported API, and declarations moved
+  (matched by hash) so a move is not a change. Facts are cached by blob
+  SHA and results by merge-base, head and the manifest's blob (16), so a
+  reload costs `rev-parse HEAD`, `merge-base` and `rev-parse
+  HEAD:.config/dev.json` until one of them moves. It runs off the
+  UI goroutine like the Files read (30 s timeout). The repository's
+  `.config/dev.json` at HEAD may declare `x-herdr-deck.architecture`:
+  `layers` (ordered, `paths` globs, `closed`), `roots`, `language`;
+  without layers they are inferred by depth and flag nothing. The tab
+  shows a summary line, *Look here first* (5 rows at the normal height,
+  12 at full: upward, cycle, skip, new dependency, touchpoints, new
+  edges, API; each with its `file:line`), then the canvas (§12 of the
+  research): impacted packages as boxes nested in their folders
+  (unchanged ones counted as `⋯N`, plain-folder chains collapsed),
+  packed in rows; titles coloured by change, borders neutral; changed
+  edges between drawn boxes numbered on the source's bottom and the
+  target's top border in their status colour (green added, yellow
+  changed, red removed; `!` upward or skipping), counts (`▾N` `▴N`) past
+  20; a legend beside the canvas from 110 columns, else below, with `─▸`
+  for every status but removed `┄▸`. Uncommitted changes are left out.
+  Phase 2 (next PR): selecting boxes (arrows/hjkl spatially, clicks),
+  lines for the selected box's edges, a detail, `↵` to the code, and the
+  view in its own herdr pane.
 - **Log tab.** The thread's timeline, newest first, one line per event:
   age (dim, right-aligned), a glyph in its colour, the text, and at 80
   columns the clock time (dim, with the weekday before today). Only what
@@ -449,8 +485,9 @@ thumb blue while dragged. The preview gives up its last column; a full view
 two (a blank one, then the bar). A press on the thumb grabs it and a drag
 scrolls; a press on the track jumps there and the drag goes on; a key or the
 release lets go. A row's drawer tabs keep `↓ N more` instead (follow-up),
-except the PR tab, which is long like a report: its content gets the
-scrollbar too, and its card and tab bar keep the full width.
+except the PR and Impact tabs, which are long like a report: their
+content gets the scrollbar too, and the card and tab bar keep the full
+width.
 
 Colours are named ANSI colours, so the terminal theme applies (full table in
 [docs/design/README.md](design/README.md#colours)). Needs you is bold red,
@@ -582,6 +619,9 @@ never a secret.
 - Plugin mode: the hooks resolve the projects root from the same file and
   pass `$HERDR_DECK_CONFIG` on to decks they open when it is set; the deck
   finds the default path itself.
+- `[arch]`: `enabled` (default true; false leaves the Impact tab out) and
+  `tests` (default false; count test files in its graphs), both read at
+  start.
 - `linear.status` (default true) and `linear.api_key_command`: see
   "Linear issue status" below.
 - `ui.folded_lists` (`[ui] folded_lists`, flag `--ui-folded-lists`, env
@@ -935,7 +975,9 @@ marked parallel.
    (not in CI), and the project picker (`p`, see "Other projects" in UI):
    the user chose it on 2026-10-03 over the multi-project directions in
    [docs/design/multi-project/](design/multi-project/README.md), so the
-   deck stays one project per instance.
+   deck stays one project per instance. The Impact tab (t-0072, see UI),
+   in two PRs: the reader with Look here first and the canvas at rest,
+   then selection, lines, the detail and the separate pane.
 
 ## Definition of done (v1 = milestones 1–7)
 

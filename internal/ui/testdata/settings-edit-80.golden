@@ -5,7 +5,7 @@
    linear.workspace        acme                                        file    │
    linear.status           true                                        default │
    linear.api_key_command  none                                        default │
-                                                                               │
+                                                                               ┃
  [github] pull requests                                                        ┃
    github.enabled          true                                        default ┃
                                                                                ┃
@@ -18,8 +18,8 @@
  [updates] new versions of the deck                                            ┃
    updates.check           true                                        default ┃
    updates.auto_restart    true                                        default ┃
-                                                                               ┃
- [editor] what e opens                                                         ┃
+                                                                               │
+ [editor] what e opens                                                         │
  ▸ editor.command          zed {x}                                     file    │
      what e opens a worktree with; {path} is the folder                        │
      ✕ unknown placeholder {x}; use {path}                                     │
