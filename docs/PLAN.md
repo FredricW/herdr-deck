@@ -383,7 +383,22 @@ lists what the user chose.
   in a pane split below the deck, focused and zoomed (`pane.split`,
   `pane.zoom` mode on, `pane.send_input`); the pane
   (`ui.ImpactPane`) reads the thread from herdr-projects' list and opens
-  files in the diff tool.
+  files in the diff tool. Edges (t-0072, third PR): the detail's import
+  rows are cursor stops (`actEdge`), and the edge under the cursor is the
+  selected one (`Model.iedge`). Routes do not depend on it: each line
+  cell records its edge, and the selected one is drawn heavy at render
+  (`━┃┏┓┗┛`, `┅┇` removed, bold). A click hit-tests the cells, then the
+  four neighbours, and selects the edge with its source box. `n`/`N`
+  (and `]`/`[` on an edge) cycle edges, `tab`/`.` sites, `esc` steps back.
+  The main view shows the site's code (`edgeview.go`): the file's patch
+  cut to the hunk holding the import line (its old side for a removed
+  edge), else `diff.Reader.ReadFileAt` (`git show rev:path`) around it
+  with `import unchanged`; drawn with the preview's row renderer, the
+  import row marked `▌`, read off the UI goroutine and cached by site. A
+  changed edge's header lists the names gained and lost (`Edge.Gained`,
+  `Lost`). The pane splits: canvas above, code below (beside from 180
+  columns). The first call site of the imported name is not used yet:
+  the site is the import.
 - **Log tab.** The thread's timeline, newest first, one line per event:
   age (dim, right-aligned), a glyph in its colour, the text, and at 80
   columns the clock time (dim, with the weekday before today). Only what

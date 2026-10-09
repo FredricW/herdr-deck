@@ -3,26 +3,26 @@
  Users page                                                   ● needs you  ~95%
  webshop · t-0002-members-admin-users                                ▰▰▰▰▰▰▰▰▰▱
 
-  Overview   Files 8   Commits   Impact 9   Log 7                     ↓ 17 more
+  Overview   Files 8   Commits   Impact 10   Log 7                    ↓ 18 more
 
- 9 to look at  ✕ 1 upward  ↻ 1 cycle  ⚠ 1 skip  edges +3 −0 ~3 vs origin/main  ┃
+ 10 to look at  ✕ 1 upward  ↻ 1 cycle  ⚠ 1 skip  edges +4 −0 … vs origin/main  ┃
  1 ✕ api → admin/users  upward                                     users.ts:2  ┃
  2 ↻ src/api → src/admin → src/api  new cycle                      users.ts:2  ┃
- 3 ⚠ admin/users → db  skips api                              UsersPage.tsx:2  ┃
- 4 + http api.example.com  in api                                  users.ts:4  ┃
+ 3 ⚠ admin/users → db  skips api                              UsersPage.tsx:5  ┃
+ 4 + http api.example.com  in api                                 users.ts:24  ┃
  5 + dep @tanstack/react-table 8.21.3  dependency                              ┃
  6 + admin/users → @tanstack/react-table  third-party        UsersTable.tsx:1  ┃
- 7 + env VITE_USERS_PAGE_SIZE  in admin/users                 UsersPage.tsx:5  ┃
- 8 ~ api admin/users  −2 ~1 +2                                                 ┃
- 9 ~ api api  −0 ~1 +1                                                         ┃
+ 7 + env VITE_USERS_PAGE_SIZE  in admin/users                UsersPage.tsx:11  ┃
+ 8 + admin/users → ui                                        UsersTable.tsx:2  ┃
+ 9 ~ api admin/users  −3 ~0 +3                                                 ┃
+ · ~ api api  −1 ~0 +5                                                         │
                                                                                │
  ┌─ webshop ────────────────────────────────────────────────────────────────┐  │
  │                                                                          │  │
- │ ┌─ src ──────────────────────────────────────────────────────────── ⋯2 ┐ │  │
+ │ ┌─ src ──────────────────────────────────────────────────────────── ⋯1 ┐ │  │
  │ │                                                                      │ │  │
- │ │ ┌─ admin ───────────── ⋯3 ┐ ┌─ ~ api ─3──────────┐ ┌─ db ─2!───────┐ │ │  │
- │ │ │                         │ │ +3 −1              │ │               │ │ │  │
- │ │ │ ┌─ ~ users ─1!────────┐ │ │ api +1 −0 ~1       │ │               │ │ │  │
- │ │ │ │ +17 −8              │ │ │ ⇄                  │ │               │ │ │  │
+ │ │ ┌─ admin ───────── ⋯3 ┐ ┌─ ui ─3───┐ ┌─ ~ api ─4─────┐ ┌─ db ─2!───┐ │ │  │
+ │ │ │                     │ │          │ │ +22 −2        │ │           │ │ │  │
+ │ │ │ ┌─ ~ users ─1!────┐ │ │          │ │ api +5 −1 ~0  │ │           │ │ │  │
 ────────────────────────────────────────────────────────────────────────────────
  tab select boxes  O own pane  z full height  [ ] tab  ? help             v9.9.9

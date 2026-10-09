@@ -1,0 +1,40 @@
+ Admin rebuild                      ● 1  ◐ 1  ◇ 1  ○ 1  ✉ 2
+────────────────────────────────────────────────────────────
+ src/api ─▸ src/admin/users · added · 1 site     users.ts:2
+ @@ -1,5 +1,25 @@                                          ┃
+   import { get } from "./client";                         ┃
+▌+ import { overview } from "@/admin/users/overview";      ┃
+                                                           ┃
+ − export async function listMembers(): Promise<Member[]> {┃
+ −   return get("/api/members");                           ┃
+ + export type Role = "owner" | "admin" | "member";        ┃
+ +                                                         ┃
+ + export interface UsersQuery {                           ┃
+ +   query?: string;                                       ┃
+ +   role?: Role | "all";                                  │
+ + }                                                       │
+ +                                                         │
+ + // listUsers pages through /api/users; the server filte…│
+ + export async function listUsers(q: UsersQuery = {}): Pr…│
+ +   const params = new URLSearchParams();                 │
+ +   if (q.query) params.set("q", q.query);                │
+────────────────────────────────────────────────────────────
+ Users page                               ● needs you  ~95%
+ webshop · t-0002-members-admin-users            ▰▰▰▰▰▰▰▰▰▱
+
+  Overview   Files 8   Commits   Impact 10   Log… ↓ 19 more
+
+ │ │ │ └──────▴────────────────┘ │ │                │ │ │  │
+ │ │ │        ┃│                 │ │                │ │ │  │
+ │ │ └───────────────────────────┘ └────────────────┘ │ │  │
+ │ │          ┃│                                      │ │  │
+ │ │ ┏━ ~ api ━▾━━━━━━━━━━━━━━┓ ┌─ db ──────────────┐ │ │  ┃
+ │ │ ┃ +22 −2                 ┃─▸                   │ │ │  ┃
+ │ │ ┃ api +5 −1 ~0           ┃ │                   │ │ │  ┃
+ │ │ ┃ ⇄                      ┃ │                   │ │ │  │
+ │ │ ┗━━━━━━━━━━━━━━━━━━━━━━━━┛ └───────────────────┘ │ │  │
+ │ │                                                  │ │  │
+ │ └──────────────────────────────────────────────────┘ │  │
+ │                                                      │  │
+────────────────────────────────────────────────────────────
+ hjkl move  ↵ open  O pane  esc list                  v9.9.9

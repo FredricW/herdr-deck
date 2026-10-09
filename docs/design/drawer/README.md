@@ -348,7 +348,20 @@ legend's place:
  ─▸ @tanstack/react-table  third-party   UsersTable.tsx:1
 ```
 
-`O` opens the same view in a herdr pane of its own, zoomed to the tab.
+With a box selected, `n` `N` (or a click on a line) select one of its
+edges: its line turns heavy (`━ ┃ ┏ ┓ ┗ ┛`, `┅ ┇` for a removed one) in
+its colour, bold, and the main view above the drawer shows its code, the
+hunk with the import's row marked `▌` in the edge's colour:
+
+```text
+ src/api ─▸ src/admin/users · added · 1 site                         users.ts:2
+ @@ -1,5 +1,25 @@
+   import { get } from "./client";
+▌+ import { overview } from "@/admin/users/overview";
+```
+
+`O` opens the same view in a herdr pane of its own, zoomed to the tab;
+there the code shows below the canvas, or beside it when wide.
 
 ## Data the deck does not read yet
 

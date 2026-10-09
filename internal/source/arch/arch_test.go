@@ -568,3 +568,10 @@ func TestPureMoveWithADependency(t *testing.T) {
 		t.Errorf("pure move %v, deps %v", res.PureMove(), res.Deps)
 	}
 }
+
+func TestUsesDiff(t *testing.T) {
+	g, l := usesDiff([]Site{{Uses: "Draw Open"}}, []Site{{Uses: "Open Render"}, {Uses: "Close"}})
+	if !slices.Equal(g, []string{"Close", "Render"}) || !slices.Equal(l, []string{"Draw"}) {
+		t.Errorf("gained %v lost %v", g, l)
+	}
+}

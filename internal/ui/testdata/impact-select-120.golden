@@ -3,43 +3,43 @@
  Users page                                                                                           ● needs you  ~95%
  webshop · t-0002-members-admin-users                                                                        ▰▰▰▰▰▰▰▰▰▱
 
-  Overview   Files 8   Commits   Impact 9   Log 7
+  Overview   Files 8   Commits   Impact 10   Log 7
 
- 9 to look at  ✕ 1 upward  ↻ 1 cycle  ⚠ 1 skip  edges +3 −0 ~3                              vs origin/main · TypeScript
+ 10 to look at  ✕ 1 upward  ↻ 1 cycle  ⚠ 1 skip  edges +4 −0 ~1                             vs origin/main · TypeScript
  1 ✕ api → admin/users  upward                                                                               users.ts:2
  2 ↻ src/api → src/admin → src/api  new cycle                                                                users.ts:2
- 3 ⚠ admin/users → db  skips api                                                                        UsersPage.tsx:2
- 4 + http api.example.com  in api                                                                            users.ts:4
+ 3 ⚠ admin/users → db  skips api                                                                        UsersPage.tsx:5
+ 4 + http api.example.com  in api                                                                           users.ts:24
  5 + dep @tanstack/react-table 8.21.3  dependency
  6 + admin/users → @tanstack/react-table  third-party                                                  UsersTable.tsx:1
- 7 + env VITE_USERS_PAGE_SIZE  in admin/users                                                           UsersPage.tsx:5
- 8 ~ api admin/users  −2 ~1 +2
- 9 ~ api api  −0 ~1 +1
+ 7 + env VITE_USERS_PAGE_SIZE  in admin/users                                                          UsersPage.tsx:11
+ 8 + admin/users → ui                                                                                  UsersTable.tsx:2
+ 9 ~ api admin/users  −3 ~0 +3
+ · ~ api api  −1 ~0 +5
 
- ┌─ webshop ──────────────────────────────────────────────────────────────────┐  ~ users · src/admin/users · pages
- │                                                                            │  +17 −8 in 5 files
- │ ┌─ src ────────────────────────────────────────────────────────────── ⋯2 ┐ │  ── imports 5 · imported by 2 ──
- │ │              │                                                         │ │  ─▸ db  ⚠ skips api      UsersPage.tsx:2
- │ │ ┌─ admin ────────────── ⋯3 ┐ ┌─ ~ api ────────────┐ ┌─ db ───────────┐ │ │  ─▸ @tanstack/react-ta… UsersTable.tsx:1
- │ │ │            │             │ │ +3 −1              │ │                │ │ │  ─▸ api  changed         UsersPage.tsx:1
- │ │ │ ┏━ ~ users ▾━━━━━━━━━━━┓ │ │ api +1 −0 ~1       │ │                │ │ │  ─▸ format (folded)  c… UsersTable.tsx:3
- │ │ │ ┃ +17 −8               ◂─│─│ ⇄                  │ │                │ │ │  ─▸ ui (folded)  chang… UsersTable.tsx:2
- │ │ │ ┃ api +2 −2 ~1         ┃─│─▸                    │ │                │ │ │  ◂─ api  ✕ upward             users.ts:2
- │ │ │ ┃ $ ◆1                 ┃ │ │                    │ │                │ │ │  ◂─ src  unchanged          routes.tsx:1
- │ │ │ ┗━━━━━━━━━━━━━━━━━━━━━━┛ │ │                    │ │                │ │ │  ── api ──
- │ │ │                       │  │ │                    │ │                │ │ │  + function UsersTable
- │ │ └──────────────────────────┘ └────────────────────┘ └▴───────────────┘ │ │  + function overview
- │ │                         └────────────────────────────┘                 │ │  − function UsersList
- │ └────────────────────────────────────────────────────────────────────────┘ │  − function userStats
- │                                                                            │  ~ function UsersPage
- └────────────────────────────────────────────────────────────────────────────┘  ── touchpoints ──
-                                                                                 + $ env VITE_USERS_PAG… UsersPage.tsx:5
-                                                                                 ── files ──
-                                                                                 UsersList.tsx
-                                                                                 UsersPage.tsx
-                                                                                 UsersTable.tsx
-                                                                                 overview.ts
-                                                                                 stats.ts
+ ┌─ webshop ──────────────────────────────────────────────────────────────────┐  ~ api · src/api · api
+ │                                                                            │  +22 −2 in 1 file
+ │ ┌─ src ────────────────────────────────────────────────────────────── ⋯1 ┐ │  ── imports 2 · imported by 2 ──
+ │ │                        ┌───────────────┐                               │ │  ─▸ admin/users  ✕ upward     users.ts:2
+ │ │ ┌─ admin ───────── ⋯3 ┐│┌─ ui ──────┐ ┏▾ ~ api ━━━━━━━━┓ ┌─ db ──────┐ │ │  ─▸ db  unchanged            client.ts:1
+ │ │ │                     │││           │ ┃ +22 −2         ┃─▸           │ │ │  ◂─ admin/users  changed UsersPage.tsx:3
+ │ │ │ ┌─ ~ users ───────┐ │││           │ ┃ api +5 −1 ~0   ┃ │           │ │ │  ◂─ admin/members (fo… MembersPage.tsx:1
+ │ │ │ │ +38 −20         │─│┘│           │ ┃ ⇄              ┃ │           │ │ │  ── api ──
+ │ │ │ │ api +3 −3 ~0    │ │ │           │ ┃                ┃ │           │ │ │  + function fetchOverview
+ │ │ │ │ $ ◆1            │ │ │           │ ┃                ┃ │           │ │ │  + function listUsers
+ │ │ │ └────────────────▴┘ │ │           │ ┃                ┃ │           │ │ │  + function useUsers
+ │ │ │                  │  │ │           │ ┃                ┃ │           │ │ │  + interface UsersQuery
+ │ │ └─────────────────────┘ └───────────┘ ┗━━━━━━━━━━━━━━━━┛ └───────────┘ │ │  + type Role
+ │ │                    └───────────────────┘                               │ │  − function listMembers
+ │ └────────────────────────────────────────────────────────────────────────┘ │  ── touchpoints ──
+ │                                                                            │  + ⇄ http api.example.com    users.ts:24
+ └────────────────────────────────────────────────────────────────────────────┘  ── files ──
+                                                                                 users.ts
+
+
+
+
+
 
 
 ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────

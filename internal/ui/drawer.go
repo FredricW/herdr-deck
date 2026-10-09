@@ -77,6 +77,7 @@ const (
 	actFindMore           // show all of the Impact tab's findings, or fewer
 	actBox                // the Impact canvas's box n (impactLayout.boxes)
 	actSite               // the Impact detail's site n (impactLayout.sites)
+	actEdge               // the Impact detail's edge n (impactLayout.edges)
 )
 
 type action struct {

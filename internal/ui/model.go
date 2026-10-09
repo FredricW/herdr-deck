@@ -84,6 +84,10 @@ type Options struct {
 	// OpenImpact opens a thread's Impact view in a herdr pane of its own
 	// (herdr-deck arch). Nil means there is no herdr to open one in.
 	OpenImpact func(t deck.Thread) error
+	// FileAt reads a file as a commit has it, to show an import the
+	// branch did not change in its file. It runs off the UI goroutine.
+	// Nil shows such imports without their code.
+	FileAt func(ctx context.Context, t deck.Thread, rev, path string) ([]byte, error)
 	// OpenCommit opens the diff tool for commit sha of the worktree at
 	// path, for some files (a rename's old and new path) or, with none,
 	// the whole commit. Tests replace it so no diff tool is ever run.
@@ -259,6 +263,11 @@ type Model struct {
 	// The Impact tab's selected box (for the thread iselKey), whether it
 	// shows every finding, and its drawn canvases.
 	isel, iselKey string
+	iedge         string // the selected edge, as edgeKey names it; "" for none
+	esite         int    // the selected edge's site shown (for the edge esiteFor)
+	esiteFor      string
+	ecode         edgeCodes
+	escroll       edgeScroll // the main view's edge code, scrolled by the wheel
 	iall          bool
 	icache        *canvasCache
 
@@ -549,9 +558,9 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.syncPreview()
 		if m.diffAgain {
 			m.diffAgain = false
-			return m, tea.Batch(m.readDiff(true), m.readPatch(false))
+			return m, tea.Batch(m.readDiff(true), m.readPatch(false), m.readEdge())
 		}
-		return m, m.readPatch(false)
+		return m, tea.Batch(m.readPatch(false), m.readEdge())
 	case commitsMsg:
 		m.committing = false
 		m.setCommits(msg.key, msg.commits)
@@ -561,6 +570,10 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, tea.Batch(m.readCommits(true), m.readPatch(false))
 		}
 		return m, m.readPatch(false)
+	case edgeViewMsg:
+		if m.ecode.keep(msg.key, msg.v) {
+			return m, m.readEdge()
+		}
 	case archMsg:
 		// A reload reads again and mostly gets the same result back; only
 		// a new one moves the stops, and the cursor with them.
@@ -570,7 +583,8 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if changed {
 			m.relocateImpact(prev)
 		}
-		return m, cmd
+		// A new head is a new site key: read the selected edge's code.
+		return m, tea.Batch(cmd, m.readEdge())
 	case commitFilesMsg:
 		m.setCommitFiles(msg)
 		m.syncPreview()
@@ -646,7 +660,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 // thread, and a patch read when the preview moved to another file.
 func (m Model) followDiff(cmd tea.Cmd) (tea.Model, tea.Cmd) {
 	m.syncPreview()
-	return m, tea.Batch(cmd, m.readDiff(false), m.readCommits(false), m.readArch(false), m.readPatch(false), m.watchPR())
+	return m, tea.Batch(cmd, m.readDiff(false), m.readCommits(false), m.readArch(false), m.readPatch(false), m.readEdge(), m.watchPR())
 }
 
 // diffThread is the selected row's thread whose worktree the Files section
@@ -888,7 +902,7 @@ func (m *Model) act(a action) tea.Cmd {
 		return m.openComment(a.n)
 	case actFold:
 		m.toggleComment(a.n)
-	case actFinding, actFindMore, actBox, actSite:
+	case actFinding, actFindMore, actBox, actSite, actEdge:
 		return m.impactAct(a)
 	}
 	return nil
@@ -1413,8 +1427,9 @@ func (m *Model) handleClick(mouse tea.Mouse) (tea.Model, tea.Cmd) {
 		m.openPicker()
 	case mouse.Y == 0 && mouse.X >= l.bang.x0 && mouse.X < l.bang.x1:
 		m.toggleMode(modeSources)
-	case m.preview && mouse.Y >= l.listTop-1 && mouse.Y < l.listTop+l.listH:
-		// The preview has the list's place: a click there does nothing.
+	case (m.preview || m.edgeShown()) && mouse.Y >= l.listTop-1 && mouse.Y < l.listTop+l.listH:
+		// The preview or an edge's code has the list's place: a click
+		// there does nothing.
 	case mouse.Y >= l.listTop && mouse.Y < l.listTop+l.listH:
 		i := m.listOff + mouse.Y - l.listTop
 		if i >= len(m.rows) || m.rows[i].kind == rowGap {
@@ -1618,10 +1633,16 @@ func (m *Model) handleWheel(mouse tea.Mouse) {
 		m.pickMove(delta)
 		return
 	}
+	// The wheel scrolls what is under the pointer. It moves the list's
+	// selection only over the list itself, never over a view that has the
+	// list's place (the diff preview, an edge's code).
 	l := m.layout()
+	inList := mouse.Y >= l.listTop-1 && mouse.Y < l.listTop+l.listH
 	switch {
-	case m.preview && mouse.Y >= l.listTop-1 && mouse.Y < l.listTop+l.listH:
+	case m.preview && inList:
 		m.scrollPreview(delta * 3)
+	case m.edgeShown() && inList:
+		m.scrollEdge(delta * 3)
 	case mouse.Y >= l.listTop && mouse.Y < l.listTop+l.listH:
 		m.move(delta)
 	case l.drawerH > 0 && mouse.Y >= l.listTop+l.listH && mouse.Y < l.drawerTop+l.drawerH:

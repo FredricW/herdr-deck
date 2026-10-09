@@ -771,6 +771,9 @@ only threads waiting on you. The deck never marks an item handled.
 | `space` `→` `l` / `←` `h` on Commits | in the focused drawer, expand the commit under the cursor to its files / collapse it (`space` toggles); from the list, `space` folds and `l` is Linear as before |
 | `space` `→` `l` / `←` `h` on PR | in the focused drawer, unfold an app's comment or a resolved review thread / fold it; `↵` opens the comment under the cursor on GitHub |
 | `j` `k` `h` `l`, arrows on Impact | in the focused drawer: move through the findings, then from box to box on the canvas (the nearest box that way), then the selected box's detail; `↵` shows a finding's or import's line in the diff preview, a box's first changed file (see Impact) |
+| `n` `N`, `]` `[` on Impact | with a box selected, its next and previous edge (`]` `[` once an edge is selected); the edge's line turns heavy and the main view shows its code |
+| `tab` `shift+tab`, `.` `,` on an Impact edge | the edge's next and previous site, when several files import through it |
+| `esc` on Impact | from a selected edge back to its box, then to the list |
 | `O` | open the row's Impact view in a herdr pane of its own, zoomed; `q` closes it |
 | `J` / `K` | scroll the preview a line (`pgup` / `pgdn` a page) |
 | `S` (or `\|`) | while the preview shows: switch between the unified and the split (old \| new) layout for the session (see Diff preview) |
@@ -793,14 +796,15 @@ Mouse: click a row to select it, a list heading to fold it, a tab to show
 it, a chip to open its link, a changed file or a commit to preview it (the
 total line opens the whole diff in the diff tool), a PR comment to open it
 on GitHub (its `▸` to unfold it), a Log event to act on it (a report shows it, a PR
-event opens the PR, the rest focus the pane), a box or a finding on Impact to select
-it (a second click opens it), `! N` for the sources, the
+event opens the PR, the rest focus the pane), a box, a finding or a selected box's line
+(or a cell next to it) on Impact to select it (a second click opens it), `! N` for the sources, the
 other-projects line for the project picker. A click on a row's PR number
 (the PR column, `#2320`, or at 60 columns the start of STATUS) selects the
 row and shows its PR tab; a second click on it, with that tab showing,
 opens the PR on GitHub, as `g` does from anywhere. A click in the drawer gives it
 the focus. Drag the rule between the list and the drawer to resize them. The wheel moves the list or scrolls the tab under the pointer.
-The wheel over the diff preview scrolls it. A long diff preview or full
+The wheel over the diff preview, or over an Impact edge's code, scrolls it, and the
+wheel over the Impact tab scrolls the tab; neither moves a selection. A long diff preview or full
 view (a report, What's new, help, settings) has a scrollbar at its right
 edge: press on the thumb and drag to scroll, or press on the track to jump
 there.
@@ -1123,14 +1127,48 @@ shows that file in the diff preview, scrolled to the line; on a box, its
 first changed file; on a file, that file. Without the focus, the canvas is
 back at rest, with its numbered markers.
 
+**Selecting an edge.** With a box selected, `n` and `N` step through its
+edges (the detail's import rows; `j`/`k` reach them too), and so do `]`
+and `[` once an edge is selected. A click on a line, or next to one,
+selects its edge together with its source box; where lines cross, the
+click goes to the line drawn on top. The selected edge's line is drawn
+heavy, in its colour, bold: `━ ┃ ┏ ┓ ┗ ┛`, or `┅ ┇` for a removed one;
+the box's other lines stay as they were. The main view above the drawer
+then shows the edge's code, as the diff preview shows a hunk (its colours,
+gutter and unified or split layout, a full-height drawer dropping to its
+normal height for it):
+
+```
+ src/api ─▸ src/admin/users · added · 1 site                         users.ts:2
+ @@ -1,5 +1,25 @@
+   import { get } from "./client";
+▌+ import { overview } from "@/admin/users/overview";
+```
+
+- The header names the edge, its status and how many files import through
+  it, and for a changed edge the names it gained and lost (`+Render
+  −Draw`).
+- An added import shows the hunk that holds it; a removed one, the hunk on
+  the base side; an import whose line did not change (an unchanged edge,
+  or a changed one whose importers only use other names) shows its file
+  around it, untinted, with `import unchanged` in the header. The import's
+  row is marked `▌` in the edge's colour.
+- An edge several files make has several sites: `tab` and `shift+tab` (or
+  `.` and `,`) step through them, and the header says `site 2/5`.
+- `↵` opens the site's file in the diff preview at that line; a second
+  click on the line does the same. `esc` steps back: from the edge to its
+  box, then from the box to the list. The main view goes back to the list
+  when no edge is selected or the tab changes.
+
 **Its own pane.** `O` opens the row's Impact view in a herdr pane of its
 own: the deck splits its pane, zooms the new one to the whole tab (herdr's
 zoom key gives the rest back) and runs `herdr-deck arch --project <slug>
 --thread <id>` there, with the flags the deck was started with and its
 `HERDR_DECK_*`, `HERDR_PROJECTS_ROOT` and `XDG_*` variables. It shows every finding and the canvas at the pane's
 width, moves the same way, and, with no Files tab beside it, `↵` opens
-files in the diff tool. It reads again every `ui.refresh_interval`, and `q`
-closes it and its pane. Outside herdr, `O` says it needs herdr; `herdr-deck
+files in the diff tool. A selected edge's code shows below the canvas, or
+beside it from 180 columns. It reads again every `ui.refresh_interval`,
+and `q` closes it and its pane. Outside herdr, `O` says it needs herdr; `herdr-deck
 arch --thread <id>` also runs in any terminal.
 
 ![The Impact tab on sample data: ] three times shows Impact, its Look here first list with an upward import, a new cycle, a layer skip, an HTTP host and a new dependency, and below it the changed packages as nested boxes with numbered markers on their borders; z gives it the full height; tab focuses it and j moves through the findings, each drawing its box's imports as coloured lines, then into the canvas and from box to box with the arrows; enter on a finding shows its line in the diff preview; then herdr-deck arch shows the same view on its own.](docs/demo/impact.gif)

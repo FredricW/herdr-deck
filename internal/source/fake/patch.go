@@ -25,12 +25,13 @@ func Patch(_ context.Context, t deck.Thread, _ string, f deck.DiffFile) deck.Pat
 }
 
 var patches = map[string]string{
-	"src/admin/users/UsersPage.tsx": `@@ -1,14 +1,22 @@
+	"src/admin/users/UsersPage.tsx": `@@ -1,14 +1,24 @@
  import { useState } from "react";
 -import { UsersList } from "./UsersList";
 +import { UsersTable } from "./UsersTable";
 +import { useUsers } from "../../api/users";
 +import { overview } from "./overview";
++import { userCounts } from "@/db";
  
 -// Members page: a plain list of everyone in the workspace.
 -export function MembersPage() {
@@ -40,8 +41,9 @@ var patches = map[string]string{
 +export function UsersPage() {
 +  const [query, setQuery] = useState("");
 +  const [role, setRole] = useState<Role | "all">("all");
-+  const { users, loading } = useUsers({ query, role });
-+  const stats = overview(users);
++  const pageSize = Number(import.meta.env.VITE_USERS_PAGE_SIZE);
++  const { users, loading } = useUsers({ query, role, pageSize });
++  const stats = overview(users, userCounts());
 +
 +  return (
 +    <Page title="Users" actions={<InviteButton />}>
@@ -50,7 +52,7 @@ var patches = map[string]string{
 +    </Page>
 +  );
  }
-@@ -40,7 +48,9 @@ function InviteButton() {
+@@ -40,7 +50,9 @@ function InviteButton() {
    const open = useInviteDialog();
    return (
 -    <Button onClick={open}>Invite member</Button>
@@ -60,7 +62,10 @@ var patches = map[string]string{
    );
  }
 `,
-	"src/api/users.ts": `@@ -1,12 +1,27 @@
+	"src/api/users.ts": `@@ -1,5 +1,25 @@
+ import { get } from "./client";
++import { overview } from "@/admin/users/overview";
+ 
 -export async function listMembers(): Promise<Member[]> {
 -  return get("/api/members");
 +export type Role = "owner" | "admin" | "member";
@@ -81,6 +86,10 @@ var patches = map[string]string{
 +export function useUsers(q: UsersQuery) {
 +  return useQuery(["users", q], () => listUsers(q), { staleTime: 30_000 });
  }
++
++export async function fetchOverview() {
++  return overview(await fetch("https://api.example.com/admin/users/overview"));
++}
 `,
 	"src/admin/users/overview.ts": `@@ -1,9 +1,12 @@
 -export function stats(members: Member[]) {
@@ -127,8 +136,9 @@ var patches = map[string]string{
 -}
 -
 `,
-	"src/admin/users/UsersTable.tsx": `@@ -0,0 +1,12 @@
-+import { Table, Column } from "@acme/ui";
+	"src/admin/users/UsersTable.tsx": `@@ -0,0 +1,13 @@
++import { useReactTable } from "@tanstack/react-table";
++import { Table, Column } from "@/ui/Table";
 +
 +const columns: Column<User>[] = [
 +  { key: "name", title: "Name", sortable: true },

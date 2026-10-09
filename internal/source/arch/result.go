@@ -103,6 +103,9 @@ type Edge struct {
 	// MovedWithCode marks an added or removed edge whose twin the change
 	// also has, at another package its code moved to or from.
 	MovedWithCode bool
+	// Gained and Lost are, for a changed edge, the names its importers
+	// use through it now and did not before, and the other way round.
+	Gained, Lost []string
 }
 
 // Internal says the edge is between two packages of the repository.

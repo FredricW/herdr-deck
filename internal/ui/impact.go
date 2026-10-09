@@ -105,7 +105,7 @@ func (m Model) impactTab(d *drawer) {
 		o.limit = -1
 	}
 	if m.dfocus && m.iselKey == diffKey(t) {
-		o.sel = m.isel
+		o.sel, o.edge = m.isel, m.iedge
 	}
 	d.impact = impactLines(d, r, o)
 }
@@ -116,7 +116,12 @@ type impactOpts struct {
 	limit int
 	sel   string
 	cache *canvasCache
+	// edge is the selected edge, edgeKey's "from\x00to"; "" for none.
+	edge string
 }
+
+// edgeKey names an edge among a box's: its two ends.
+func edgeKey(e arch.Edge) string { return e.From + "\x00" + e.To }
 
 // impactSite is where ↵ on a row goes: a file, at a line when known, in
 // the base commit for something the change removed.
@@ -139,6 +144,18 @@ type impactLayout struct {
 	boxes     []*cbox // the box stops, in order
 	sel       string  // the selected box, if drawn
 	sites     []impactSite
+	// edges are the detail's edge rows, in order: actEdge's n.
+	edges []arch.Edge
+}
+
+// edgeStop is the stop of the detail's row for the edge named key, or -1.
+func (l *impactLayout) edgeStop(stops []stop, key string) int {
+	for i, s := range stops {
+		if s.act.kind == actEdge && edgeKey(l.edges[s.act.n]) == key {
+			return i
+		}
+	}
+	return -1
 }
 
 // boxStop is the stop of the box at path p, or -1.
@@ -252,7 +269,12 @@ func impactLines(d *drawer, r *arch.Result, o impactOpts) *impactLayout {
 	// The side is the legend, or the selection's detail: below the
 	// canvas, or beside it when wide enough. Its rows start with a
 	// blank column, where the cursor's ▸ goes.
-	rows := c.rows()
+	heavyAt := -1
+	if o.edge != "" {
+		from, to, _ := strings.Cut(o.edge, "\x00")
+		heavyAt = c.routedIndex(from, to)
+	}
+	rows := c.rows(heavyAt)
 	beside := w >= legendBesideMin
 	sideW := w - 1
 	if beside {
@@ -272,12 +294,18 @@ func impactLines(d *drawer, r *arch.Result, o impactOpts) *impactLayout {
 	// side writes detail row i after prefix (w columns in), as a stop when
 	// it goes somewhere.
 	sideLine := func(prefix string, x int, row detailRow) {
-		if row.site == nil {
+		if row.site == nil && row.edge == nil {
 			d.line(prefix + row.text)
 			return
 		}
-		lay.sites = append(lay.sites, *row.site)
-		act := action{kind: actSite, n: len(lay.sites) - 1}
+		var act action
+		if row.edge != nil {
+			lay.edges = append(lay.edges, *row.edge)
+			act = action{kind: actEdge, n: len(lay.edges) - 1}
+		} else {
+			lay.sites = append(lay.sites, *row.site)
+			act = action{kind: actSite, n: len(lay.sites) - 1}
+		}
 		text := fit(row.text, sideW)
 		if d.nextStop() {
 			text = highlight("▸"+ansi.Cut(text, 1, sideW), d.light)
@@ -314,10 +342,11 @@ func impactLines(d *drawer, r *arch.Result, o impactOpts) *impactLayout {
 }
 
 // detailRow is one line of the selection's detail; site, when set, is
-// where ↵ on it goes.
+// where ↵ on it goes, and edge the edge an edge row names.
 type detailRow struct {
 	text string
 	site *impactSite
+	edge *arch.Edge
 }
 
 // impactDetail describes the selected box: its change, its edges in and
@@ -358,11 +387,11 @@ func impactDetail(r *arch.Result, c *canvas, sel string, unrouted int, pre strin
 		s := e.Sites[0]
 		return &impactSite{file: s.File, line: s.Line, base: s.Base}, fmt.Sprintf("%s:%d", path.Base(s.File), s.Line)
 	}
-	edgeRow := func(e arch.Edge, out bool) {
+	edgeRow := func(e arch.Edge, outgoing bool) {
 		st := edgeStyle(e.Status)
 		line := edgeLine(e.Status)
 		text := line + "▸ " + name(e.To)
-		if !out {
+		if !outgoing {
 			text = "◂" + line + " " + name(e.From)
 		}
 		if c.boxes[e.From] == nil || c.boxes[e.To] == nil {
@@ -391,9 +420,12 @@ func impactDetail(r *arch.Result, c *canvas, sel string, unrouted int, pre strin
 			tags = append(tags, "≡ moved with its code")
 		}
 		tag := strings.Join(tags, " ")
-		s, where := site(e)
+		_, where := site(e)
+		if n := len(e.Sites); n > 1 {
+			where = fmt.Sprintf("%d sites", n)
+		}
 		left := st.style().Render(text) + "  " + dim.Render(tag)
-		add(spread(left, dim.Render(where), w), s)
+		out = append(out, detailRow{text: abbrev(spread(left, dim.Render(where), w), w), edge: &e})
 	}
 	var outs, ins []arch.Edge
 	for _, e := range r.Edges {

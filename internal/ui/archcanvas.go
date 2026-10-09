@@ -45,6 +45,11 @@ const (
 	csEdgeMod // a changed edge: yellow
 	csRemoved // a removed edge: red
 	csSame    // an unchanged edge: faint
+	// The selected edge's line: its status colour, bold.
+	csAddedHeavy
+	csEdgeModHeavy
+	csRemovedHeavy
+	csSameHeavy
 )
 
 func (s cstyle) style() lipgloss.Style {
@@ -67,8 +72,41 @@ func (s cstyle) style() lipgloss.Style {
 		return warnStyle
 	case csRemoved:
 		return failStyle
+	case csAddedHeavy:
+		return okStyle.Bold(true)
+	case csEdgeModHeavy:
+		return warnStyle.Bold(true)
+	case csRemovedHeavy:
+		return failStyle.Bold(true)
+	case csSameHeavy:
+		return bold
 	}
 	return plain
+}
+
+// heavy is the selected edge's version of a line cell: the heavy glyph
+// for its light one (┅ ┇ for the dashed runs of a removed edge, corners
+// heavy too, so turns stay joined) in its colour, bold. Arrow points keep
+// their glyph and take the bold colour.
+func heavy(r rune, st cstyle) (rune, cstyle) {
+	if h, ok := heavyGlyph[r]; ok {
+		r = h
+	}
+	switch st {
+	case csAdded:
+		st = csAddedHeavy
+	case csEdgeMod:
+		st = csEdgeModHeavy
+	case csRemoved:
+		st = csRemovedHeavy
+	case csSame:
+		st = csSameHeavy
+	}
+	return r, st
+}
+
+var heavyGlyph = map[rune]rune{
+	'─': '━', '│': '┃', '┌': '┏', '┐': '┓', '└': '┗', '┘': '┛', '┄': '┅', '┆': '┇',
 }
 
 // edgeStyle is an edge's colour by its status.
@@ -418,6 +456,9 @@ type ccell struct {
 	box  *cbox
 	// lineH says a line cell runs horizontally (else vertically).
 	lineH bool
+	// edge is the line's (and an arrow point's) edge, as an index into
+	// canvas.routed plus one; 0 for a cell no line drew.
+	edge int
 }
 
 type grid struct {
@@ -521,8 +562,9 @@ func (g *grid) mark(next map[*cbox][2]int, b *cbox, top bool, label string, st c
 	next[b] = p
 }
 
-// line renders row y, grouping runs of one style.
-func (g *grid) line(y int) string {
+// line renders row y, grouping runs of one style; the cells of routed
+// edge sel (an index into canvas.routed, -1 for none) are drawn heavy.
+func (g *grid) line(y, sel int) string {
 	var b, run strings.Builder
 	cur := cstyle(255)
 	flush := func() {
@@ -532,11 +574,15 @@ func (g *grid) line(y int) string {
 		}
 	}
 	for _, c := range g.cells[y] {
-		if c.st != cur {
-			flush()
-			cur = c.st
+		r, st := c.r, c.st
+		if sel >= 0 && c.edge == sel+1 {
+			r, st = heavy(r, st)
 		}
-		run.WriteRune(c.r)
+		if st != cur {
+			flush()
+			cur = st
+		}
+		run.WriteRune(r)
 	}
 	flush()
 	return b.String()
@@ -559,6 +605,9 @@ type canvas struct {
 	same   int // unchanged internal edges between drawn, impacted boxes
 	counts bool
 	g      *grid
+	// routed are the edges a selection drew as lines, in drawing order:
+	// a line cell's edge field points here.
+	routed []arch.Edge
 }
 
 // portMark is an edge's marker: its number, with `!` when the edge goes
@@ -705,13 +754,49 @@ func (c *canvas) markers() {
 	}
 }
 
-// rows are the canvas's lines, styled.
-func (c *canvas) rows() []string {
+// rows are the canvas's lines, styled, with routed edge sel (-1 none)
+// drawn heavy.
+func (c *canvas) rows(sel int) []string {
 	out := make([]string, c.g.h)
 	for y := range out {
-		out[y] = c.g.line(y)
+		out[y] = c.g.line(y, sel)
 	}
 	return out
+}
+
+// routedIndex is the index in routed of the edge from → to, or -1.
+func (c *canvas) routedIndex(from, to string) int {
+	for i, e := range c.routed {
+		if e.From == from && e.To == to {
+			return i
+		}
+	}
+	return -1
+}
+
+// lineAt is the routed edge whose line covers cell (x, y) (its arrow
+// point included), or failing that a line cell one step away (up, down,
+// left, right, in that order), as an index into routed; -1 for none.
+// Arrow points sit on box borders, so a near miss never counts them: a
+// click just inside a box is the box's. Where lines cross, the cell is
+// the line drawn first, the one on top.
+func (c *canvas) lineAt(x, y int) int {
+	if x < 0 || y < 0 || x >= c.g.w || y >= c.g.h {
+		return -1
+	}
+	if e := c.g.cells[y][x].edge; e > 0 {
+		return e - 1
+	}
+	for _, d := range [][2]int{{0, -1}, {0, 1}, {-1, 0}, {1, 0}} {
+		nx, ny := x+d[0], y+d[1]
+		if nx < 0 || ny < 0 || nx >= c.g.w || ny >= c.g.h {
+			continue
+		}
+		if cl := c.g.cells[ny][nx]; cl.edge > 0 && cl.kind == cellLine {
+			return cl.edge - 1
+		}
+	}
+	return -1
 }
 
 // legendItem is one line of the legend.
@@ -968,9 +1053,11 @@ func (c *canvas) focus(r *arch.Result, sel string) (unrouted int) {
 	for _, e := range c.focusEdges(r, sel) {
 		from, to := c.boxes[e.From], c.boxes[e.To]
 		keep[from], keep[to] = true, true
-		if !c.g.route(from, to, e.Status, c.lineOf(from, to)) {
+		if !c.g.route(from, to, e.Status, c.lineOf(from, to), len(c.routed)+1) {
 			unrouted++
+			continue
 		}
+		c.routed = append(c.routed, e)
 	}
 	for y := range c.g.cells {
 		for x := range c.g.cells[y] {
@@ -1040,7 +1127,7 @@ func isArrow(r rune) bool { return strings.ContainsRune("▸▾◂▴", r) }
 // dearest step), so a line goes around siblings along the gaps between
 // boxes and runs through one only when nothing else connects. Such a line
 // is drawn the same way, the foreign box's borders left whole.
-func (g *grid) route(from, to *cbox, status arch.Status, allowed map[*cbox]bool) bool {
+func (g *grid) route(from, to *cbox, status arch.Status, allowed map[*cbox]bool, owner int) bool {
 	type state struct{ x, y, d int }
 	dx := []int{1, 0, -1, 0}
 	dy := []int{0, 1, 0, -1}
@@ -1148,11 +1235,11 @@ func (g *grid) route(from, to *cbox, status arch.Status, allowed map[*cbox]bool)
 		}
 		switch {
 		case i == len(cells)-1:
-			*c = ccell{r: []rune("▸▾◂▴")[in], st: st, kind: c.kind, box: c.box}
+			*c = ccell{r: []rune("▸▾◂▴")[in], st: st, kind: c.kind, box: c.box, edge: owner}
 		case c.kind == cellHoriz || c.kind == cellVert || c.kind == cellCorner || c.kind == cellLine:
 			// Borders and earlier lines stay whole.
 		default:
-			*c = ccell{r: bend(in, out, gl), st: st, kind: cellLine, lineH: out%2 == 0, box: c.box}
+			*c = ccell{r: bend(in, out, gl), st: st, kind: cellLine, lineH: out%2 == 0, box: c.box, edge: owner}
 		}
 	}
 	return true

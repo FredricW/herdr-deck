@@ -169,11 +169,11 @@ func TestImpactNavigation(t *testing.T) {
 		m, _ = press(m, keys("j")...)
 	}
 	d, lay := impactLay(t, m)
-	if d.stops[m.dcur].act.kind != actSite {
+	if k := d.stops[m.dcur].act.kind; k != actSite && k != actEdge {
 		t.Fatalf("j past the canvas: stop %v", d.stops[m.dcur].act)
 	}
 	box := m.isel
-	for d.stops[m.dcur].act.kind == actSite {
+	for k := d.stops[m.dcur].act.kind; k == actSite || k == actEdge; k = d.stops[m.dcur].act.kind {
 		m, _ = press(m, keys("k")...)
 		d, lay = impactLay(t, m)
 	}
@@ -284,9 +284,8 @@ func TestImpactSelectGolden(t *testing.T) {
 		m := focusedImpact(t, w, 46, func(*Options) {})
 		_, lay := impactLay(t, m)
 		for range lay.findings {
-			m, _ = press(m, keys("j")...)
+			m, _ = press(m, keys("j")...) // the last j goes into the canvas
 		}
-		m, _ = press(m, keys("j")...) // one box down: a selection with lines
 		golden(t, "impact-select-"+strconv.Itoa(w), m)
 	}
 }
@@ -315,7 +314,7 @@ func TestImpactPane(t *testing.T) {
 	if s := ansi.Strip(p.render()); !strings.Contains(s, "reading the change's shape") {
 		t.Errorf("before the read:\n%s", s)
 	}
-	feed(paneReadMsg{fake.Arch(context.Background(), th)})
+	feed(paneReadMsg{res: fake.Arch(context.Background(), th), diff: ptr(fake.Diff(context.Background(), th))})
 	pg := p
 	pg.width, pg.height = 100, 40
 	lines := strings.Split(ansi.Strip(p.render()), "\n")
