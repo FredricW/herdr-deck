@@ -1,0 +1,8 @@
+{
+  "layers": [
+    { "name": "entry",   "paths": ["cmd/**", "skills/**", "internal/plugin"] },
+    { "name": "ui",      "paths": ["internal/ui", "internal/markdown", "internal/syntax"] },
+    { "name": "sources", "paths": ["internal/source/**"] },
+    { "name": "core",    "paths": [".", "schema", "internal/**"] }
+  ]
+}

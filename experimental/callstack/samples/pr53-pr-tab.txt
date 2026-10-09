@@ -1,0 +1,490 @@
+── width 60 ──────────────────────────────────────────────
+ Look here first                       56 frames · 43 flows 
+ 1 + herdr-deck.run$DetailPR                        4 flows 
+      +⚙ exec, ⧗ lock, $ env
+ 2 + github.Reader.Detail                           4 flows 
+      +⚙ exec, ⧗ lock, $ env
+ 3 ~ ui.Model.overview$body                        39 flows 
+      +$ env · 2 call moved in/out of a branch
+ 4 + ui.Model.showPRTab                              1 flow 
+      +▤ fs read, ⚙ exec, ⧗ lock, $ env
+ 5 + ui.Model.comment                              39 flows 
+      +⧗ lock
+ 6 + ui.Model.prTab                                39 flows 
+      +⧗ lock
+ 7 + ui.Model.openComment                            1 flow 
+      +▤ fs read, ⚙ exec, $ env
+ 8 + ui.Model.prOnlyKey                              1 flow 
+      +⧗ lock, $ env
+   ⋯ 38 more · ≈ 10 refactors collapsed
+
+ ▸ Update ▸ snapshotMsg
+   internal/ui/model.go:514
+   via ◇ ensureVisible, curTab, layout
+      syncPreview › … › ui.Model.scrollPreview           if 
+      ~ ui.Model.layout                                   ◇ 
+    ~ ui.Model.watchPR
+      + ui.Model.curTab                                if ◇ 
+      + ƒ DetailPR                     ⚙⧗ if new · 3 frames 
+      ~ ƒ FocusPR                         moved into branch 
+          github.Reader.Focus                            if 
+          ≈ github.Reader.want                           if 
+              github.Reader.work                    async ⋯ 
+      ui.Model.refresh                                   if 
+        load › ƒ load                         async 2 impls 
+        ~ Read › github.Reader.Apply                   if ⋯ 
+
+ ▸ Update ▸ tea.KeyPressMsg
+   internal/ui/model.go:580
+   via ◇ layout, setMode, curTab, tabEnabled, ensureVisible
+    ~ ui.Model.handleKey
+        ui.Model.settingsKey                             if 
+          ui.Model.followSetting                        err 
+          ~ ui.Model.layout                               ◇ 
+          ~ scrollDrawer › ui.Model.layout                ◇ 
+        ui.Model.previewCommit                           if 
+        ~ moveDrawerCursor › ui.Model.layout              ◇ 
+          ui.Model.togglePreview                         if 
+            ui.Model.syncPreview
+              ui.Model.relayoutPreview                    ⋯ 
+              ui.Model.scrollPreview                      ⋯ 
+      + ui.Model.prOnlyKey                 ⧗ new · 4 frames 
+      ~ previewKey › ui.Model.layout                      ◇ 
+        key NextTab                                      if 
+        ~ cycleTab › ui.Model.tabEnabled                ↻ ◇ 
+        key Grow                                         if 
+          resizeDrawer › … › ui.Model.relayoutDrawer      ⋯ 
+        key PageDown                                     if 
+        ~ ui.Model.layout                                 ◇ 
+        key PageUp                                       if 
+        ~ ui.Model.layout                                 ◇ 
+    ~ followDiff › ui.Model.watchPR
+      + ui.Model.curTab                                if ◇ 
+      + ƒ DetailPR                     ⚙⧗ if new · 3 frames 
+      ~ ƒ FocusPR                         moved into branch 
+          github.Reader.Focus                            if 
+          ≈ github.Reader.want                         if ⋯ 
+
+ ▸ Update ▸ tea.MouseClickMsg
+   internal/ui/model.go:584
+   via ◇ layout, setMode, ensureVisible, curTab, tabEnabled
+    ~ ui.Model.handleClick
+      ~ ui.Model.layout                                   ◇ 
+        ui.Model.setBarOff                               if 
+          ui.Model.scrollPreview                         if 
+          ~ ui.Model.layout                               ◇ 
+          ui.Model.scrollDrawer                          if 
+          ~ ui.Model.layout                               ◇ 
+      + ui.Model.prCell                              if new 
+      + ui.Model.showPRTab                       ▤⚙⧗ if new 
+      ~ ui.Model.act                                   ↻ if 
+          ui.Model.previewFileAt                         if 
+          ~ moveDrawerCursor › ui.Model.layout            ◇ 
+            ui.Model.togglePreview                       if 
+              ui.Model.previewing                         ⋯ 
+              ui.Model.syncPreview                        ⋯ 
+        ~ ui.Model.tabEnabled                          if ◇ 
+        ~ ui.Model.tabEnabled                          if ◇ 
+        + ui.Model.openComment                    ▤⚙ if new 
+        + ui.Model.toggleComment          if new · 3 frames 
+        − ui.Model.openThread                         ▤⚙ if 
+        ui.Model.followSetting                           if 
+        ~ ui.Model.layout                                 ◇ 
+      ~ ui.Model.act                                 ↻ if ↑ 
+    ~ followDiff › ui.Model.watchPR
+      + ui.Model.curTab                                if ◇ 
+      + ƒ DetailPR                     ⚙⧗ if new · 3 frames 
+      ~ ƒ FocusPR                         moved into branch 
+          github.Reader.Focus                            if 
+          ≈ github.Reader.want                         if ⋯ 
+ ⋯ 40 more flows · 0 reach it only through shared frames
+
+ ◇ ~ ui.Model.layout                     shared by 39 flows 
+   internal/ui/view.go:110
+    + ui.Model.selected                                  if 
+    ≈ ui.Model.drawerFor                                 if 
+      ~ ui.Model.rowDrawer
+        ~ curTab › ui.Model.tabEnabled
+          + ui.row.thread                                if 
+        + ui.Model.prTab               ⧗ if new · 11 frames 
+        ~ ui.Model.overview                              if 
+            ⇐ body                                 if async 
+            ~ ui.Model.prSection                          ⋯ 
+          − ui.reviewNote                                if 
+          ~ ⇐ body                                 if async 
+            + ui.drawer.markdown                        ⧗ ↻ 
+            − ui.Model.reviewSection                      ⧗ 
+          − ⇐ body                               ⧗ if async 
+          ~ ⇐ body                                 if async 
+            + ui.titled                                   ↻ 
+            + ui.Model.issueChip                       ↻ if 
+            + ui.drawer.flow                           ↻ if 
+            + ui.Model.chips
+            + ui.drawer.flow                             if 
+            + ui.words                                   if 
+            + ui.drawer.flow                             if 
+            − ui.drawer.markdown                        ⧗ ↻ 
+          ~ ⇐ body                                 if async 
+            + ui.devGroups                               if 
+            + ui.span                                    if 
+            + ui.span                                    if 
+            − ui.titled                                   ↻ 
+            − ui.Model.issueChip                       ↻ if 
+            ~ ui.drawer.flow              moved out of loop 
+            ~ ui.drawer.flow            moved out of branch 
+            − ui.words                                   if 
+            − ui.drawer.flow                             if 
+          ~ ⇐ body                                 if async 
+            + ui.Model.threadSection
+            − ui.devGroups                               if 
+            − ui.span                                    if 
+            − ui.span                                    if 
+            − ui.drawer.flow                             if 
+            − ui.Model.chips
+            − ui.drawer.flow
+          ~ ƒ body                      ↻ 6 impls ↑ ↑ ↑ ↑ ↑ 
+        ≈ ui.Model.tabBar
+          ~ ui.Model.tabEnabled                         ↻ ↑ 
+    + ui.Model.curTab                                  if ↑ 
+    + ui.rowLinks                                        if 
+    + ui.Model.rowDrawer                             ⧗ if ↑ 
+    + ui.frame.drawerBar                                 if 
+    + ui.scrollbar.shown                                 if 
+    ≈ ui.Model.drawerFor                               if ↑ 
+
+ ◇   ui.Model.ensureVisible              shared by 31 flows 
+   internal/ui/model.go:1596
+    ~ ui.Model.layout                                     ↑ 
+
+ Blast radius ▸ herdr-deck.run$DetailPR             4 flows 
+  ↑ ui.Model.watchPR                                changed 
+    ◆ Update ▸ snapshotMsg
+    ↑ ui.Model.followDiff
+      ◆ Update ▸ tea.KeyPressMsg
+      ◆ Update ▸ tea.MouseClickMsg
+      ◆ Update ▸ tea.MouseWheelMsg
+
+── width 80 ──────────────────────────────────────────────────────────────────
+ Look here first                                           56 frames · 43 flows 
+ 1 + herdr-deck.run$DetailPR                                            4 flows 
+      +⚙ exec, ⧗ lock, $ env
+ 2 + github.Reader.Detail                                               4 flows 
+      +⚙ exec, ⧗ lock, $ env
+ 3 ~ ui.Model.overview$body                                            39 flows 
+      +$ env · 2 call moved in/out of a branch
+ 4 + ui.Model.showPRTab                                                  1 flow 
+      +▤ fs read, ⚙ exec, ⧗ lock, $ env
+ 5 + ui.Model.comment                                                  39 flows 
+      +⧗ lock
+ 6 + ui.Model.prTab                                                    39 flows 
+      +⧗ lock
+ 7 + ui.Model.openComment                                                1 flow 
+      +▤ fs read, ⚙ exec, $ env
+ 8 + ui.Model.prOnlyKey                                                  1 flow 
+      +⧗ lock, $ env
+   ⋯ 38 more · ≈ 10 refactors collapsed
+
+ ▸ Update ▸ snapshotMsg
+   internal/ui/model.go:514
+   via ◇ ensureVisible, curTab, layout
+      syncPreview › relayoutPreview › ui.Model.scrollPreview                 if 
+      ~ ui.Model.layout                                                       ◇ 
+    ~ ui.Model.watchPR
+      + ui.Model.curTab                                                    if ◇ 
+      + ƒ DetailPR                                         ⚙⧗ if new · 3 frames 
+      ~ ƒ FocusPR                                             moved into branch 
+          github.Reader.Focus                                                if 
+          ≈ github.Reader.want                                               if 
+              github.Reader.work                                        async ⋯ 
+      ui.Model.refresh                                                       if 
+        load › ƒ load                                             async 2 impls 
+        ~ Read › github.Reader.Apply                                       if ⋯ 
+
+ ▸ Update ▸ tea.KeyPressMsg
+   internal/ui/model.go:580
+   via ◇ layout, setMode, curTab, tabEnabled, ensureVisible
+    ~ ui.Model.handleKey
+        ui.Model.settingsKey                                                 if 
+          ui.Model.followSetting                                            err 
+          ~ ui.Model.layout                                                   ◇ 
+          ~ scrollDrawer › ui.Model.layout                                    ◇ 
+        ui.Model.previewCommit                                               if 
+        ~ moveDrawerCursor › ui.Model.layout                                  ◇ 
+          ui.Model.togglePreview                                             if 
+            ui.Model.syncPreview
+              ui.Model.relayoutPreview                                        ⋯ 
+              ui.Model.scrollPreview                                          ⋯ 
+      + ui.Model.prOnlyKey                                     ⧗ new · 4 frames 
+      ~ previewKey › ui.Model.layout                                          ◇ 
+        key NextTab                                                          if 
+        ~ cycleTab › ui.Model.tabEnabled                                    ↻ ◇ 
+        key Grow                                                             if 
+          resizeDrawer › setDrawerBlock › ui.Model.relayoutDrawer             ⋯ 
+        key PageDown                                                         if 
+        ~ ui.Model.layout                                                     ◇ 
+        key PageUp                                                           if 
+        ~ ui.Model.layout                                                     ◇ 
+    ~ followDiff › ui.Model.watchPR
+      + ui.Model.curTab                                                    if ◇ 
+      + ƒ DetailPR                                         ⚙⧗ if new · 3 frames 
+      ~ ƒ FocusPR                                             moved into branch 
+          github.Reader.Focus                                                if 
+          ≈ github.Reader.want                                             if ⋯ 
+
+ ▸ Update ▸ tea.MouseClickMsg
+   internal/ui/model.go:584
+   via ◇ layout, setMode, ensureVisible, curTab, tabEnabled
+    ~ ui.Model.handleClick
+      ~ ui.Model.layout                                                       ◇ 
+        ui.Model.setBarOff                                                   if 
+          ui.Model.scrollPreview                                             if 
+          ~ ui.Model.layout                                                   ◇ 
+          ui.Model.scrollDrawer                                              if 
+          ~ ui.Model.layout                                                   ◇ 
+      + ui.Model.prCell                                                  if new 
+      + ui.Model.showPRTab                                           ▤⚙⧗ if new 
+      ~ ui.Model.act                                                       ↻ if 
+          ui.Model.previewFileAt                                             if 
+          ~ moveDrawerCursor › ui.Model.layout                                ◇ 
+            ui.Model.togglePreview                                           if 
+              ui.Model.previewing                                             ⋯ 
+              ui.Model.syncPreview                                            ⋯ 
+        ~ ui.Model.tabEnabled                                              if ◇ 
+        ~ ui.Model.tabEnabled                                              if ◇ 
+        + ui.Model.openComment                                        ▤⚙ if new 
+        + ui.Model.toggleComment                              if new · 3 frames 
+        − ui.Model.openThread                                             ▤⚙ if 
+        ui.Model.followSetting                                               if 
+        ~ ui.Model.layout                                                     ◇ 
+      ~ ui.Model.act                                                     ↻ if ↑ 
+    ~ followDiff › ui.Model.watchPR
+      + ui.Model.curTab                                                    if ◇ 
+      + ƒ DetailPR                                         ⚙⧗ if new · 3 frames 
+      ~ ƒ FocusPR                                             moved into branch 
+          github.Reader.Focus                                                if 
+          ≈ github.Reader.want                                             if ⋯ 
+ ⋯ 40 more flows · 0 reach it only through shared frames
+
+ ◇ ~ ui.Model.layout                                         shared by 39 flows 
+   internal/ui/view.go:110
+    + ui.Model.selected                                                      if 
+    ≈ ui.Model.drawerFor                                                     if 
+      ~ ui.Model.rowDrawer
+        ~ curTab › ui.Model.tabEnabled
+          + ui.row.thread                                                    if 
+        + ui.Model.prTab                                   ⧗ if new · 11 frames 
+        ~ ui.Model.overview                                                  if 
+            ⇐ body                                                     if async 
+            ~ ui.Model.prSection                                              ⋯ 
+          − ui.reviewNote                                                    if 
+          ~ ⇐ body                                                     if async 
+            + ui.drawer.markdown                                            ⧗ ↻ 
+            − ui.Model.reviewSection                                          ⧗ 
+          − ⇐ body                                                   ⧗ if async 
+          ~ ⇐ body                                                     if async 
+            + ui.titled                                                       ↻ 
+            + ui.Model.issueChip                                           ↻ if 
+            + ui.drawer.flow                                               ↻ if 
+            + ui.Model.chips
+            + ui.drawer.flow                                                 if 
+            + ui.words                                                       if 
+            + ui.drawer.flow                                                 if 
+            − ui.drawer.markdown                                            ⧗ ↻ 
+          ~ ⇐ body                                                     if async 
+            + ui.devGroups                                                   if 
+            + ui.span                                                        if 
+            + ui.span                                                        if 
+            − ui.titled                                                       ↻ 
+            − ui.Model.issueChip                                           ↻ if 
+            ~ ui.drawer.flow                                  moved out of loop 
+            ~ ui.drawer.flow                                moved out of branch 
+            − ui.words                                                       if 
+            − ui.drawer.flow                                                 if 
+          ~ ⇐ body                                                     if async 
+            + ui.Model.threadSection
+            − ui.devGroups                                                   if 
+            − ui.span                                                        if 
+            − ui.span                                                        if 
+            − ui.drawer.flow                                                 if 
+            − ui.Model.chips
+            − ui.drawer.flow
+          ~ ƒ body                                          ↻ 6 impls ↑ ↑ ↑ ↑ ↑ 
+        ≈ ui.Model.tabBar
+          ~ ui.Model.tabEnabled                                             ↻ ↑ 
+    + ui.Model.curTab                                                      if ↑ 
+    + ui.rowLinks                                                            if 
+    + ui.Model.rowDrawer                                                 ⧗ if ↑ 
+    + ui.frame.drawerBar                                                     if 
+    + ui.scrollbar.shown                                                     if 
+    ≈ ui.Model.drawerFor                                                   if ↑ 
+
+ ◇   ui.Model.ensureVisible                                  shared by 31 flows 
+   internal/ui/model.go:1596
+    ~ ui.Model.layout                                                         ↑ 
+
+ Blast radius ▸ herdr-deck.run$DetailPR                                 4 flows 
+  ↑ ui.Model.watchPR                                                    changed 
+    ◆ Update ▸ snapshotMsg
+    ↑ ui.Model.followDiff
+      ◆ Update ▸ tea.KeyPressMsg
+      ◆ Update ▸ tea.MouseClickMsg
+      ◆ Update ▸ tea.MouseWheelMsg
+
+── width 120 ─────────────────────────────────────────────────────────────────────────────────────────────────────────
+ Look here first                                                                                   56 frames · 43 flows 
+ 1 + herdr-deck.run$DetailPR                   +⚙ exec, ⧗ lock, $ env                                           4 flows 
+ 2 + github.Reader.Detail                      +⚙ exec, ⧗ lock, $ env                                           4 flows 
+ 3 ~ ui.Model.overview$body                    +$ env · 2 call moved in/out of a branch                        39 flows 
+ 4 + ui.Model.showPRTab                        +▤ fs read, ⚙ exec, ⧗ lock, $ env                                 1 flow 
+ 5 + ui.Model.comment                          +⧗ lock                                                         39 flows 
+ 6 + ui.Model.prTab                            +⧗ lock                                                         39 flows 
+ 7 + ui.Model.openComment                      +▤ fs read, ⚙ exec, $ env                                         1 flow 
+ 8 + ui.Model.prOnlyKey                        +⧗ lock, $ env                                                    1 flow 
+   ⋯ 38 more · ≈ 10 refactors collapsed
+
+ ▸ Update ▸ snapshotMsg
+   internal/ui/model.go:514
+   via ◇ ensureVisible, curTab, layout
+      syncPreview › relayoutPreview › ui.Model.scrollPreview                                                         if 
+      ~ ui.Model.layout                                                                                               ◇ 
+    ~ ui.Model.watchPR
+      + ui.Model.curTab                                                                                            if ◇ 
+      + ƒ DetailPR                                                                                 ⚙⧗ if new · 3 frames 
+      ~ ƒ FocusPR                                                                                     moved into branch 
+          github.Reader.Focus                                                                                        if 
+          ≈ github.Reader.want                                                                                       if 
+              github.Reader.work                                                                                async ⋯ 
+      ui.Model.refresh                                                                                               if 
+        load › ƒ load                                                                                     async 2 impls 
+        ~ Read › github.Reader.Apply                                                                               if ⋯ 
+
+ ▸ Update ▸ tea.KeyPressMsg
+   internal/ui/model.go:580
+   via ◇ layout, setMode, curTab, tabEnabled, ensureVisible
+    ~ ui.Model.handleKey
+        ui.Model.settingsKey                                                                                         if 
+          ui.Model.followSetting                                                                                    err 
+          ~ ui.Model.layout                                                                                           ◇ 
+          ~ scrollDrawer › ui.Model.layout                                                                            ◇ 
+        ui.Model.previewCommit                                                                                       if 
+        ~ moveDrawerCursor › ui.Model.layout                                                                          ◇ 
+          ui.Model.togglePreview                                                                                     if 
+            ui.Model.syncPreview
+              ui.Model.relayoutPreview                                                                                ⋯ 
+              ui.Model.scrollPreview                                                                                  ⋯ 
+      + ui.Model.prOnlyKey                                                                             ⧗ new · 4 frames 
+      ~ previewKey › ui.Model.layout                                                                                  ◇ 
+        key NextTab                                                                                                  if 
+        ~ cycleTab › ui.Model.tabEnabled                                                                            ↻ ◇ 
+        key Grow                                                                                                     if 
+          resizeDrawer › setDrawerBlock › ui.Model.relayoutDrawer                                                     ⋯ 
+        key PageDown                                                                                                 if 
+        ~ ui.Model.layout                                                                                             ◇ 
+        key PageUp                                                                                                   if 
+        ~ ui.Model.layout                                                                                             ◇ 
+    ~ followDiff › ui.Model.watchPR
+      + ui.Model.curTab                                                                                            if ◇ 
+      + ƒ DetailPR                                                                                 ⚙⧗ if new · 3 frames 
+      ~ ƒ FocusPR                                                                                     moved into branch 
+          github.Reader.Focus                                                                                        if 
+          ≈ github.Reader.want                                                                                     if ⋯ 
+
+ ▸ Update ▸ tea.MouseClickMsg
+   internal/ui/model.go:584
+   via ◇ layout, setMode, ensureVisible, curTab, tabEnabled
+    ~ ui.Model.handleClick
+      ~ ui.Model.layout                                                                                               ◇ 
+        ui.Model.setBarOff                                                                                           if 
+          ui.Model.scrollPreview                                                                                     if 
+          ~ ui.Model.layout                                                                                           ◇ 
+          ui.Model.scrollDrawer                                                                                      if 
+          ~ ui.Model.layout                                                                                           ◇ 
+      + ui.Model.prCell                                                                                          if new 
+      + ui.Model.showPRTab                                                                                   ▤⚙⧗ if new 
+      ~ ui.Model.act                                                                                               ↻ if 
+          ui.Model.previewFileAt                                                                                     if 
+          ~ moveDrawerCursor › ui.Model.layout                                                                        ◇ 
+            ui.Model.togglePreview                                                                                   if 
+              ui.Model.previewing                                                                                     ⋯ 
+              ui.Model.syncPreview                                                                                    ⋯ 
+        ~ ui.Model.tabEnabled                                                                                      if ◇ 
+        ~ ui.Model.tabEnabled                                                                                      if ◇ 
+        + ui.Model.openComment                                                                                ▤⚙ if new 
+        + ui.Model.toggleComment                                                                      if new · 3 frames 
+        − ui.Model.openThread                                                                                     ▤⚙ if 
+        ui.Model.followSetting                                                                                       if 
+        ~ ui.Model.layout                                                                                             ◇ 
+      ~ ui.Model.act                                                                                             ↻ if ↑ 
+    ~ followDiff › ui.Model.watchPR
+      + ui.Model.curTab                                                                                            if ◇ 
+      + ƒ DetailPR                                                                                 ⚙⧗ if new · 3 frames 
+      ~ ƒ FocusPR                                                                                     moved into branch 
+          github.Reader.Focus                                                                                        if 
+          ≈ github.Reader.want                                                                                     if ⋯ 
+ ⋯ 40 more flows · 0 reach it only through shared frames
+
+ ◇ ~ ui.Model.layout                                                                                 shared by 39 flows 
+   internal/ui/view.go:110
+    + ui.Model.selected                                                                                              if 
+    ≈ ui.Model.drawerFor                                                                                             if 
+      ~ ui.Model.rowDrawer
+        ~ curTab › ui.Model.tabEnabled
+          + ui.row.thread                                                                                            if 
+        + ui.Model.prTab                                                                           ⧗ if new · 11 frames 
+        ~ ui.Model.overview                                                                                          if 
+            ⇐ body                                                                                             if async 
+            ~ ui.Model.prSection                                                                                      ⋯ 
+          − ui.reviewNote                                                                                            if 
+          ~ ⇐ body                                                                                             if async 
+            + ui.drawer.markdown                                                                                    ⧗ ↻ 
+            − ui.Model.reviewSection                                                                                  ⧗ 
+          − ⇐ body                                                                                           ⧗ if async 
+          ~ ⇐ body                                                                                             if async 
+            + ui.titled                                                                                               ↻ 
+            + ui.Model.issueChip                                                                                   ↻ if 
+            + ui.drawer.flow                                                                                       ↻ if 
+            + ui.Model.chips
+            + ui.drawer.flow                                                                                         if 
+            + ui.words                                                                                               if 
+            + ui.drawer.flow                                                                                         if 
+            − ui.drawer.markdown                                                                                    ⧗ ↻ 
+          ~ ⇐ body                                                                                             if async 
+            + ui.devGroups                                                                                           if 
+            + ui.span                                                                                                if 
+            + ui.span                                                                                                if 
+            − ui.titled                                                                                               ↻ 
+            − ui.Model.issueChip                                                                                   ↻ if 
+            ~ ui.drawer.flow                                                                          moved out of loop 
+            ~ ui.drawer.flow                                                                        moved out of branch 
+            − ui.words                                                                                               if 
+            − ui.drawer.flow                                                                                         if 
+          ~ ⇐ body                                                                                             if async 
+            + ui.Model.threadSection
+            − ui.devGroups                                                                                           if 
+            − ui.span                                                                                                if 
+            − ui.span                                                                                                if 
+            − ui.drawer.flow                                                                                         if 
+            − ui.Model.chips
+            − ui.drawer.flow
+          ~ ƒ body                                                                                  ↻ 6 impls ↑ ↑ ↑ ↑ ↑ 
+        ≈ ui.Model.tabBar
+          ~ ui.Model.tabEnabled                                                                                     ↻ ↑ 
+    + ui.Model.curTab                                                                                              if ↑ 
+    + ui.rowLinks                                                                                                    if 
+    + ui.Model.rowDrawer                                                                                         ⧗ if ↑ 
+    + ui.frame.drawerBar                                                                                             if 
+    + ui.scrollbar.shown                                                                                             if 
+    ≈ ui.Model.drawerFor                                                                                           if ↑ 
+
+ ◇   ui.Model.ensureVisible                                                                          shared by 31 flows 
+   internal/ui/model.go:1596
+    ~ ui.Model.layout                                                                                                 ↑ 
+
+ Blast radius ▸ herdr-deck.run$DetailPR                                                                         4 flows 
+  ↑ ui.Model.watchPR                                                                                            changed 
+    ◆ Update ▸ snapshotMsg
+    ↑ ui.Model.followDiff
+      ◆ Update ▸ tea.KeyPressMsg
+      ◆ Update ▸ tea.MouseClickMsg
+      ◆ Update ▸ tea.MouseWheelMsg
+

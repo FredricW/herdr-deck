@@ -39,6 +39,12 @@ and versions follow [Semantic Versioning](https://semver.org/).
   The wheel over the code scrolls it, and the wheel over the Impact tab
   scrolls the tab: neither moves the selected row, box or edge.
 
+### Fixed
+
+- On macOS, `U U` no longer fails with "operation not permitted" when a
+  dev server exits just as it stops it: a process group with only
+  exited processes left counts as stopped.
+
 ## [0.1.7] - 2026-10-07
 
 ### Added
