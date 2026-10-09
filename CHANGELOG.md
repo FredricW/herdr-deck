@@ -31,6 +31,12 @@ and versions follow [Semantic Versioning](https://semver.org/).
   preview. `O` opens the Impact view in a herdr pane of its own, zoomed to
   the whole tab (`herdr-deck arch`); `q` closes it.
 
+### Fixed
+
+- On macOS, `U U` no longer fails with "operation not permitted" when a
+  dev server exits just as it stops it: a process group with only
+  exited processes left counts as stopped.
+
 ## [0.1.7] - 2026-10-07
 
 ### Added
