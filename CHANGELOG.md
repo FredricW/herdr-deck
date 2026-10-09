@@ -8,6 +8,8 @@ and versions follow [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.1.8] - 2026-10-09
+
 ### Added
 
 - An Impact tab in the drawer: what a thread's branch did to its
@@ -23,21 +25,27 @@ and versions follow [Semantic Versioning](https://semver.org/).
   reload costs almost nothing. A repository can declare its layers in
   `.config/dev.json` under `x-herdr-deck.architecture`; the new `[arch]`
   settings turn the tab off (`enabled`) or count test files (`tests`).
-- Select a box on the Impact tab's canvas: `tab`, then `j`/`k` through
+- Select a box on the Impact canvas: `tab`, then `j`/`k` through
   *Look here first* and the arrows or `hjkl` from box to box, or a click.
-  The selected box's imports are drawn as lines in their colours (`┄` for
-  a removed one) and its detail lists them with their files and lines,
-  its API changes, touchpoints and files; `↵` shows the line in the diff
-  preview. `O` opens the Impact view in a herdr pane of its own, zoomed to
-  the whole tab (`herdr-deck arch`); `q` closes it.
-- Select an edge on the Impact canvas: `n` and `N` step through the
-  selected box's imports, or click a line. Its line turns heavy, and the
-  main view shows its code: the hunk with the import marked (the base
-  side for a removed one, the file around it when its line did not
-  change), with the names a changed import gained and lost; `tab` steps
-  through the files that import it, and `esc` goes back to the box.
-  The wheel over the code scrolls it, and the wheel over the Impact tab
-  scrolls the tab: neither moves the selected row, box or edge.
+  The box's imports are drawn as lines in their colours (`┄` for a
+  removed one), routed around unrelated boxes, and its detail lists them
+  with their files and lines, its API changes, touchpoints and files.
+  `↵` shows the line in the diff preview.
+- Select an edge: `n` and `N` (or `]` and `[`) step through the selected
+  box's imports, or click a line. The line turns heavy, and the main view
+  shows its code: the hunk with the import line marked (the base side for
+  a removed one), with the names a changed import gained and lost; `tab`
+  steps through the files that import it.
+- `esc` steps back: from an edge to its box, then to the list. While a
+  box or edge is selected, `n`, `tab` and `]`/`[` take these new
+  meanings; `esc` gives them back.
+- `O` opens the Impact view in a herdr pane of its own, zoomed to the
+  whole tab (`herdr-deck arch`); `q` closes it.
+
+### Changed
+
+- The mouse wheel scrolls the view under the pointer (the code view or
+  the Impact tab) and never moves the selected row, box or edge behind it.
 
 ### Fixed
 
