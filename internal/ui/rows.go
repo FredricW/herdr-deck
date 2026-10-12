@@ -79,16 +79,22 @@ func (r row) thread() (deck.Thread, bool) {
 }
 
 // pr is the row's PR, the one its PR column, PR tab and Overview show:
-// its thread's, or else the PR its task links (own is false then). The
-// GitHub reader follows both, but only herdr-projects' status ticker
-// follows thread PRs, so a task's PR shows no failing-checks mark in the
-// list.
+// its most pressing thread's, else another thread's, else the PR its
+// task links (own is false then). The GitHub reader follows a task's PR
+// only when no thread of the task has one, the same rule; only
+// herdr-projects' status ticker follows thread PRs, so a task's PR shows
+// no failing-checks mark in the list.
 func (r row) pr() (pr *deck.PullRequest, own, ok bool) {
 	if r.kind != rowWork {
 		return nil, false, false
 	}
 	if t, has := r.thread(); has && t.PR != nil {
 		return t.PR, true, true
+	}
+	for _, t := range r.threads {
+		if t.PR != nil {
+			return t.PR, true, true
+		}
 	}
 	if r.task != nil && r.task.PR != nil {
 		return r.task.PR, false, true

@@ -130,34 +130,39 @@ func (r *Reader) ttl(url string) time.Duration {
 func (r *Reader) Apply(snap *deck.Snapshot) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
-	has := false
+	now := r.now()
 	var want []prRef
 	threadPR := map[string]bool{}
+	threadPRs, taskPRs := false, false
 	for i := range snap.Threads {
 		t := &snap.Threads[i]
 		if t.PR == nil {
 			continue
 		}
 		threadPR[t.ID] = true
-		if r.apply(t.PR, t.Status == deck.StatusDone, &want) {
-			has = true
+		if r.apply(t.PR, t.Status == deck.StatusDone, now, &want) {
+			threadPRs = true
 		}
 	}
+	// A task's PR, read while no thread of the task has one. Herdr-projects'
+	// ticker never follows it, so with gh off it shows only its number.
 	for i := range snap.TaskLists {
 		for j := range snap.TaskLists[i].Tasks {
 			t := &snap.TaskLists[i].Tasks[j]
 			if t.PR == nil || slices.ContainsFunc(t.Threads, func(id string) bool { return threadPR[id] }) {
 				continue
 			}
-			if r.apply(t.PR, t.Done, &want) {
-				has = true
+			if r.apply(t.PR, t.Done, now, &want) {
+				taskPRs = true
 			}
 		}
 	}
-	if !has {
+	if !threadPRs && !taskPRs {
 		return
 	}
 	switch {
+	case r.off != "" && !threadPRs:
+		snap.Notes = append(snap.Notes, "GitHub: "+r.off+"; linked PRs show their number only")
 	case r.off != "":
 		snap.Notes = append(snap.Notes, "GitHub: "+r.off+"; PRs show herdr-projects' ticker data only")
 	case r.problem != "":
@@ -170,7 +175,7 @@ func (r *Reader) Apply(snap *deck.Snapshot) {
 // read; done PRs (a resolved thread, a done task) are read only while
 // the drawer shows them. It is false for a URL that names no PR. The
 // caller holds r.mu.
-func (r *Reader) apply(pr *deck.PullRequest, done bool, want *[]prRef) bool {
+func (r *Reader) apply(pr *deck.PullRequest, done bool, now time.Time, want *[]prRef) bool {
 	ref, ok := parsePR(pr.URL)
 	if !ok {
 		return false
@@ -193,7 +198,7 @@ func (r *Reader) apply(pr *deck.PullRequest, done bool, want *[]prRef) bool {
 	if done && ref.URL != r.focus || !open(pr) {
 		return true
 	}
-	if e == nil || e.stale || r.now().Sub(e.at) >= r.ttl(ref.URL) {
+	if e == nil || e.stale || now.Sub(e.at) >= r.ttl(ref.URL) {
 		*want = append(*want, ref)
 	}
 	return true

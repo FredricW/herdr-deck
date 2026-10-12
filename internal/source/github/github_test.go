@@ -719,4 +719,16 @@ func TestTaskPR(t *testing.T) {
 	if note := s.TaskLists[0].Tasks[0].PR.DetailNote; !strings.Contains(note, "no such pull request") {
 		t.Errorf("note = %q", note)
 	}
+
+	// With gh off and only task PRs, the note does not promise ticker data.
+	off := &fakeGh{err: exec.ErrNotFound}
+	r3 := newReader(off, &clock)
+	r3.Focus(taskURL)
+	r3.Wait()
+	s = taskSnap()
+	s.Threads = nil
+	r3.Apply(&s)
+	if len(s.Notes) != 1 || !strings.Contains(s.Notes[0], "linked PRs show their number only") {
+		t.Errorf("notes = %q", s.Notes)
+	}
 }

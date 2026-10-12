@@ -124,3 +124,15 @@ func TestTaskPRTabError(t *testing.T) {
 		t.Errorf("the card:\n%s", card)
 	}
 }
+
+// A thread's PR wins over the task's link even when a more pressing
+// thread of the row has none: the GitHub reader skips the task's PR then.
+func TestRowPRAnyThread(t *testing.T) {
+	r := row{kind: rowWork, task: &deck.Task{Title: "x", PR: &deck.PullRequest{URL: cartURL, Number: 77}}, threads: []deck.Thread{
+		{ID: "t-0001", Status: deck.StatusNeedsYou},
+		{ID: "t-0002", Status: deck.StatusWorking, PR: &deck.PullRequest{URL: "https://github.com/acme/webshop/pull/12", Number: 12}},
+	}}
+	if pr, own, ok := r.pr(); !ok || !own || pr.Number != 12 {
+		t.Errorf("pr() = %+v own %v ok %v, want t-0002's #12", pr, own, ok)
+	}
+}

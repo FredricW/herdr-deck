@@ -302,7 +302,9 @@ func classify(raw string) (deck.Link, bool) {
 		if m[3] == "issues" {
 			label = "issue #" + m[4]
 		}
-		return deck.Link{Kind: deck.LinkGitHub, Label: label, URL: m[0]}, true
+		// The plain URL, so the link and the PR it names have one URL.
+		u := "https://github.com/" + m[1] + "/" + m[2] + "/" + m[3] + "/" + m[4]
+		return deck.Link{Kind: deck.LinkGitHub, Label: label, URL: u}, true
 	}
 	if figmaURL.MatchString(raw) {
 		return deck.Link{Kind: deck.LinkFigma, Label: figmaLabel(raw), URL: raw}, true

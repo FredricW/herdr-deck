@@ -356,3 +356,13 @@ func TestParseTaskPR(t *testing.T) {
 		t.Errorf("a PR from the thread's files: %+v", pr)
 	}
 }
+
+// A GitHub link and the task's PR share one plain URL, so the drawer
+// ties the link to the PR.
+func TestTaskPRMatchesItsLink(t *testing.T) {
+	links := Scrape("http://www.github.com/acme/webshop/pull/31/files#diff-1", "")
+	pr := PullRequest(links)
+	if len(links) != 1 || pr == nil || links[0].URL != pr.URL || pr.URL != "https://github.com/acme/webshop/pull/31" {
+		t.Errorf("links %+v, PR %+v", links, pr)
+	}
+}
