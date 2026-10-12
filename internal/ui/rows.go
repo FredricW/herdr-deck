@@ -78,6 +78,24 @@ func (r row) thread() (deck.Thread, bool) {
 	return best, true
 }
 
+// pr is the row's PR, the one its PR column, PR tab and Overview show:
+// its thread's, or else the PR its task links (own is false then). The
+// GitHub reader follows both, but only herdr-projects' status ticker
+// follows thread PRs, so a task's PR shows no failing-checks mark in the
+// list.
+func (r row) pr() (pr *deck.PullRequest, own, ok bool) {
+	if r.kind != rowWork {
+		return nil, false, false
+	}
+	if t, has := r.thread(); has && t.PR != nil {
+		return t.PR, true, true
+	}
+	if r.task != nil && r.task.PR != nil {
+		return r.task.PR, false, true
+	}
+	return nil, false, false
+}
+
 // needsYou reports whether a thread of the row waits on the user: what
 // pins it under Needs you. Inbox items never do; they tint the row.
 func (r row) needsYou() bool {

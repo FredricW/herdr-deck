@@ -258,7 +258,12 @@ statuses off, and the deck then never calls Linear.
 ### GitHub pull requests
 
 When `gh` is installed and logged in (`gh auth login`), the deck reads each
-open thread PR from GitHub itself, through `gh api graphql`. Overview's
+open thread PR from GitHub itself, through `gh api graphql`. A row whose
+threads have no PR (or that has no thread) uses the first GitHub pull link
+in its task's own text instead, say a note line a script writes from
+review requests (`https://github.com/<owner>/<repo>/pull/<n>`; issues and
+other pages don't count). It is read the same way, by owner, repo and
+number, so it needs no checkout and may be in any repo. Overview's
 *PR* section says why the PR is not merging yet, and points to the PR tab,
 which has the rest:
 
@@ -280,7 +285,8 @@ which has the rest:
   the job on GitHub. A check that is not a GitHub Actions job has no log
   the deck can read, so its page opens instead. Logs are read only when you
   ask, kept in memory (never on disk) and not read again for the same job.
-- The **PR tab** (after Commits, only on a row whose thread has a PR)
+- The **PR tab** (after Commits, only on a row with a PR: its thread's,
+  or the one its task links)
   opens on what the PR is, with no heading: the number and title as a
   chip that opens the PR, the author, when it was opened and updated, head
   → base branch, labels, who reviewed and where they stand (`✓ alex  ✕
@@ -717,9 +723,9 @@ PR's checks at the right. Under the card are five tabs, six with a PR:
 - **Impact**: what the branch did to the repository's shape: imports that
   go upward or skip a layer, cycles, new dependencies and touchpoints, and
   the changed packages drawn as nested boxes (see Impact).
-- **PR**: the thread's pull request: status, what it is, its description
-  and its conversation (see GitHub pull requests). Rows without a PR have
-  no PR tab.
+- **PR**: the row's pull request (its thread's, or else the one its task
+  links): status, what it is, its description and its conversation (see
+  GitHub pull requests). Rows without a PR have no PR tab.
 - **Log**: the thread's timeline, newest first, from what herdr-projects
   records: created and launched (the thread file), new reports, waiting on
   you, blocked on a prompt, PRs opened, updated, failing and merged,
@@ -801,7 +807,11 @@ event opens the PR, the rest focus the pane), a box, a finding or a selected box
 other-projects line for the project picker. A click on a row's PR number
 (the PR column, `#2320`, or at 60 columns the start of STATUS) selects the
 row and shows its PR tab; a second click on it, with that tab showing,
-opens the PR on GitHub, as `g` does from anywhere. A click in the drawer gives it
+opens the PR on GitHub, as `g` does from anywhere. A row whose threads
+have no PR shows the PR its task links there, and a click on it works the
+same; that number has no failing-checks `✕`, which comes from
+herdr-projects' status ticker (the card and PR tab still show the checks).
+A click in the drawer gives it
 the focus. Drag the rule between the list and the drawer to resize them. The wheel moves the list or scrolls the tab under the pointer.
 The wheel over the diff preview, or over an Impact edge's code, scrolls it, and the
 wheel over the Impact tab scrolls the tab; neither moves a selection. A long diff preview or full

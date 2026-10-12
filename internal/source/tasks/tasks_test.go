@@ -315,3 +315,44 @@ func TestThreadFilesScrapeApart(t *testing.T) {
 		t.Errorf("got %q, want %q", got, want)
 	}
 }
+
+// A task's PR is its first GitHub pull link, by its plain URL; issues and
+// other GitHub pages don't count.
+func TestTaskPR(t *testing.T) {
+	cases := []struct{ text, want string }{
+		{"Review the cart\n  https://github.com/acme/storefront/pull/77 · review requested", "https://github.com/acme/storefront/pull/77"},
+		{"See https://github.com/acme/webshop/pull/31/files", "https://github.com/acme/webshop/pull/31"},
+		{"Bug https://github.com/acme/webshop/issues/5 then https://github.com/acme/api/pull/40 and https://github.com/acme/webshop/pull/41", "https://github.com/acme/api/pull/40"},
+		{"Only an issue https://github.com/acme/webshop/issues/5", ""},
+		{"Compare https://github.com/acme/webshop/compare/main...feature", ""},
+		{"All of them https://github.com/acme/webshop/pulls", ""},
+	}
+	for _, c := range cases {
+		pr := PullRequest(Scrape(c.text, ""))
+		got := ""
+		if pr != nil {
+			got = pr.URL
+		}
+		if got != c.want {
+			t.Errorf("%q: PR %q, want %q", c.text, got, c.want)
+		}
+	}
+	pr := PullRequest(Scrape("https://github.com/acme/storefront/pull/77", ""))
+	if pr == nil || pr.Number != 77 {
+		t.Errorf("PR = %+v, want #77", pr)
+	}
+}
+
+// Parse sets a task's PR from its own text, never from its threads' files.
+func TestParseTaskPR(t *testing.T) {
+	f := Parse("## Reviews\n- [ ] webshop#77 Cart rewrite (me)\n  https://github.com/acme/webshop/pull/77 · @sam · review requested\n- [ ] Templates · t-0003\n", Options{
+		ThreadText: func(string) []string { return []string{"opened https://github.com/acme/webshop/pull/12"} },
+	})
+	tasks := f.Lists[0].Tasks
+	if pr := tasks[0].PR; pr == nil || pr.URL != "https://github.com/acme/webshop/pull/77" || pr.Number != 77 {
+		t.Errorf("review task's PR = %+v", pr)
+	}
+	if pr := tasks[1].PR; pr != nil {
+		t.Errorf("a PR from the thread's files: %+v", pr)
+	}
+}

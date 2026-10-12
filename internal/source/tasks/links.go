@@ -4,6 +4,7 @@ import (
 	"net/url"
 	"regexp"
 	"sort"
+	"strconv"
 	"strings"
 
 	"github.com/FredricW/herdr-deck/internal/deck"
@@ -270,6 +271,25 @@ func linearLink(workspace, id string) deck.Link {
 		l.URL = "https://linear.app/" + workspace + "/issue/" + id
 	}
 	return l
+}
+
+// PullRequest is the first GitHub pull request in links, by its plain
+// https://github.com/<owner>/<repo>/pull/<n> URL, or nil. Issues and other
+// GitHub pages don't count.
+func PullRequest(links []deck.Link) *deck.PullRequest {
+	for _, l := range links {
+		if l.Kind != deck.LinkGitHub {
+			continue
+		}
+		m := githubURL.FindStringSubmatch(l.URL)
+		if m == nil || m[3] != "pull" {
+			continue
+		}
+		if n, err := strconv.Atoi(m[4]); err == nil && n > 0 {
+			return &deck.PullRequest{URL: "https://github.com/" + m[1] + "/" + m[2] + "/pull/" + m[4], Number: n}
+		}
+	}
+	return nil
 }
 
 // classify turns a URL into a link of a kind the deck knows, or reports false.

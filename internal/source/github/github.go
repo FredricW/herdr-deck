@@ -1,5 +1,6 @@
-// Package github reads the thread PRs a snapshot names from GitHub, through
-// the user's gh, and lays what it learns over the snapshot's PRs: why a PR
+// Package github reads the PRs a snapshot names from GitHub, through the
+// user's gh: thread PRs, and the PR a task links when its threads have
+// none. It lays what it learns over the snapshot's PRs: why a PR
 // is not merging (merge state, every check, auto-merge, review requests),
 // its unresolved review threads, and on demand a failed job's log tail.
 //
@@ -122,45 +123,35 @@ func (r *Reader) ttl(url string) time.Duration {
 	return TTL
 }
 
-// Apply lays what the cache holds over every thread PR in snap and starts
-// a background read of the open PRs it lacks or holds for too long. It
+// Apply lays what the cache holds over every thread PR in snap, and over
+// the PR a task links when none of its threads has one, and starts a
+// background read of the open PRs it lacks or holds for too long. It
 // never waits on the network.
 func (r *Reader) Apply(snap *deck.Snapshot) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	has := false
-	now := r.now()
 	var want []prRef
+	threadPR := map[string]bool{}
 	for i := range snap.Threads {
 		t := &snap.Threads[i]
 		if t.PR == nil {
 			continue
 		}
-		ref, ok := parsePR(t.PR.URL)
-		if !ok {
-			continue
+		threadPR[t.ID] = true
+		if r.apply(t.PR, t.Status == deck.StatusDone, &want) {
+			has = true
 		}
-		has = true
-		e := r.cache[ref.URL]
-		if e != nil && e.pr != nil {
-			if merge(t.PR, e.pr, e.at) {
-				e.stale = true
-			}
-		}
-		if ref.URL == r.detail {
-			if t.PR.Detail == nil {
-				t.PR.DetailNote = r.detailNote(e)
-			}
-			if r.needDetail(e, ref.URL) {
-				want = append(want, ref)
+	}
+	for i := range snap.TaskLists {
+		for j := range snap.TaskLists[i].Tasks {
+			t := &snap.TaskLists[i].Tasks[j]
+			if t.PR == nil || slices.ContainsFunc(t.Threads, func(id string) bool { return threadPR[id] }) {
 				continue
 			}
-		}
-		if t.Status == deck.StatusDone && ref.URL != r.focus || !open(t.PR) {
-			continue
-		}
-		if e == nil || e.stale || now.Sub(e.at) >= r.ttl(ref.URL) {
-			want = append(want, ref)
+			if r.apply(t.PR, t.Done, &want) {
+				has = true
+			}
 		}
 	}
 	if !has {
@@ -173,6 +164,39 @@ func (r *Reader) Apply(snap *deck.Snapshot) {
 		snap.Missing = append(snap.Missing, "GitHub: "+r.problem)
 	}
 	r.want(want)
+}
+
+// apply lays the cache over pr and adds it to want when it should be
+// read; done PRs (a resolved thread, a done task) are read only while
+// the drawer shows them. It is false for a URL that names no PR. The
+// caller holds r.mu.
+func (r *Reader) apply(pr *deck.PullRequest, done bool, want *[]prRef) bool {
+	ref, ok := parsePR(pr.URL)
+	if !ok {
+		return false
+	}
+	e := r.cache[ref.URL]
+	if e != nil && e.pr != nil {
+		if merge(pr, e.pr, e.at) {
+			e.stale = true
+		}
+	}
+	if ref.URL == r.detail {
+		if pr.Detail == nil {
+			pr.DetailNote = r.detailNote(e)
+		}
+		if r.needDetail(e, ref.URL) {
+			*want = append(*want, ref)
+			return true
+		}
+	}
+	if done && ref.URL != r.focus || !open(pr) {
+		return true
+	}
+	if e == nil || e.stale || r.now().Sub(e.at) >= r.ttl(ref.URL) {
+		*want = append(*want, ref)
+	}
+	return true
 }
 
 // needDetail says whether url's detail should be read: it has none, or

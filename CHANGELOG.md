@@ -8,6 +8,14 @@ and versions follow [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Changed
+
+- A row whose threads have no PR, or that has no thread, uses the first
+  GitHub pull link in its task, for example a task list a script writes
+  from review requests: the PR column shows its number, and the PR tab,
+  Overview's PR section and the card show it as for a thread PR, read
+  through `gh` by owner, repo and number. A thread's own PR always wins.
+
 ## [0.1.8] - 2026-10-09
 
 ### Added

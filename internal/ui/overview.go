@@ -20,10 +20,11 @@ const noWorkspace = "no Linear workspace: set linear.workspace in the config fil
 func (m Model) overview(d *drawer, r row, links []deck.Link, h int) {
 	t, hasThread := r.thread()
 	narrow := d.width < wideMin
+	pr, _, hasPR := r.pr()
 	prLink := -1
-	if hasThread && t.PR != nil {
+	if hasPR {
 		for i, l := range links {
-			if l.Kind == deck.LinkGitHub && l.URL == t.PR.URL {
+			if l.Kind == deck.LinkGitHub && l.URL == pr.URL {
 				prLink = i
 			}
 		}
@@ -50,8 +51,8 @@ func (m Model) overview(d *drawer, r row, links []deck.Link, h int) {
 			}
 		}})
 	}
-	if hasThread && t.PR != nil {
-		secs = append(secs, sec{name: "PR", style: bold, body: func() { m.prSection(d, *t.PR, links, prLink, narrow) }})
+	if hasPR {
+		secs = append(secs, sec{name: "PR", style: bold, body: func() { m.prSection(d, *pr, links, prLink, narrow) }})
 	}
 	if r.task != nil && r.task.Notes != "" {
 		secs = append(secs, sec{name: "Note", style: bold, body: func() {

@@ -478,17 +478,22 @@ func (m Model) rowLine(r row, sel bool, w int, asOf string) string {
 	} else if r.task != nil && r.task.Done {
 		status = "done"
 	}
+	pr, own, hasPR := r.pr()
+	hasPR = hasPR && pr.Number > 0
+	if hasPR && !own && !c.wide {
+		// rowStatus put a thread PR there; a task's goes there too.
+		status = strings.TrimSpace(fmt.Sprintf("#%d %s", pr.Number, status))
+	}
 	cells = append(cells, cell{text: status, style: sst, width: c.status}, cell{text: "  "})
 	if c.wide {
-		pr, pst := "", reviewStyle
-		if hasThread && t.PR != nil && t.PR.Number > 0 {
-			pr = fmt.Sprintf("#%d", t.PR.Number)
-			if len(t.PR.FailingChecks) > 0 {
-				pr += "✕"
+		text, pst := "", reviewStyle
+		if hasPR {
+			text = prText(*pr, own)
+			if own && len(pr.FailingChecks) > 0 {
 				pst = failStyle
 			}
 		}
-		cells = append(cells, cell{text: pr, style: pst, width: c.pr}, cell{text: "  "})
+		cells = append(cells, cell{text: text, style: pst, width: c.pr}, cell{text: "  "})
 	}
 	cells = append(cells, badgeCells(rowLinks(r), c.links)...)
 	cells = append(cells, cell{text: " "})
@@ -500,22 +505,31 @@ func (m Model) rowLine(r row, sel bool, w int, asOf string) string {
 // x1): the PR column at 80 columns, the start of STATUS at 60. ok is false
 // when the row shows no PR.
 func (m Model) prCell(r row) (x0, x1 int, ok bool) {
-	t, has := r.thread()
-	if r.kind != rowWork || !has || t.PR == nil || t.PR.Number <= 0 {
+	pr, own, ok := r.pr()
+	if !ok || pr.Number <= 0 {
 		return 0, 0, false
 	}
 	c := columns(m.width)
-	text := fmt.Sprintf("#%d", t.PR.Number)
+	text := fmt.Sprintf("#%d", pr.Number)
 	x0 = 4 + c.work + 2 // mark, glyph and space; WORK and its gap
 	width := c.status
 	if c.wide {
 		x0 += c.thread + 2 + c.status + 2
 		width = c.pr
-		if len(t.PR.FailingChecks) > 0 {
-			text += "✕"
-		}
+		text = prText(*pr, own)
 	}
 	return x0, x0 + min(ansi.StringWidth(text), width), true
+}
+
+// prText is the PR column's text: `#2320`, with ✕ when a thread PR's
+// checks fail. A task's PR has no mark: the status ticker, which keeps
+// the list's marks current, follows thread PRs only.
+func prText(pr deck.PullRequest, own bool) string {
+	s := fmt.Sprintf("#%d", pr.Number)
+	if own && len(pr.FailingChecks) > 0 {
+		s += "✕"
+	}
+	return s
 }
 
 // rowStatus is the STATUS column. At 60 columns it also carries the PR.

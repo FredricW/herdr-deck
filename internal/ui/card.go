@@ -109,7 +109,7 @@ func (m Model) tabBar(r row, hasThread bool, active tabKind, hint string, width 
 	x := 1
 	for tab := range numTabs {
 		enabled := m.tabEnabled(r, tab)
-		// PR shows only for a thread with a PR, and Impact only while
+		// PR shows only for a row with a PR, and Impact only while
 		// it is on (arch.enabled); the others show dim.
 		if tab == tabPR && !enabled || tab == tabImpact && m.opt.Arch == nil {
 			continue
@@ -171,8 +171,8 @@ func (m Model) tabEnabled(r row, tab tabKind) bool {
 		_, ok := m.diffThread()
 		return ok && m.opt.Arch != nil
 	case tabPR:
-		t, ok := r.thread()
-		return r.kind == rowWork && ok && t.PR != nil
+		_, _, ok := r.pr()
+		return ok
 	case tabLog:
 		_, ok := r.thread()
 		return r.kind == rowWork && ok
@@ -231,6 +231,9 @@ func (m Model) card(r row, w int) []string {
 		}
 	case r.task != nil:
 		parts = append(parts, r.list, "TASKS.md")
+	}
+	if pr, own, ok := r.pr(); ok && !own && bar == "" {
+		bar = prBrief(*pr, narrow)
 	}
 	if r.task != nil && r.task.Owner != "" {
 		parts = append(parts, "owner "+r.task.Owner)

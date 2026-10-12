@@ -170,17 +170,18 @@ func threadCounts(pr deck.PullRequest) (current, outdated int) {
 	return
 }
 
-// prOf is the selected row's thread PR, when it has one.
+// prOf is the selected row's PR, when it has one: its thread's, or the
+// one its task links.
 func (m Model) prOf() (deck.PullRequest, bool) {
 	r, ok := m.selected()
-	if !ok || r.kind != rowWork {
+	if !ok {
 		return deck.PullRequest{}, false
 	}
-	t, ok := r.thread()
-	if !ok || t.PR == nil {
+	pr, _, ok := r.pr()
+	if !ok {
 		return deck.PullRequest{}, false
 	}
-	return *t.PR, true
+	return *pr, true
 }
 
 // watchPR tells the GitHub reader which PR the drawer shows, and which
