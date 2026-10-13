@@ -17,13 +17,14 @@ import (
 // conversation. The status comes from the GitHub reader's regular read;
 // the rest (deck.PRDetail) is read while the tab shows the PR.
 
-// prTab fills the PR tab for the row's thread PR.
+// prTab fills the PR tab for the row's PR: its thread's, or the one its
+// task links.
 func (m Model) prTab(d *drawer, r row, links []deck.Link) {
-	t, _ := r.thread()
-	if t.PR == nil {
+	p, _, ok := r.pr()
+	if !ok {
 		return
 	}
-	pr := *t.PR
+	pr := *p
 	prLink := -1
 	for i, l := range links {
 		if l.Kind == deck.LinkGitHub && l.URL == pr.URL {

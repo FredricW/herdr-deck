@@ -189,6 +189,7 @@ func (p *parser) endList() {
 func (p *parser) task(it item) deck.Task {
 	all := strings.Join(append([]string{it.text}, it.notes...), "\n")
 	t := deck.Task{Links: Scrape(all, p.opt.LinearWorkspace)}
+	t.PR = PullRequest(t.Links)
 
 	text := it.text
 	notes := it.notes

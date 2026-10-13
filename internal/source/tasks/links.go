@@ -4,6 +4,7 @@ import (
 	"net/url"
 	"regexp"
 	"sort"
+	"strconv"
 	"strings"
 
 	"github.com/FredricW/herdr-deck/internal/deck"
@@ -272,6 +273,25 @@ func linearLink(workspace, id string) deck.Link {
 	return l
 }
 
+// PullRequest is the first GitHub pull request in links, by its plain
+// https://github.com/<owner>/<repo>/pull/<n> URL, or nil. Issues and other
+// GitHub pages don't count.
+func PullRequest(links []deck.Link) *deck.PullRequest {
+	for _, l := range links {
+		if l.Kind != deck.LinkGitHub {
+			continue
+		}
+		m := githubURL.FindStringSubmatch(l.URL)
+		if m == nil || m[3] != "pull" {
+			continue
+		}
+		if n, err := strconv.Atoi(m[4]); err == nil && n > 0 {
+			return &deck.PullRequest{URL: "https://github.com/" + m[1] + "/" + m[2] + "/pull/" + m[4], Number: n}
+		}
+	}
+	return nil
+}
+
 // classify turns a URL into a link of a kind the deck knows, or reports false.
 func classify(raw string) (deck.Link, bool) {
 	if m := linearURL.FindStringSubmatch(raw); m != nil {
@@ -282,7 +302,9 @@ func classify(raw string) (deck.Link, bool) {
 		if m[3] == "issues" {
 			label = "issue #" + m[4]
 		}
-		return deck.Link{Kind: deck.LinkGitHub, Label: label, URL: m[0]}, true
+		// The plain URL, so the link and the PR it names have one URL.
+		u := "https://github.com/" + m[1] + "/" + m[2] + "/" + m[3] + "/" + m[4]
+		return deck.Link{Kind: deck.LinkGitHub, Label: label, URL: u}, true
 	}
 	if figmaURL.MatchString(raw) {
 		return deck.Link{Kind: deck.LinkFigma, Label: figmaLabel(raw), URL: raw}, true

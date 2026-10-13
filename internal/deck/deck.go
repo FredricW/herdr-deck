@@ -106,6 +106,10 @@ type Task struct {
 	Threads []string // thread ids such as "t-0002"
 	Links   []Link
 	Notes   string // the item's own detail and indented notes, one line each
+	// PR is the first GitHub pull request the task's own text links, for
+	// rows whose threads have no PR: a list a script writes from review
+	// requests, say. The GitHub reader lays its live state over it.
+	PR *PullRequest
 }
 
 // ThreadStatus is the coarse state of a thread, used for its glyph and colour.

@@ -664,3 +664,71 @@ func TestDetailFieldsFail(t *testing.T) {
 		t.Errorf("note = %q", note)
 	}
 }
+
+// A task's PR is read like a thread PR, by its owner, repo and number,
+// unless a thread of the task has a PR of its own.
+func TestTaskPR(t *testing.T) {
+	const taskURL = "https://github.com/acme/storefront/pull/77"
+	taskSnap := func() deck.Snapshot {
+		s := snap(time.Time{})
+		s.Threads = s.Threads[:1] // t-0004, with #2320
+		s.TaskLists = []deck.TaskList{{Name: "Reviews", Tasks: []deck.Task{
+			{Title: "Cart rewrite", PR: &deck.PullRequest{URL: taskURL, Number: 77}},
+			{Title: "Document select", Threads: []string{"t-0004"}, PR: &deck.PullRequest{URL: "https://github.com/acme/webshop/pull/5", Number: 5}},
+		}}}
+		return s
+	}
+	f := &fakeGh{out: fixture(t, "prs.json")}
+	clock := now
+	r := newReader(f, &clock)
+	r.Focus(taskURL)
+	r.Wait()
+	if f.n() != 1 {
+		t.Fatalf("%d gh calls for the focused task PR", f.n())
+	}
+	args := strings.Join(f.calls[0], " ")
+	for _, want := range []string{"api graphql --hostname github.com", "o0=acme", "r0=storefront", "n0=77"} {
+		if !strings.Contains(args, want) {
+			t.Errorf("query lacks %q: %s", want, args)
+		}
+	}
+	s := taskSnap()
+	r.Apply(&s)
+	r.Wait()
+	if pr := s.TaskLists[0].Tasks[0].PR; !pr.Live || pr.MergeState != "BEHIND" || len(pr.Checks) == 0 {
+		t.Errorf("task PR after the read = %+v", pr)
+	}
+	// The thread's own PR wins: the second task's link is never read.
+	for _, c := range f.calls {
+		if slices.ContainsFunc(c, func(a string) bool { return strings.HasPrefix(a, "n") && strings.HasSuffix(a, "=5") }) {
+			t.Errorf("read the PR of a task whose thread has one: %q", c)
+		}
+	}
+	if pr := s.TaskLists[0].Tasks[1].PR; pr.Live {
+		t.Errorf("a thread's task PR was laid over: %+v", pr)
+	}
+
+	// GitHub has no such PR, or gh's account cannot see it: the tab says so.
+	gone := &fakeGh{out: []byte(`{"data":{"rateLimit":{"remaining":4000,"resetAt":"2026-10-02T15:00:00Z"},"p0":{"pullRequest":null}}}`)}
+	r2 := newReader(gone, &clock)
+	r2.Detail(taskURL)
+	r2.Wait()
+	s = taskSnap()
+	r2.Apply(&s)
+	r2.Wait()
+	if note := s.TaskLists[0].Tasks[0].PR.DetailNote; !strings.Contains(note, "no such pull request") {
+		t.Errorf("note = %q", note)
+	}
+
+	// With gh off and only task PRs, the note does not promise ticker data.
+	off := &fakeGh{err: exec.ErrNotFound}
+	r3 := newReader(off, &clock)
+	r3.Focus(taskURL)
+	r3.Wait()
+	s = taskSnap()
+	s.Threads = nil
+	r3.Apply(&s)
+	if len(s.Notes) != 1 || !strings.Contains(s.Notes[0], "linked PRs show their number only") {
+		t.Errorf("notes = %q", s.Notes)
+	}
+}
