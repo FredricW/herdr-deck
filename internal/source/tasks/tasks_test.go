@@ -221,6 +221,9 @@ func TestLooseTitles(t *testing.T) {
 		"- Settings page: shows a dialog.":                    {Title: "Settings page", Notes: "shows a dialog."},
 		"- Read [the spec](https://example.com/spec) (later)": {Title: "Read [the spec](https://example.com/spec)"},
 		"- Run `make test: all` first: then ship":             {Title: "Run `make test: all` first", Notes: "then ship"},
+		"- Read [x](https://e.com/a_(b)) (later)":             {Title: "Read [x](https://e.com/a_(b))"},
+		"- Fix [WIP: later":                                   {Title: "Fix [WIP", Notes: "later"},
+		"- Avoid ` in names: see doc":                         {Title: "Avoid ` in names", Notes: "see doc"},
 		"- Fix **totals**: in the ledger":                     {Title: "Fix **totals**", Notes: "in the ledger"},
 	} {
 		got := Parse("## L\n"+line+"\n", Options{}).Lists[0].Tasks[0]

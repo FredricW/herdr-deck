@@ -135,3 +135,16 @@ func TestInlineSpanStyle(t *testing.T) {
 		t.Errorf("plain text = %q, want %q", got, red.Render("snake_case"))
 	}
 }
+
+// inlineWords splits on any whitespace and keeps a word styled in parts
+// as one item.
+func TestInlineWords(t *testing.T) {
+	var got []string
+	for _, it := range inlineWords("step1\tstep2 **ABC-1**: done  `x y`", plain, false).items {
+		got = append(got, ansi.Strip(it.text))
+	}
+	want := []string{"step1", "step2", "ABC-1:", "done", "x", "y"}
+	if strings.Join(got, "|") != strings.Join(want, "|") {
+		t.Errorf("words = %q, want %q", got, want)
+	}
+}

@@ -71,22 +71,17 @@ func TestInline(t *testing.T) {
 		{"**", "**"},
 		{"path/*/glob", "path/*/glob"},
 		{`trailing \`, `trailing \`},
+
+		// Found in review.
+		{"*a **b** c*", "{i:a }{bi:b}{i: c}"},
+		{"_a __b__ c_", "{i:a }{bi:b}{i: c}"},
+		{"**a**b**c**", "**a**b**c**"},
+		{"_keep snake_case here_", "{i:keep snake_case here}"},
+		{"*x 2*3*4 y*", "*x 2*3*4 y*"},
+		{"[w](https://example.com/Foo_(bar)) ok", "{:w->https://example.com/Foo_(bar)} ok"},
 	} {
 		if got := show(Inline(tc.src)); got != tc.want {
 			t.Errorf("Inline(%q) = %q, want %q", tc.src, got, tc.want)
-		}
-	}
-}
-
-func TestPlain(t *testing.T) {
-	for src, want := range map[string]string{
-		"Fix **totals** in `ledger`":  "Fix totals in ledger",
-		"[Spec](https://example.com)": "Spec",
-		"snake_case_names":            "snake_case_names",
-		"no markers":                  "no markers",
-	} {
-		if got := Plain(src); got != want {
-			t.Errorf("Plain(%q) = %q, want %q", src, got, want)
 		}
 	}
 }
@@ -107,6 +102,8 @@ func TestInlineURLs(t *testing.T) {
 		{"time 10:30 and a: b", "time 10:30 and a: b"},
 		{"xhttps://example.com", "xhttps://example.com"},
 		{"https:// alone", "https:// alone"},
+		{"see https://example.com/Foo_(bar) ok", "see {:https://example.com/Foo_(bar)->https://example.com/Foo_(bar)} ok"},
+		{"see https://example.com/a_b_", "see {:https://example.com/a_b_->https://example.com/a_b_}"},
 	} {
 		if got := show(Inline(tc.src)); got != tc.want {
 			t.Errorf("Inline(%q) = %q, want %q", tc.src, got, tc.want)

@@ -75,19 +75,6 @@ func IsInline(line string) bool {
 	return !block.MatchString(line)
 }
 
-// Plain is src as Inline shows it: the text without its markers, for
-// widths, search and sorting.
-func Plain(src string) string {
-	if !strings.ContainsAny(src, markers) {
-		return src
-	}
-	var b strings.Builder
-	for _, s := range Inline(src) {
-		b.WriteString(s.Text)
-	}
-	return b.String()
-}
-
 type inlineParser struct {
 	out []Span
 	cur Span
@@ -227,7 +214,7 @@ func codeSpan(s string, i int) (end int, body string, ok bool) {
 }
 
 // link matches [label](url) at s[i]. The label may hold brackets in
-// pairs; the url has no spaces.
+// pairs, the url parentheses in pairs; the url has no spaces.
 func link(s string, i int) (end int, label, url string, ok bool) {
 	depth := 0
 	j := i
@@ -249,22 +236,35 @@ func link(s string, i int) (end int, label, url string, ok bool) {
 		return 0, "", "", false
 	}
 	label = s[i+1 : j]
-	k := strings.IndexByte(s[j+2:], ')')
-	if k < 0 {
-		return 0, "", "", false
+	depth = 0
+	for k := j + 2; k < len(s); k++ {
+		switch s[k] {
+		case ' ', '\t':
+			return 0, "", "", false
+		case '(':
+			depth++
+		case ')':
+			if depth > 0 {
+				depth--
+				continue
+			}
+			url = s[j+2 : k]
+			if label == "" || url == "" {
+				return 0, "", "", false
+			}
+			return k + 1, label, url, true
+		}
 	}
-	url = s[j+2 : j+2+k]
-	if label == "" || url == "" || strings.ContainsAny(url, " \t") {
-		return 0, "", "", false
-	}
-	return j + 2 + k + 1, label, url, true
+	return 0, "", "", false
 }
 
 // emphasis matches emphasis opening at s[i]: one or two of * or _, or two
 // of ~, then text, then the same marker. The opener must not follow a
 // letter or digit nor precede a space; the closer must not follow a space
-// nor precede a letter or digit. It returns the end, the marker's length
-// and the text between.
+// nor precede a letter or digit. A run of the marker inside a word is
+// skipped for _ (snake_case) and ends the search for *, which can't tell
+// 2*3*4 from a closer there. It returns the end, the marker's length and
+// the text between.
 func emphasis(s string, i int) (end, n int, body string, ok bool) {
 	c := s[i]
 	r := run(s, i)
@@ -297,10 +297,19 @@ func emphasis(s string, i int) (end, n int, body string, ok bool) {
 			continue
 		}
 		m := run(s, j)
-		// A closing run may carry an inner closer before it (***), so
-		// the marker is its last n characters.
+		if wordBefore(s, j) && wordAt(s, j+m) {
+			if c == '_' {
+				j += m
+				continue
+			}
+			return 0, 0, "", false
+		}
+		// A run of the other length belongs to inner emphasis; a run of
+		// three may carry an inner closer before this one (***), so the
+		// marker is its last n characters.
+		fits := m == n || (m == 3 && c != '~')
 		at := j + m - n
-		if m >= n && (m == n || c != '~') && at > i+n && !isSpaceBefore(s, at) && !wordAt(s, j+m) {
+		if fits && at > i+n && !isSpaceBefore(s, j) && !wordAt(s, j+m) {
 			return j + m, n, s[i+n : at], true
 		}
 		j += m
@@ -309,7 +318,8 @@ func emphasis(s string, i int) (end, n int, body string, ok bool) {
 }
 
 // bareURL finds the bare http(s) URL whose "://" starts at s[i]: from its
-// scheme to the next space, without trailing punctuation.
+// scheme to the next space, without trailing punctuation or a closing
+// parenthesis that has no opening one in the URL.
 func bareURL(s string, i int) (from, to int, ok bool) {
 	if !strings.HasPrefix(s[i:], "://") {
 		return 0, 0, false
@@ -329,7 +339,14 @@ func bareURL(s string, i int) (from, to int, ok bool) {
 	for to < len(s) && !isSpaceAt(s, to) && s[to] != '<' {
 		to++
 	}
-	to = from + len(strings.TrimRight(s[from:to], ".,;:!?*_~)'\""))
+	for to > i+3 {
+		last := s[to-1]
+		if strings.IndexByte(".,;:!?*~'\"", last) < 0 &&
+			(last != ')' || strings.Count(s[from:to], "(") >= strings.Count(s[from:to], ")")) {
+			break
+		}
+		to--
+	}
 	if to <= i+3 {
 		return 0, 0, false
 	}

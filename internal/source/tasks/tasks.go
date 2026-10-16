@@ -260,10 +260,19 @@ var abbreviations = map[string]bool{"e.g": true, "i.e": true, "etc": true, "vs":
 // dropParens drops a plain bullet's parenthesised asides, but not the
 // URL of a Markdown link, `[text](url)`, which the deck shows as text.
 func dropParens(text string) string {
+	urls := linkURLs(text)
+	inURL := func(i int) bool {
+		for _, u := range urls {
+			if i >= u[0] && i < u[1] {
+				return true
+			}
+		}
+		return false
+	}
 	var b strings.Builder
 	last := 0
 	for _, m := range parens.FindAllStringIndex(text, -1) {
-		if m[0] > 0 && text[m[0]-1] == ']' {
+		if inURL(m[1] - 1) {
 			continue
 		}
 		b.WriteString(text[last:m[0]])
@@ -273,24 +282,54 @@ func dropParens(text string) string {
 	return b.String()
 }
 
+// linkURLs are the spans of text's Markdown link URLs, `(url)` after
+// `]`, with parentheses inside the URL in pairs.
+func linkURLs(text string) [][2]int {
+	var spans [][2]int
+	for i := 0; i+1 < len(text); i++ {
+		if text[i] != ']' || text[i+1] != '(' {
+			continue
+		}
+		depth := 0
+		for j := i + 1; j < len(text) && text[j] != ' '; j++ {
+			if text[j] == '(' {
+				depth++
+			} else if text[j] == ')' {
+				if depth--; depth == 0 {
+					spans = append(spans, [2]int{i + 1, j + 1})
+					i = j
+					break
+				}
+			}
+		}
+	}
+	return spans
+}
+
 // firstStop finds where a plain bullet's title ends: the first ": " or ". "
-// outside parentheses, brackets and code spans that does not end an
-// abbreviation. It returns the separator's start and end, or -1, -1.
+// outside parentheses, closed brackets and closed code spans that does not
+// end an abbreviation. It returns the separator's start and end, or -1, -1.
 func firstStop(text string) (int, int) {
 	depth := 0
-	code := false
 	for i := 0; i+1 < len(text); i++ {
 		switch text[i] {
-		case '`':
-			code = !code
-		case '(', '[':
+		case '`', '[':
+			// Skip a code span or link text, if it closes.
+			end := byte('`')
+			if text[i] == '[' {
+				end = ']'
+			}
+			if j := strings.IndexByte(text[i+1:], end); j >= 0 {
+				i += j + 1
+			}
+		case '(':
 			depth++
-		case ')', ']':
+		case ')':
 			if depth > 0 {
 				depth--
 			}
 		case ':', '.':
-			if code || depth > 0 || (text[i+1] != ' ' && text[i+1] != '\t') {
+			if depth > 0 || (text[i+1] != ' ' && text[i+1] != '\t') {
 				continue
 			}
 			if text[i] == '.' {

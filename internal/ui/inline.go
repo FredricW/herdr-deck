@@ -3,6 +3,8 @@ package ui
 import (
 	"image/color"
 	"strings"
+	"unicode"
+	"unicode/utf8"
 
 	"charm.land/lipgloss/v2"
 
@@ -49,17 +51,28 @@ func inlineWords(text string, base lipgloss.Style, light bool) group {
 	}
 	for _, s := range markdown.Inline(text) {
 		st := spanStyle(s, base, light)
-		for i, part := range strings.Split(s.Text, " ") {
-			if i > 0 {
+		for i, part := range strings.FieldsFunc(s.Text, unicode.IsSpace) {
+			if i > 0 || startsSpace(s.Text) {
 				end()
 			}
-			if part != "" {
-				word.WriteString(st.Render(part))
-			}
+			word.WriteString(st.Render(part))
+		}
+		if strings.TrimSpace(s.Text) == "" || endsSpace(s.Text) {
+			end()
 		}
 	}
 	end()
 	return g
+}
+
+func startsSpace(s string) bool {
+	r, _ := utf8.DecodeRuneInString(s)
+	return unicode.IsSpace(r)
+}
+
+func endsSpace(s string) bool {
+	r, _ := utf8.DecodeLastRuneInString(s)
+	return unicode.IsSpace(r)
 }
 
 // spanStyle is base with a span's own styles added.
