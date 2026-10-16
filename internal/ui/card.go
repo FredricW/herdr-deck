@@ -211,7 +211,7 @@ func (m Model) card(r row, w int) []string {
 	} else {
 		hasPct = false
 	}
-	line1 := spread(" "+bold.Render(r.title()), right+" ", w)
+	line1 := spread(" "+inline(r.title(), bold, m.light), right+" ", w)
 
 	var parts []string
 	var bar string

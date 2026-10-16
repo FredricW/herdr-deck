@@ -8,6 +8,15 @@ and versions follow [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+
+- Task text shows its inline Markdown: *italic*, **bold**, `code`,
+  ~~strikethrough~~, <u>underline</u> and links in task titles (list
+  rows, the card, the project switcher), Next lines and one-line notes,
+  without the markers. A link shows its text and opens with a click
+  where the terminal supports OSC 8 links. Markers inside words, like
+  snake_case_names or 2*3*4, stay as written.
+
 ### Changed
 
 - A row whose threads have no PR, or that has no thread, uses the first

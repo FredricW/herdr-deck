@@ -215,7 +215,7 @@ func (p *parser) task(it item) deck.Task {
 			}
 			text = text[:start]
 		}
-		text = parens.ReplaceAllString(text, "")
+		text = dropParens(text)
 		text = tailRefs.ReplaceAllString(text, "")
 	}
 	t.Title = strings.TrimRight(strings.TrimSpace(text), ".,;:")
@@ -257,21 +257,40 @@ func owners(line string, strict bool, notes []string) []string {
 // abbreviations end in a dot without ending a sentence.
 var abbreviations = map[string]bool{"e.g": true, "i.e": true, "etc": true, "vs": true, "cf": true, "approx": true}
 
+// dropParens drops a plain bullet's parenthesised asides, but not the
+// URL of a Markdown link, `[text](url)`, which the deck shows as text.
+func dropParens(text string) string {
+	var b strings.Builder
+	last := 0
+	for _, m := range parens.FindAllStringIndex(text, -1) {
+		if m[0] > 0 && text[m[0]-1] == ']' {
+			continue
+		}
+		b.WriteString(text[last:m[0]])
+		last = m[1]
+	}
+	b.WriteString(text[last:])
+	return b.String()
+}
+
 // firstStop finds where a plain bullet's title ends: the first ": " or ". "
-// outside parentheses that does not end an abbreviation. It returns the
-// separator's start and end, or -1, -1.
+// outside parentheses, brackets and code spans that does not end an
+// abbreviation. It returns the separator's start and end, or -1, -1.
 func firstStop(text string) (int, int) {
 	depth := 0
+	code := false
 	for i := 0; i+1 < len(text); i++ {
 		switch text[i] {
-		case '(':
+		case '`':
+			code = !code
+		case '(', '[':
 			depth++
-		case ')':
+		case ')', ']':
 			if depth > 0 {
 				depth--
 			}
 		case ':', '.':
-			if depth > 0 || (text[i+1] != ' ' && text[i+1] != '\t') {
+			if code || depth > 0 || (text[i+1] != ' ' && text[i+1] != '\t') {
 				continue
 			}
 			if text[i] == '.' {
