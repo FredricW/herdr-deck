@@ -490,7 +490,7 @@ func (p ImpactPane) render() string {
 	t := p.opt.Thread
 	title := " " + bold.Render("Impact") + dim.Render(" · ") + t.ID
 	if t.Title != "" {
-		title += " " + t.Title
+		title += " " + inline(t.Title, plain, p.light)
 	}
 	right := ""
 	if p.res != nil && p.res.Note == "" {

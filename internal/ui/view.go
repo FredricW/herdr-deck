@@ -395,6 +395,7 @@ type cell struct {
 	text  string
 	style lipgloss.Style
 	width int
+	raw   bool // text is styled already: style is not applied
 }
 
 func (m Model) rowLine(r row, sel bool, w int, asOf string) string {
@@ -459,7 +460,7 @@ func (m Model) rowLine(r row, sel bool, w int, asOf string) string {
 		cell{text: mark, style: markSt},
 		cell{text: glyph, style: gst},
 		cell{text: " "},
-		cell{text: r.title(), style: workSt, width: c.work},
+		cell{text: inline(r.title(), workSt, m.light), raw: true, width: c.work},
 		cell{text: "  "},
 	)
 	if c.wide {
@@ -665,7 +666,10 @@ func renderCells(cells []cell) string {
 		if c.width > 0 {
 			text = pad(text, c.width)
 		}
-		b.WriteString(c.style.Render(text))
+		if !c.raw {
+			text = c.style.Render(text)
+		}
+		b.WriteString(text)
 	}
 	return b.String()
 }
@@ -768,7 +772,7 @@ func fit(s string, w int) string {
 	return s + strings.Repeat(" ", max(w-ansi.StringWidth(s), 0))
 }
 
-// pad truncates or pads plain text to n columns.
+// pad truncates or pads text, plain or styled, to n columns.
 func pad(s string, n int) string {
 	if n <= 0 {
 		return ""

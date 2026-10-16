@@ -9,6 +9,7 @@ import (
 	"github.com/charmbracelet/x/ansi"
 
 	"github.com/FredricW/herdr-deck/internal/deck"
+	"github.com/FredricW/herdr-deck/internal/markdown"
 )
 
 // noWorkspace says why a bare Linear ID has no link.
@@ -44,7 +45,7 @@ func (m Model) overview(d *drawer, r row, links []deck.Link, h int) {
 		}
 		secs = append(secs, sec{name: "Next", style: st, body: func() {
 			for _, n := range t.Next {
-				g := words(n, plain)
+				g := inlineWords(n, plain, d.light)
 				g.items = append([]item{span("→", bold)}, g.items...)
 				g.hang = 2
 				d.flow(g)
@@ -58,8 +59,15 @@ func (m Model) overview(d *drawer, r row, links []deck.Link, h int) {
 		secs = append(secs, sec{name: "Note", style: bold, body: func() {
 			// Each line is a note of its own, so each renders on its own:
 			// as one document, Markdown would join them into a paragraph.
+			// A line of inline Markdown only renders like the task's
+			// title (link text without its URL, literal 2*3*4); a list
+			// item or other block goes through glamour.
 			for _, n := range strings.Split(r.task.Notes, "\n") {
-				d.markdown(n)
+				if markdown.IsInline(n) {
+					d.flow(inlineWords(n, plain, d.light))
+				} else {
+					d.markdown(n)
+				}
 			}
 		}})
 	}
@@ -395,7 +403,7 @@ func (m Model) threadSection(d *drawer, r row, t deck.Thread) {
 	if len(r.threads) > 1 {
 		for _, th := range r.threads {
 			g := group{sep: " ", items: []item{span(th.ID, bold)}}
-			g.items = append(g.items, words(th.Title, plain).items...)
+			g.items = append(g.items, inlineWords(th.Title, plain, d.light).items...)
 			st, ss := statusPill(th)
 			g.items = append(g.items, span("·", dim), span(st, ss))
 			d.field("thread", false, g)
@@ -404,7 +412,7 @@ func (m Model) threadSection(d *drawer, r row, t deck.Thread) {
 		g := group{sep: " ", items: []item{span(t.ID, plain)}}
 		if r.task != nil && t.Title != "" && t.Title != r.task.Title {
 			g.items = append(g.items, span("·", dim))
-			g.items = append(g.items, words(t.Title, dim).items...)
+			g.items = append(g.items, inlineWords(t.Title, dim, d.light).items...)
 		}
 		d.field("thread", false, g)
 	}

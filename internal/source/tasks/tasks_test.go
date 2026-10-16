@@ -213,12 +213,18 @@ func TestExplicitLinearURLWins(t *testing.T) {
 
 func TestLooseTitles(t *testing.T) {
 	for line, want := range map[string]deck.Task{
-		"- Bump deps (2)":                  {Title: "Bump deps"},
-		"- Use e.g. Redis for caching":     {Title: "Use e.g. Redis for caching"},
-		"- Cache (see notes. later): it":   {Title: "Cache", Notes: "it"},
-		"- [ ] · t-0003":                   {Title: "· t-0003", Threads: []string{"t-0003"}},
-		"- [ ] Strict (wip) · t-0003":      {Title: "Strict", Owner: "wip", Threads: []string{"t-0003"}},
-		"- Settings page: shows a dialog.": {Title: "Settings page", Notes: "shows a dialog."},
+		"- Bump deps (2)":                                     {Title: "Bump deps"},
+		"- Use e.g. Redis for caching":                        {Title: "Use e.g. Redis for caching"},
+		"- Cache (see notes. later): it":                      {Title: "Cache", Notes: "it"},
+		"- [ ] · t-0003":                                      {Title: "· t-0003", Threads: []string{"t-0003"}},
+		"- [ ] Strict (wip) · t-0003":                         {Title: "Strict", Owner: "wip", Threads: []string{"t-0003"}},
+		"- Settings page: shows a dialog.":                    {Title: "Settings page", Notes: "shows a dialog."},
+		"- Read [the spec](https://example.com/spec) (later)": {Title: "Read [the spec](https://example.com/spec)"},
+		"- Run `make test: all` first: then ship":             {Title: "Run `make test: all` first", Notes: "then ship"},
+		"- Read [x](https://e.com/a_(b)) (later)":             {Title: "Read [x](https://e.com/a_(b))"},
+		"- Fix [WIP: later":                                   {Title: "Fix [WIP", Notes: "later"},
+		"- Avoid ` in names: see doc":                         {Title: "Avoid ` in names", Notes: "see doc"},
+		"- Fix **totals**: in the ledger":                     {Title: "Fix **totals**", Notes: "in the ledger"},
 	} {
 		got := Parse("## L\n"+line+"\n", Options{}).Lists[0].Tasks[0]
 		got.Links = nil

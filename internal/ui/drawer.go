@@ -92,6 +92,7 @@ type item struct {
 	style lipgloss.Style
 	act   action
 	sel   bool // drawn on the selection background
+	raw   bool // text is styled already: style is not applied
 	stop  bool // a stop of the drawer cursor
 }
 
@@ -289,11 +290,13 @@ func (d *drawer) styledField(label string, labelStyle lipgloss.Style, chosen boo
 			if it.stop {
 				stops = append(stops, it.act)
 			}
-			if it.sel {
-				b.WriteString(highlight(it.style.Render(text), d.light))
-			} else {
-				b.WriteString(it.style.Render(text))
+			if !it.raw {
+				text = it.style.Render(text)
 			}
+			if it.sel {
+				text = highlight(text, d.light)
+			}
+			b.WriteString(text)
 			used += w
 		}
 		add()
