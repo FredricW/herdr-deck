@@ -558,10 +558,10 @@ a refusal. To change your answer, use System Settings → Privacy & Security
 
 The deck shows the dev servers of each open thread's worktree: one dot per
 service in the list's DEV column (green `●` when it is ready, yellow `◐`
-while it starts, dim `○` when not), and in the drawer's Overview tab a *Dev*
-section with a line per service (its dot, title, main port, state and log)
-and the numbered localhost links as chips. `u` starts the worktree's dev
-servers and `U` `U` (twice in a row) stops them.
+while it starts, dim `○` when not), and on top of the drawer's Overview tab
+the numbered localhost links as chips, each with its port and a dot for
+whether its server answers. `u` starts the worktree's dev servers and `U`
+`U` (twice in a row) stops them.
 
 A repository describes its dev servers in a shared, tool-neutral dev
 manifest, `.config/dev.json`: [the spec](docs/dev-manifest.md), with JSON

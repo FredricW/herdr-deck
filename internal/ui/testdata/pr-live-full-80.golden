@@ -5,18 +5,18 @@
 
   Overview   Files   Commits   PR   Log 6
 
+
+ [6 Frontend :5174 ●] [7 API docs :8002 ○]
+
  ── PR ──
  [5 #2320] open · review required · 2 comments (sam, alex)
  ✕ 1 failing: [lint]  ◌ 1 running: test (macos-latest) 6m  ✓ 2 passed
  ✕ blocked: checks failing, checks running, review required (sam)
  → PR tab: 3 unresolved review threads, description and comments
+
  ── Links ──
  [1 ABC-1191] [2 Figma 598-48083] [3 1138-88367] [4 635-76529]
- ── Dev ──
- ● Frontend :5174
- ○ API :8002 exited
-   /var/state/dev-manifest/logs/t-0004-summary-1a2b3c4d/service.api.log
- [6 Frontend ●] [7 API docs ○]
+
  ── Thread ──
  thread   t-0004 · Summary select documents
  pane     w21:p1

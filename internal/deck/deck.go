@@ -432,14 +432,6 @@ type DevServer struct {
 	Fallback bool
 }
 
-// Label is the server's title, else its name.
-func (s DevServer) Label() string {
-	if s.Title != "" {
-		return s.Title
-	}
-	return s.Name
-}
-
 // DevUp is the dev manifest's dev command a tool started for a thread's
 // worktree.
 type DevUp struct {

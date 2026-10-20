@@ -8,6 +8,7 @@ import (
 	"os"
 	"path/filepath"
 	"slices"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -251,7 +252,7 @@ func selectedTitle(m Model) string {
 func starting(alive bool) deck.Snapshot {
 	s := calm()
 	s.Threads[1].DevUp = &deck.DevUp{Log: "/var/state/herdr-deck/logs/admin-rebuild-t-0002.log", Alive: alive}
-	// Without Linear states the drawer has room for the Dev and Log lines.
+	// Without Linear states the drawer has room for the log line.
 	links := s.TaskLists[0].Tasks[0].Links
 	for i := range links {
 		links[i].Issue = nil
@@ -272,15 +273,6 @@ func services() deck.Snapshot {
 		s.Threads[i].DevServers = srv
 	}
 	return s
-}
-
-func TestDevUpKeepsProblemNote(t *testing.T) {
-	s := starting(false)
-	s.Threads[1].DevNote = "worktree not found"
-	m, _ := newModel(t, s, 80, 40)
-	if sc := screen(m); !strings.Contains(sc, "worktree not found · dev exited · see the log") {
-		t.Errorf("Dev line hides the problem:\n%s", sc)
-	}
 }
 
 func TestDevUp(t *testing.T) {
@@ -395,6 +387,48 @@ func TestLocalhostKeyOpensFirstRunning(t *testing.T) {
 	m, _ = press(m, keys("ko")...)
 	if !strings.HasPrefix(m.Status(), "no localhost link") {
 		t.Errorf("o without localhost links: status %q", m.Status())
+	}
+}
+
+// Dev links sit on top of Overview with their port, wrap whole at 60
+// columns, and their digits and clicks open the link the chip shows.
+func TestDevChips(t *testing.T) {
+	snap := calm()
+	th := &snap.Threads[2] // Templates page: Frontend is its link 3
+	th.Links = append(th.Links,
+		deck.Link{Kind: deck.LinkLocalhost, Label: "API docs", URL: "http://localhost:8011/docs", Down: true},
+		deck.Link{Kind: deck.LinkLocalhost, Label: "Storybook components", URL: "http://127.0.0.1:6006"},
+		deck.Link{Kind: deck.LinkLocalhost, Label: ":5441 db", URL: "http://localhost:5441"},
+		deck.Link{Kind: deck.LinkLocalhost, Label: "Queue on queue.shop.test", URL: "https://queue.shop.test/abc-12"},
+	)
+	m, o := newModel(t, snap, 60, 40)
+	m, _ = press(m, keys("jz")...)
+	chips := []struct{ text, url string }{
+		{"[3 Frontend :5181 ●]", "http://localhost:5181"},
+		{"[4 API docs :8011 ○]", "http://localhost:8011/docs"},
+		{"[5 Storybook components :6006 ●]", "http://127.0.0.1:6006"},
+		{"[6 :5441 db ●]", "http://localhost:5441"},
+		{"[7 Queue on queue.shop.test ●]", "https://queue.shop.test/abc-12"},
+	}
+	sc := screen(m)
+	if strings.Contains(sc, "── Dev ──") {
+		t.Errorf("Overview still has a Dev section:\n%s", sc)
+	}
+	_, top := find(t, m, chips[0].text)
+	_, links := find(t, m, "── Links ──")
+	if top > links {
+		t.Errorf("dev chips at line %d, below Links at %d:\n%s", top, links, sc)
+	}
+	for i, c := range chips {
+		x, y := find(t, m, c.text) // whole: a chip never breaks across lines
+		m, _ = press(m, click(x+2, y))
+		if got := o.urls[len(o.urls)-1]; got != c.url {
+			t.Errorf("click on %s opened %q", c.text, got)
+		}
+		m, _ = press(m, keys(strconv.Itoa(i+3))...)
+		if got := o.urls[len(o.urls)-1]; got != c.url {
+			t.Errorf("%d opened %q, want %s", i+3, got, c.url)
+		}
 	}
 }
 
@@ -590,7 +624,7 @@ func TestFigmaDesktopSetting(t *testing.T) {
 	const app = "figma://design/abc123/Document-select?node-id=1138-88367"
 	for _, desktop := range []bool{false, true} {
 		// Document select: Linear link 1, Figma links 2-4.
-		m, o := newModelWith(t, calm(), 80, 28, func(o *Options) { o.FigmaDesktop = desktop })
+		m, o := newModelWith(t, calm(), 80, 30, func(o *Options) { o.FigmaDesktop = desktop })
 		m, _ = press(m, keys("jj")...)
 		want := web
 		if desktop {

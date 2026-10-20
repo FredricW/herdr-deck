@@ -1,14 +1,16 @@
 # Drawer · Overview tab
 
-The tab the drawer opens on. Titled sections replace today's label column,
-in a fixed order: **Next**, **PR**, **Note**, **Links**, **Dev**, **Thread**.
-A section with nothing to show is left out. Conventions, colours and keys are
+The tab the drawer opens on. The thread's localhost links come first, as a
+line of chips without a heading. Titled sections follow, replacing today's
+label column, in a fixed order: **Next**, **PR**, **Note**, **Links**,
+**Thread**. A section with nothing to show is left out. (A **Dev** section
+with a line per dev server sat between Links and Thread until 2026-10-20.) Conventions, colours and keys are
 in the [README](README.md); every frame is the whole pane, 28 rows, and the
 box adds one column on each side.
 
 The drawer takes half of the pane (decided 2026-10-03), so in a 28-row pane
 eight lines are left for the tab's content under the card and the tab bar.
-The tab bar's right end says what did not fit (`↓ Dev · Thread`); `pgdn`,
+The tab bar's right end says what did not fit (`↓ Links · Thread`); `pgdn`,
 the wheel or `z` reach it. Sections are separated by a blank line only when
 the whole tab fits.
 
@@ -40,7 +42,7 @@ backgrounds, so each section below names the active tab.
 │────────────────────────────────────────────────────────────────────────────────│
 │ Users page                                                   ● needs you  ~95% │
 │ t-0002 · Members /admin/users · pane w1Z:p1                         ▰▰▰▰▰▰▰▰▰▱ │
-│ Overview   Files 11   Log 7                                     ↓ Dev · Thread │
+│ Overview   Files 11   Log 7                                           ↓ Thread │
 │ ── Next ──                                                                     │
 │ → Approve phase 1 (ABC-1256 overview)                                          │
 │ → Say whether to start ABC-1257 and ABC-1250                                   │
@@ -127,14 +129,14 @@ backgrounds, so each section below names the active tab.
 │ ── Links ──                                                                    │
 │ [1 ABC-1246 done] [2 ABC-1256 in progress] [3 ABC-1257 todo] [4 ABC-1250]      │
 │                                                                                │
-│ ── Dev ──                                                                      │
-│ not started: no .dev/t-0002/state.json · u starts it                           │
-│                                                                                │
 │ ── Thread ──                                                                   │
 │ pane     w1Z:p1 · claude done                                                  │
 │ branch   hp/admin-rebuild/t-0002-members-admin-users                           │
 │ report   threads/t-0002.md · changed 14:22 · r shows it                        │
 │ base     origin/main · merge-base 4f1c2a9                                      │
+│                                                                                │
+│                                                                                │
+│                                                                                │
 │                                                                                │
 │────────────────────────────────────────────────────────────────────────────────│
 │ ↵ go to pane  1-9 link  [ ] tab  r report  z drawer  ? help             v9.9.9 │
@@ -163,13 +165,13 @@ backgrounds, so each section below names the active tab.
 │ [1 ABC-1246 done] [2 ABC-1256 in progress]                 │
 │ [3 ABC-1257 todo] [4 ABC-1250]                             │
 │                                                            │
-│ ── Dev ──                                                  │
-│ not started: no .dev/t-0002/state.json · u starts it       │
-│                                                            │
 │ ── Thread ──                                               │
 │ pane    w1Z:p1 · claude done                               │
 │ branch  hp/admin-rebuild/t-0002-members-admin-users        │
 │ report  threads/t-0002.md · changed 14:22 · r              │
+│                                                            │
+│                                                            │
+│                                                            │
 │                                                            │
 │────────────────────────────────────────────────────────────│
 │ ↵ go to pane  1-9 link  [ ] tab  z drawer  ? help   v9.9.9 │
@@ -208,14 +210,14 @@ backgrounds, so each section below names the active tab.
 │ Templates page                                                 ◐ working  ~40% │
 │ t-0003 · Templates /templates · Writing tests · pane w20:p1         ▰▰▰▰▱▱▱▱▱▱ │
 │ Overview   Files 23   Log 4                                                    │
+│ [3 Frontend :5181 ●]                                                           │
 │ ── Links ──                                                                    │
 │ [1 ABC-1051 in progress] [2 Figma Templates]                                   │
-│ ── Dev ──                                                                      │
-│ :5181 frontend ●   :8011 api ●   :5441 pg ●                                    │
-│ [3 Frontend ●]                                                                 │
 │ ── Thread ──                                                                   │
 │ pane     w20:p1 · claude working                                               │
 │ branch   hp/admin-rebuild/t-0003-templates                                     │
+│                                                                                │
+│                                                                                │
 │────────────────────────────────────────────────────────────────────────────────│
 │ 1-9 link  l f n g o first  ↵ pane  [ ] tab  z drawer  ? help            v9.9.9 │
 └────────────────────────────────────────────────────────────────────────────────┘
@@ -243,14 +245,14 @@ backgrounds, so each section below names the active tab.
 │ Templates page                             ◐ working  ~40% │
 │ t-0003 · Writing tests                          ▰▰▰▰▱▱▱▱▱▱ │
 │ Overview   Files 23   Log 4                                │
+│ [3 Frontend :5181 ●]                                       │
 │ ── Links ──                                                │
 │ [1 ABC-1051 in progress] [2 Figma Templates]               │
-│ ── Dev ──                                                  │
-│ :5181 frontend ●  :8011 api ●  :5441 pg ●                  │
-│ [3 Frontend ●]                                             │
 │ ── Thread ──                                               │
 │ pane    w20:p1 · claude working                            │
 │ branch  hp/admin-rebuild/t-0003-templates                  │
+│                                                            │
+│                                                            │
 │────────────────────────────────────────────────────────────│
 │ 1-9 link  o open  ↵ pane  [ ] tab  z drawer  ? help v9.9.9 │
 └────────────────────────────────────────────────────────────┘
@@ -261,11 +263,12 @@ backgrounds, so each section below names the active tab.
 - Pill, percent and bar cyan. The activity (`Writing tests`) sits on the
   card's second line, dim, since a working thread's state line says only
   "working".
-- **Dev**: one entry per dev.json server, `●` green when listening, `○` dim
-  when not, `~` before a fallback port. The chips under it are the manifest's
-  localhost links, numbered after every other link; a chip whose server is
-  down is dim. While `u` starts the servers the line ends in yellow
-  `starting…`, and the log path moves into *Thread* (`log  ~/.local/state/…`).
+- **Dev links** on top: the manifest's localhost links as chips, numbered
+  after every other link, each with its port (`:5181`, dim) unless its label
+  shows it already, `●` green when its server answers and `○` dim when not;
+  a chip whose server is down is dim. Per-server state is in the list's DEV
+  column. While `u` starts the servers, the log path is in *Thread*
+  (`log  ~/.local/state/…`).
 - No *Next* or *Note*: the thread has no `next[]` and the task no notes.
 
 ## A thread in review, with failing checks
@@ -291,15 +294,15 @@ backgrounds, so each section below names the active tab.
 │────────────────────────────────────────────────────────────────────────────────│
 │ Document select for summary                                           ◇ review │
 │ t-0004 · Summary select documents · pane w21:p1              #2320 ✕ 2 failing │
-│ Overview   Files 4   Log 9                                            ↓ Thread │
+│ Overview   Files 4   Log 9                                            ↓ 3 more │
+│ [6 Frontend :5174 ●] [7 API docs :8002 ○]                                      │
 │ ── PR ──                                                                       │
 │ [5 #2320] open · review required · 2 comments (sam, alex)                      │
 │ ✕ 2 failing: lint, test (ubuntu-latest)                                        │
 │ ── Links ──                                                                    │
 │ [1 ABC-1191 in review] [2 Figma 598-48083] [3 1138-88367] [4 635-76529]        │
-│ ── Dev ──                                                                      │
-│ :5174 frontend ●   :8002 api ○                                                 │
-│ [6 Frontend ●] [7 API docs ○]                                                  │
+│ ── Thread ──                                                                   │
+│ pane     w21:p1 · claude idle                                                  │
 │────────────────────────────────────────────────────────────────────────────────│
 │ 1-9 link  l f n g o first  ↵ pane  [ ] tab  z drawer  ? help            v9.9.9 │
 └────────────────────────────────────────────────────────────────────────────────┘
@@ -326,15 +329,15 @@ backgrounds, so each section below names the active tab.
 │────────────────────────────────────────────────────────────│
 │ Document select for summary                       ◇ review │
 │ t-0004 · Summary select documents                #2320 ✕ 2 │
-│ Overview   Files 4   Log 9                        ↓ 5 more │
+│ Overview   Files 4   Log 9                        ↓ 3 more │
+│ [6 Frontend :5174 ●] [7 API docs :8002 ○]                  │
 │ ── PR ──                                                   │
 │ [5 #2320] open · review required · 2c                      │
 │ ✕ 2 failing: lint, test (ubuntu-latest)                    │
 │ ── Links ──                                                │
 │ [1 ABC-1191 in review] [2 Figma 598-48083]                 │
 │ [3 1138-88367] [4 635-76529]                               │
-│ ── Dev ──                                                  │
-│ :5174 frontend ●  :8002 api ○                              │
+│ ── Thread ──                                               │
 │────────────────────────────────────────────────────────────│
 │ 1-9 link  g PR  ↵ pane  [ ] tab  z drawer  ? help   v9.9.9 │
 └────────────────────────────────────────────────────────────┘
@@ -350,6 +353,8 @@ Full height, 80 columns:
 │ t-0004 · Summary select documents · pane w21:p1              #2320 ✕ 2 failing │
 │ Overview   Files 4   Log 9                                                     │
 │                                                                                │
+│ [6 Frontend :5174 ●] [7 API docs :8002 ○]                                      │
+│                                                                                │
 │ ── PR ──                                                                       │
 │ [5 #2320] open · review required · 2 comments (sam, alex)                      │
 │ ✕ 2 failing: lint, test (ubuntu-latest)                                        │
@@ -358,15 +363,13 @@ Full height, 80 columns:
 │ ── Links ──                                                                    │
 │ [1 ABC-1191 in review] [2 Figma 598-48083] [3 1138-88367] [4 635-76529]        │
 │                                                                                │
-│ ── Dev ──                                                                      │
-│ :5174 frontend ●   :8002 api ○                                                 │
-│ [6 Frontend ●] [7 API docs ○]                                                  │
-│                                                                                │
 │ ── Thread ──                                                                   │
 │ pane     w21:p1 · claude idle                                                  │
 │ branch   hp/admin-rebuild/t-0004-summary                                       │
 │ report   threads/t-0004.md · changed 11:05 · r shows it                        │
 │ base     origin/main · merge-base 9d02e71                                      │
+│                                                                                │
+│                                                                                │
 │                                                                                │
 │                                                                                │
 │                                                                                │

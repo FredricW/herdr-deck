@@ -19,7 +19,7 @@
  Fix ledger totals in ledger.go                                 ◐ working  ~60%
  webshop · t-0002-members-admin-users · Building overview            ▰▰▰▰▰▰▱▱▱▱
 
-  Overview   Files   Commits   Log 7                                   ↓ Thread
+  Overview   Files   Commits   Log 7                                   ↓ 4 more
 
  ── Next ──
  → Merge the PR after make test passes
@@ -28,7 +28,7 @@
  • a list item with old new text
  ── Links ──
  [1 ABC-1246 done] [2 ABC-1256 in progress] [3 ABC-1257 todo] [4 ABC-1250]
- ── Dev ──
- not started: no .dev/t-0002/state.json · u starts it
+ ── Thread ──
+ thread   t-0002 · Members /admin/users
 ────────────────────────────────────────────────────────────────────────────────
  1-9 link  l f n g o first  ↵ pane  [ ] tab  z drawer  ? help             v9.9.9
