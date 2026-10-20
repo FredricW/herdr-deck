@@ -16,13 +16,13 @@
  Document select for summary                                           ◇ review
  webshop · t-0004-summary                                     #2320 ✕ 2 failing
 
-  Overview   Files   Commits   PR   Log 7                        ↓ Dev · Thread
+  Overview   Files   Commits   PR   Log 7                      ↓ Links · Thread
 
  ✉ 1 update · see Log
+ [6 Frontend :5174 ●] [7 API docs :8002 ○]
  ── PR ──
  [5 #2320] open · review required · 2 comments (sam, alex)
  ✕ 2 failing: lint, test (ubuntu-latest)
  → PR tab: description and comments
- ── Links ──
 ────────────────────────────────────────────────────────────────────────────────
  1-9 link  l f n g o first  ↵ pane  [ ] tab  z drawer  ? help             v9.9.9

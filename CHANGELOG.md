@@ -19,6 +19,11 @@ and versions follow [Semantic Versioning](https://semver.org/).
 
 ### Changed
 
+- The drawer's Overview tab opens with the dev links: the localhost link
+  chips moved from the Dev section to the top, and each shows its port,
+  `[3 Frontend :5181 ●]`. The rest of the Dev section (a line per service
+  with its state and log, and "u starts it") is gone; the list's DEV
+  column still shows each service's state.
 - A row whose threads have no PR, or that has no thread, uses the first
   GitHub pull link in its task, for example a task list a script writes
   from review requests: the PR column shows its number, and the PR tab,

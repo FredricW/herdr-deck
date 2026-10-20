@@ -2,6 +2,8 @@ package ui
 
 import (
 	"fmt"
+	"net/url"
+	"slices"
 	"strings"
 	"time"
 
@@ -15,9 +17,10 @@ import (
 // noWorkspace says why a bare Linear ID has no link.
 const noWorkspace = "no Linear workspace: set linear.workspace in the config file, --linear-workspace or $" + deck.EnvLinearWorkspace
 
-// overview is the Overview tab: titled sections in a fixed order, Next,
-// PR, Note, Links, Dev and Thread, the empty ones left out. A blank line
-// goes between them only when they all fit in h lines.
+// overview is the Overview tab: the localhost links as chips on top, then
+// titled sections in a fixed order, Next, PR, Note, Links and Thread, the
+// empty ones left out. A blank line goes between them only when they all
+// fit in h lines.
 func (m Model) overview(d *drawer, r row, links []deck.Link, h int) {
 	t, hasThread := r.thread()
 	narrow := d.width < wideMin
@@ -91,28 +94,15 @@ func (m Model) overview(d *drawer, r row, links []deck.Link, h int) {
 			}
 		}})
 	}
-	local, _ := m.chips(d, links, prLink, func(l deck.Link) bool { return l.Kind == deck.LinkLocalhost })
-	hasDev := hasThread && (len(t.DevServers) > 0 || t.DevNote != "" || t.DevUp != nil)
-	if hasDev || len(local.items) > 0 {
-		secs = append(secs, sec{name: "Dev", style: bold, body: func() {
-			if hasDev {
-				gs := devGroups(t)
-				for i := range gs {
-					if narrow && gs[i].sep == "   " {
-						gs[i].sep = "  "
-					}
-				}
-				if t.DevUp == nil && len(t.DevServers) == 0 && strings.HasPrefix(t.DevNote, "not started") {
-					gs[0].items = append(gs[0].items, span("·", dim), span("u starts it", dim))
-				}
-				d.flow(gs...)
-			}
-			g, _ := m.chips(d, links, prLink, func(l deck.Link) bool { return l.Kind == deck.LinkLocalhost })
-			d.flow(g)
-		}})
-	}
 	if hasThread {
 		secs = append(secs, sec{name: "Thread", style: bold, body: func() { m.threadSection(d, r, t) }})
+	}
+
+	local := func(l deck.Link) bool { return l.Kind == deck.LinkLocalhost }
+	hasDev := slices.ContainsFunc(links, local)
+	blocks := len(secs)
+	if hasDev {
+		blocks++
 	}
 
 	build := func(blanks bool) {
@@ -129,8 +119,15 @@ func (m Model) overview(d *drawer, r row, links []deck.Link, h int) {
 			})
 		}
 		full := m.effectiveSize() == sizeFull
+		if hasDev {
+			if blanks && full {
+				d.line("")
+			}
+			g, _ := m.chips(d, links, prLink, local)
+			d.flow(g)
+		}
 		for i, s := range secs {
-			if blanks && (i > 0 || full) {
+			if blanks && (i > 0 || full || hasDev) {
 				d.line("")
 			}
 			d.sections = append(d.sections, section{name: s.name, at: len(d.lines)})
@@ -141,12 +138,12 @@ func (m Model) overview(d *drawer, r row, links []deck.Link, h int) {
 			d.line(head)
 			s.body()
 		}
-		if blanks && full && len(secs) > 0 {
+		if blanks && full && blocks > 0 {
 			d.line("")
 		}
 	}
 	build(false)
-	if len(d.lines)+len(secs)+1 <= h {
+	if len(d.lines)+blocks+1 <= h {
 		build(true)
 	}
 }
@@ -199,6 +196,9 @@ func (m Model) chip(d *drawer, l deck.Link, i int, first bool) item {
 		b.WriteString(" " + issueStyle(*l.Issue).Render(shortState(l.Issue.State)))
 	}
 	if l.Kind == deck.LinkLocalhost {
+		if p := linkPort(l); p != "" {
+			b.WriteString(" " + dim.Render(":"+p))
+		}
 		b.WriteString(" " + devDot(!l.Down))
 	}
 	b.WriteString(dim.Render("]"))
@@ -210,6 +210,30 @@ func (m Model) chip(d *drawer, l deck.Link, i int, first bool) item {
 	it := item{text: text, style: style, act: action{kind: actLink, n: i}, stop: true}
 	it.sel = d.nextStop() || m.choosing == l.Kind
 	return it
+}
+
+// linkPort is the port in a localhost link's URL, unless its label shows
+// it already (`:5181 web`, `localhost:5181/docs`).
+func linkPort(l deck.Link) string {
+	u, err := url.Parse(l.URL)
+	if err != nil {
+		return ""
+	}
+	p := u.Port()
+	if p == "" {
+		return ""
+	}
+	// :80 is not shown by a label with :8080.
+	for rest := l.Label; ; {
+		i := strings.Index(rest, ":"+p)
+		if i < 0 {
+			return p
+		}
+		rest = rest[i+1+len(p):]
+		if rest == "" || rest[0] < '0' || rest[0] > '9' {
+			return ""
+		}
+	}
 }
 
 // titled reports whether l is a Linear link whose issue has a title, which

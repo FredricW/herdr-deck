@@ -6,22 +6,22 @@
   Overview   Files   Commits   Log 3
 
 
+ [3 Frontend :5181 ●]
+
  ── Links ──
  [1 ABC-1051] [2 Figma Templates]
-
- ── Dev ──
- ● Frontend :5181 /src/webshop/.dev/t-0003/logs/frontend.log
- ◐ API :8011 starting… /src/webshop/.dev/t-0003/logs/api.log
- ● Postgres :5441
- · Worker /src/webshop/.dev/t-0003/logs/worker.log
- ○ docs port store not supported yet
- [3 Frontend ●]
 
  ── Thread ──
  thread   t-0003 · Templates /templates
  pane     w20:p1
  branch   hp/admin-rebuild/t-0003-templates
  base     origin/main
+
+
+
+
+
+
 
 
 ────────────────────────────────────────────────────────────────────────────────
