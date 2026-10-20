@@ -343,7 +343,7 @@ func (m Model) pickLine(r pickRow, sel bool, w int) string {
 		if at := needSince(r.thread); !at.IsZero() {
 			age = ageText(m.opt.Now().Sub(at))
 		}
-		left := " " + mark + "    " + needsStyle.Render("● "+text) + dim.Render(" · "+r.thread.ID)
+		left := " " + mark + "    " + needsStyle.Render("● ") + inline(text, needsStyle, m.light) + dim.Render(" · "+r.thread.ID)
 		return m.finish(spread(left, dim.Render(age)+"  ", w), sel, w)
 	}
 	p := r.project
