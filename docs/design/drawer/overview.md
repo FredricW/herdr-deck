@@ -1,7 +1,10 @@
 # Drawer · Overview tab
 
 The tab the drawer opens on. The thread's localhost links come first, as a
-line of chips without a heading. Titled sections follow, replacing today's
+line of chips without a heading; a thread without them gets one dim line
+there saying why (`not started · u starts it`, `starting…`, `dev exited ·
+see the log`, `no .config/dev.json`, `worktree not found`, `ports not
+known yet`). Titled sections follow, replacing today's
 label column, in a fixed order: **Next**, **PR**, **Note**, **Links**,
 **Thread**. A section with nothing to show is left out. (A **Dev** section
 with a line per dev server sat between Links and Thread until 2026-10-20.) Conventions, colours and keys are

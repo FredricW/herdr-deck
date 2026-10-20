@@ -99,11 +99,11 @@ func TestApplyManifest(t *testing.T) {
 
 	th := snap.Threads[0]
 	want := []deck.DevServer{
-		{Name: "frontend", Title: "Frontend", Port: 5181, Running: true},
-		{Name: "api", Title: "API", Port: 8011, Log: filepath.Join(main, ".dev/t-0003-templates/logs/api.log")},
-		{Name: "worker", Title: "Worker"},
+		{Name: "frontend", Port: 5181, Running: true},
+		{Name: "api", Port: 8011},
+		{Name: "worker"},
 		// db has no service: it is its own, after the declared ones.
-		{Name: "db", Title: "db", Port: 5441, Running: true},
+		{Name: "db", Port: 5441, Running: true},
 	}
 	if !reflect.DeepEqual(th.DevServers, want) {
 		t.Errorf("servers\n%+v, want\n%+v", th.DevServers, want)
@@ -155,7 +155,7 @@ func TestApplyLookup(t *testing.T) {
 	// A legacy file in the worktree loses to the main checkout's
 	// .config/dev.json.
 	write(t, filepath.Join(wt, manifest.LegacyPath), `{"state": {"ports": {"docs": 6060}}}`)
-	if s := apply(); names(s) != "" || !strings.HasPrefix(s.Threads[0].DevNote, "not started: no ") {
+	if s := apply(); names(s) != "" || s.Threads[0].DevNote != deck.DevNotStarted {
 		t.Errorf("legacy in the worktree: servers %q, note %q", names(s), s.Threads[0].DevNote)
 	}
 
@@ -164,7 +164,7 @@ func TestApplyLookup(t *testing.T) {
 		t.Fatal(err)
 	}
 	s := apply()
-	want := deck.DevServer{Name: "docs", Title: "docs", Port: 6060, Running: true}
+	want := deck.DevServer{Name: "docs", Port: 6060, Running: true}
 	if len(s.Threads[0].DevServers) != 1 || s.Threads[0].DevServers[0] != want {
 		t.Errorf("legacy: servers %+v", s.Threads[0].DevServers)
 	}
@@ -222,7 +222,7 @@ func TestApplyNotStartedFallsBackToPortToken(t *testing.T) {
 		t.Errorf("links %+v", th.Links)
 	}
 	other := snap.Threads[1]
-	if other.DevServers != nil || other.DevNote != "not started: no .dev/t-0003-templates/state.json" {
+	if other.DevServers != nil || other.DevNote != deck.DevNotStarted {
 		t.Errorf("servers %+v, note %q", other.DevServers, other.DevNote)
 	}
 	if len(snap.Missing) > 0 {
@@ -269,9 +269,9 @@ func TestApplyFixedAndStorePorts(t *testing.T) {
 	r.Apply(context.Background(), &snap)
 	th := snap.Threads[0]
 	want := []deck.DevServer{
-		{Name: "web", Title: "web", Pending: "port store not supported yet"},
-		{Name: "mail", Title: "mail", Port: 8025, Running: true},
-		{Name: "docs", Title: "docs", Port: 6060},
+		{Name: "web", Pending: "port store not supported yet"},
+		{Name: "mail", Port: 8025, Running: true},
+		{Name: "docs", Port: 6060},
 	}
 	if !reflect.DeepEqual(th.DevServers, want) {
 		t.Errorf("servers\n%+v, want\n%+v", th.DevServers, want)

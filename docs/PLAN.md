@@ -220,7 +220,12 @@ lists what the user chose.
   Above the first section, without a heading, the manifest's localhost
   links are chips with their port and dot, `[6 Frontend :5174 ●]` (since
   2026-10-20; they used to sit in a *Dev* section with a line per server,
-  between *Links* and *Thread*).
+  between *Links* and *Thread*). A thread without them gets one dim line
+  there saying why, the most relevant reason only: `worktree not found`
+  or an invalid manifest (`· ! shows why`) first, then the dev command a
+  tool started (`starting…`, `dev exited · see the log`), then
+  `not started · u starts it`, `no .config/dev.json` or `ports not known
+  yet`.
 
   Links are numbered `1`–`9` across sections in the order Linear, Figma,
   Notion, GitHub, localhost, wherever their chip sits; the numbered links
@@ -504,7 +509,9 @@ Keys:
   `~/.local/state/…`), with a `.pid` file beside it so a restarted deck
   still knows the command runs. Not started again while a manifest port
   answers or that pid is alive; the drawer's *Thread* section shows the
-  log, and the DEV column a yellow `◐` until the ports answer.
+  log, Overview `starting…` while there are no links yet, and the DEV
+  column a yellow `◐` until
+  the ports answer.
 - `p`: the project picker (see Other projects above).
 - Open URLs with `open` (macOS) / `xdg-open`.
 

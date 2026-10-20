@@ -151,7 +151,8 @@ type Thread struct {
 	Report     string       // the thread's report (threads/t-NNNN.md), or ""
 	Links      []Link
 	DevServers []DevServer
-	// DevNote says why DevServers is empty, e.g. "no .config/dev.json".
+	// DevNote says in a few words why DevServers is empty, e.g. "no
+	// .config/dev.json"; the drawer shows it in place of the dev links.
 	DevNote string
 	// PortToken is the herdr workspace token `port` of the thread's
 	// worktree, or 0: the dev-server port used when the manifest gives none.
@@ -413,8 +414,7 @@ type CheckLog struct {
 // DevServer is one service of a thread's worktree, from its dev manifest:
 // a service the manifest declares, or a port that no service lists.
 type DevServer struct {
-	Name  string
-	Title string // for display; "" means Name
+	Name string
 	// Port is the service's main port; 0 when it has none, or (with
 	// Pending set) when its number is not known yet.
 	Port    int
@@ -425,12 +425,17 @@ type DevServer struct {
 	// Starting: a tool started it and it runs, but is not ready yet.
 	// Exited: a tool started it, and it is gone without being ready.
 	Starting, Exited bool
-	// Log is the file holding the service's log, when there is one.
-	Log string
 	// Fallback is set when the port is herdr's workspace token, not the
 	// manifest's: a guess at where the worktree's server listens.
 	Fallback bool
 }
+
+// DevNotes the drawer treats on their own: a missing worktree outranks a
+// dev command's state, and "not started" gets the key that starts it.
+const (
+	DevNoWorktree = "worktree not found"
+	DevNotStarted = "not started"
+)
 
 // DevUp is the dev manifest's dev command a tool started for a thread's
 // worktree.

@@ -560,7 +560,10 @@ The deck shows the dev servers of each open thread's worktree: one dot per
 service in the list's DEV column (green `●` when it is ready, yellow `◐`
 while it starts, dim `○` when not), and on top of the drawer's Overview tab
 the numbered localhost links as chips, each with its port and a dot for
-whether its server answers. `u` starts the worktree's dev servers and `U`
+whether its server answers. A thread without them gets one dim line there
+saying why: `not started · u starts it`, `starting…`, `dev exited · see
+the log`, `no .config/dev.json`, `worktree not found` or `ports not known
+yet`. `u` starts the worktree's dev servers and `U`
 `U` (twice in a row) stops them.
 
 A repository describes its dev servers in a shared, tool-neutral dev
@@ -704,20 +707,20 @@ PR's checks at the right. Under the card are five tabs, six with a PR:
 ```
  Users page                                   ● needs you  ~95%
  t-0002 · Members /admin/users · pane w1Z:p1         ▰▰▰▰▰▰▰▰▰▱
- Overview   Files 11   Commits 4   Impact 7   Log 7   ↓ Dev · Thread
+ Overview   Files 11   Commits 4   Impact 7   Log 7   ↓ Links · Thread
  ── Next ──
  → Approve phase 1 (ABC-1256 overview)
  ── Links ──
  [1 ABC-1246 done] [2 ABC-1256 in progress] [3 ABC-1257 todo]
 ```
 
-- **Overview**: titled sections, the empty ones left out: *Next* (the
+- **Overview**: the localhost links as chips (or a dim line saying why
+  there are none), then titled sections, the empty ones left out: *Next* (the
   report's `## Next`), *PR* (a summary: state, review, comments and who
   made them, checks and why it is not merging, and a line to the PR
   tab), *Note* (the task's notes), *Links* (Linear, Figma, Notion
-  and GitHub links as numbered chips, with each Linear issue's state),
-  *Dev* (dev servers and localhost links) and *Thread* (pane, branch,
-  report, base, dev log).
+  and GitHub links as numbered chips, with each Linear issue's state)
+  and *Thread* (pane, branch, report, base, dev log).
 - **Files**: the thread's changed files as a diffstat (see Changed files).
 - **Commits**: the thread branch's own commits, newest first (see Commits).
 - **Impact**: what the branch did to the repository's shape: imports that

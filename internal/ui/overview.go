@@ -17,8 +17,8 @@ import (
 // noWorkspace says why a bare Linear ID has no link.
 const noWorkspace = "no Linear workspace: set linear.workspace in the config file, --linear-workspace or $" + deck.EnvLinearWorkspace
 
-// overview is the Overview tab: the localhost links as chips on top, then
-// titled sections in a fixed order, Next, PR, Note, Links and Thread, the
+// overview is the Overview tab: the localhost links as chips on top (or,
+// for a thread without them, one dim line saying why), then titled sections in a fixed order, Next, PR, Note, Links and Thread, the
 // empty ones left out. A blank line goes between them only when they all
 // fit in h lines.
 func (m Model) overview(d *drawer, r row, links []deck.Link, h int) {
@@ -100,8 +100,12 @@ func (m Model) overview(d *drawer, r row, links []deck.Link, h int) {
 
 	local := func(l deck.Link) bool { return l.Kind == deck.LinkLocalhost }
 	hasDev := slices.ContainsFunc(links, local)
+	why := ""
+	if hasThread && !hasDev {
+		why = devReason(t)
+	}
 	blocks := len(secs)
-	if hasDev {
+	if hasDev || why != "" {
 		blocks++
 	}
 
@@ -125,9 +129,14 @@ func (m Model) overview(d *drawer, r row, links []deck.Link, h int) {
 			}
 			g, _ := m.chips(d, links, prLink, local)
 			d.flow(g)
+		} else if why != "" {
+			if blanks && full {
+				d.line("")
+			}
+			d.flow(words(why, dim))
 		}
 		for i, s := range secs {
-			if blanks && (i > 0 || full || hasDev) {
+			if blanks && (i > 0 || full || hasDev || why != "") {
 				d.line("")
 			}
 			d.sections = append(d.sections, section{name: s.name, at: len(d.lines)})
@@ -145,6 +154,24 @@ func (m Model) overview(d *drawer, r row, links []deck.Link, h int) {
 	build(false)
 	if len(d.lines)+blocks+1 <= h {
 		build(true)
+	}
+}
+
+// devReason says in a few words why a thread has no localhost links: a
+// missing worktree or a broken manifest first, then the dev command a tool
+// started, then the source's note. "" when there is nothing to say.
+func devReason(t deck.Thread) string {
+	switch note := t.DevNote; {
+	case note == deck.DevNoWorktree || strings.HasPrefix(note, "invalid "):
+		return note
+	case t.DevUp != nil && t.DevUp.Alive:
+		return "starting…"
+	case t.DevUp != nil:
+		return "dev exited · see the log"
+	case note == deck.DevNotStarted:
+		return note + " · u starts it"
+	default:
+		return note
 	}
 }
 
