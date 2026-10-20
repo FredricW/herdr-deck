@@ -115,7 +115,7 @@ func Snapshot(slug string, now time.Time) deck.Snapshot {
 				},
 				Next:    []string{"Approve phase 1 (ABC-1256 overview)", "Say whether to start ABC-1257 and ABC-1250"},
 				Report:  "## Report\n\nPhase 1 is done: layout and overview.\n\n## Next\n\n- Approve phase 1 (ABC-1256 overview)\n",
-				DevNote: "not started: no .dev/t-0002/state.json",
+				DevNote: deck.DevNotStarted,
 			},
 			{
 				ID: "t-0003", Title: "Templates /templates", Status: deck.StatusWorking, Group: "working",
@@ -129,10 +129,10 @@ func Snapshot(slug string, now time.Time) deck.Snapshot {
 				// Services from a .config/dev.json whose ports the
 				// project's dev script writes in a state file.
 				DevServers: []deck.DevServer{
-					{Name: "frontend", Title: "Frontend", Port: 5181, Running: true, Log: "/src/webshop/.dev/t-0003/logs/frontend.log"},
-					{Name: "api", Title: "API", Port: 8011, Running: true, Log: "/src/webshop/.dev/t-0003/logs/api.log"},
-					{Name: "pg", Title: "Postgres", Port: 5441, Running: true},
-					{Name: "worker", Title: "Worker", Log: "/src/webshop/.dev/t-0003/logs/worker.log"},
+					{Name: "frontend", Port: 5181, Running: true},
+					{Name: "api", Port: 8011, Running: true},
+					{Name: "pg", Port: 5441, Running: true},
+					{Name: "worker"},
 				},
 				Links: []deck.Link{{Kind: deck.LinkLocalhost, Label: "Frontend", URL: "http://localhost:5181"}},
 			},
@@ -158,8 +158,8 @@ func Snapshot(slug string, now time.Time) deck.Snapshot {
 					{Kind: deck.LinkLocalhost, Label: "API docs", URL: "http://localhost:8002/docs", Down: true},
 				},
 				DevServers: []deck.DevServer{
-					{Name: "frontend", Title: "Frontend", Port: 5174, Running: true},
-					{Name: "api", Title: "API", Port: 8002, Exited: true, Log: "/var/state/dev-manifest/logs/t-0004-summary-1a2b3c4d/service.api.log"},
+					{Name: "frontend", Port: 5174, Running: true},
+					{Name: "api", Port: 8002, Exited: true},
 				},
 			},
 		},

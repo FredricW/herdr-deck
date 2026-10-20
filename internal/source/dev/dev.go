@@ -12,6 +12,7 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
+	"slices"
 	"strconv"
 	"strings"
 	"sync"
@@ -108,7 +109,7 @@ func (r *Reader) Apply(ctx context.Context, snap *deck.Snapshot) {
 		}
 		r.devUp(t)
 		if fi, err := os.Stat(t.Worktree); err != nil || !fi.IsDir() {
-			t.DevNote = "worktree not found"
+			t.DevNote = deck.DevNoWorktree
 			continue
 		}
 		p := r.read(t, snap, once)
@@ -170,7 +171,7 @@ func (r *Reader) read(t *deck.Thread, snap *deck.Snapshot, once func(*[]string, 
 		once(&snap.Notes, fmt.Sprintf("dev servers: %s has no %s; only herdr's port token, if any", filepath.Base(repo), manifest.Path))
 		return nil
 	case err != nil:
-		t.DevNote = p.found.Rel + " is invalid (! shows why)"
+		t.DevNote = "invalid " + p.found.Rel + deck.DevSeeSources
 		once(&snap.Missing, fmt.Sprintf("dev servers: %s: %v", p.found.Short(), short(err)))
 		return nil
 	}
@@ -195,6 +196,20 @@ func (r *Reader) read(t *deck.Thread, snap *deck.Snapshot, once func(*[]string, 
 	return p
 }
 
+// startable reports whether `u` can start something: a dev command that
+// is not null, or else a service with a run.
+func (p *plan) startable() bool {
+	if dev, ok := p.m.Command("dev"); ok {
+		return !dev.Null
+	}
+	for _, n := range p.m.StartOrder(p.m.DefaultGroup()) {
+		if p.m.Service(n).Run != nil {
+			return true
+		}
+	}
+	return false
+}
+
 // fill sets a thread's dev servers, DevUp and links from its plan and the
 // probes' answers.
 func (r *Reader) fill(t *deck.Thread, p *plan, up map[int]bool, httpOK map[check]bool) {
@@ -204,7 +219,7 @@ func (r *Reader) fill(t *deck.Thread, p *plan, up map[int]bool, httpOK map[check
 	var servers []deck.DevServer
 	for i := range p.m.Services {
 		s := &p.m.Services[i]
-		ds := deck.DevServer{Name: s.Name, Title: s.Title}
+		ds := deck.DevServer{Name: s.Name}
 		_, ds.Port, ds.Pending = p.mainPort(s)
 		known = known || ds.Port > 0
 		c := p.readyCheck(s)
@@ -226,29 +241,34 @@ func (r *Reader) fill(t *deck.Thread, p *plan, up map[int]bool, httpOK map[check
 		ds.Starting = alive && !ds.Running
 		ds.Exited = hasRec && !alive && !ds.Running
 		ready[s.Name] = ds.Running
-		if hasRec && rec.Log != "" {
-			ds.Log = rec.Log
-		} else if log, err := p.logOf(st, s); err == nil && exists(log) {
-			ds.Log = log
-		}
 		servers = append(servers, ds)
 	}
 	_, devCmd := p.m.Command("dev")
 	switch {
-	case len(p.m.Ports) > 0 && !known && !records:
+	case len(p.m.Ports) > 0 && !known && records:
+		// Started service by service, and no port has a number yet.
+		if slices.ContainsFunc(servers, func(s deck.DevServer) bool { return s.Starting }) {
+			t.DevNote = "starting…"
+		} else if p.startable() {
+			t.DevNote = deck.DevNotStarted
+		}
+		servers = nil
+	case len(p.m.Ports) > 0 && !known:
 		// No port has a number yet: nothing has started.
 		switch {
+		case p.stateMissing && p.startable():
+			t.DevNote = deck.DevNotStarted
 		case p.stateMissing:
-			t.DevNote = "not started: no " + p.rel(p.stateFile)
+			t.DevNote = "no dev command"
 		case p.m.StateFile != "" && len(p.pending) > 0 && allPending(p, "not in the state file yet"):
-			t.DevNote = "the state file names no ports yet"
+			t.DevNote = "ports not known yet"
 		default:
-			t.DevNote = "ports not known yet (! shows why)"
+			t.DevNote = "ports not known yet" + deck.DevSeeSources
 		}
 		servers = nil
 	case len(servers) == 0 && devCmd:
 		if c, _ := p.m.Command("dev"); !c.Null {
-			t.DevNote = "not started"
+			t.DevNote = deck.DevNotStarted
 		}
 	default:
 		t.DevNote = ""
