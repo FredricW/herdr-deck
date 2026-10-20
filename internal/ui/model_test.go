@@ -432,6 +432,21 @@ func TestDevChips(t *testing.T) {
 	}
 }
 
+func TestLinkPort(t *testing.T) {
+	for _, tt := range []struct{ label, url, want string }{
+		{"Frontend", "http://localhost:5181", "5181"},
+		{":5181 web", "http://localhost:5181", ""},
+		{"localhost:5181/docs", "http://localhost:5181/docs", ""},
+		{":8080 proxy", "http://localhost:80/", "80"},
+		{"~:80", "http://localhost:80", ""},
+		{"Queue", "https://queue.shop.test/abc-12", ""},
+	} {
+		if got := linkPort(deck.Link{Label: tt.label, URL: tt.url}); got != tt.want {
+			t.Errorf("linkPort(%q, %q) = %q, want %q", tt.label, tt.url, got, tt.want)
+		}
+	}
+}
+
 func TestChooser(t *testing.T) {
 	m, o := newModel(t, calm(), 80, 28)
 

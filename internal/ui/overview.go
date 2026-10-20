@@ -3,6 +3,7 @@ package ui
 import (
 	"fmt"
 	"net/url"
+	"slices"
 	"strings"
 	"time"
 
@@ -98,9 +99,9 @@ func (m Model) overview(d *drawer, r row, links []deck.Link, h int) {
 	}
 
 	local := func(l deck.Link) bool { return l.Kind == deck.LinkLocalhost }
-	dev, _ := m.chips(d, links, prLink, local)
+	hasDev := slices.ContainsFunc(links, local)
 	blocks := len(secs)
-	if len(dev.items) > 0 {
+	if hasDev {
 		blocks++
 	}
 
@@ -118,7 +119,7 @@ func (m Model) overview(d *drawer, r row, links []deck.Link, h int) {
 			})
 		}
 		full := m.effectiveSize() == sizeFull
-		if len(dev.items) > 0 {
+		if hasDev {
 			if blanks && full {
 				d.line("")
 			}
@@ -126,7 +127,7 @@ func (m Model) overview(d *drawer, r row, links []deck.Link, h int) {
 			d.flow(g)
 		}
 		for i, s := range secs {
-			if blanks && (i > 0 || full || len(dev.items) > 0) {
+			if blanks && (i > 0 || full || hasDev) {
 				d.line("")
 			}
 			d.sections = append(d.sections, section{name: s.name, at: len(d.lines)})
@@ -219,10 +220,20 @@ func linkPort(l deck.Link) string {
 		return ""
 	}
 	p := u.Port()
-	if p == "" || strings.Contains(l.Label, ":"+p) {
+	if p == "" {
 		return ""
 	}
-	return p
+	// :80 is not shown by a label with :8080.
+	for rest := l.Label; ; {
+		i := strings.Index(rest, ":"+p)
+		if i < 0 {
+			return p
+		}
+		rest = rest[i+1+len(p):]
+		if rest == "" || rest[0] < '0' || rest[0] > '9' {
+			return ""
+		}
+	}
 }
 
 // titled reports whether l is a Linear link whose issue has a title, which

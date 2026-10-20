@@ -212,13 +212,15 @@ lists what the user chose.
     colour, a Linear issue's state in its state colour. A run
     of one kind shows the kind word on its first chip only
     (`[2 Figma 598-48083] [3 1138-88367]`); a closed issue's chip is dim.
-  - *Dev*: the servers (`:5181 frontend ●`, `~` for a fallback port,
-    `starting…` / `up exited`) and, under them, the manifest's localhost
-    links as chips with their dot.
   - *Thread*: dim labels for metadata: `pane` with the agent's live state,
     `branch`, `report` (changed time, `r shows it`), `base` and merge-base,
     `log` while the deck runs an `up` command. A task with several threads
     lists each.
+
+  Above the first section, without a heading, the manifest's localhost
+  links are chips with their port and dot, `[6 Frontend :5174 ●]` (since
+  2026-10-20; they used to sit in a *Dev* section with a line per server,
+  between *Links* and *Thread*).
 
   Links are numbered `1`–`9` across sections in the order Linear, Figma,
   Notion, GitHub, localhost, wherever their chip sits; the numbered links
@@ -501,8 +503,8 @@ Keys:
   `$XDG_STATE_HOME/herdr-deck/logs/<slug>-<thread>.log` (else
   `~/.local/state/…`), with a `.pid` file beside it so a restarted deck
   still knows the command runs. Not started again while a manifest port
-  answers or that pid is alive; the drawer shows the log and `starting…`
-  until the ports answer.
+  answers or that pid is alive; the drawer's *Thread* section shows the
+  log, and the DEV column a yellow `◐` until the ports answer.
 - `p`: the project picker (see Other projects above).
 - Open URLs with `open` (macOS) / `xdg-open`.
 
