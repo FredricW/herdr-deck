@@ -18,9 +18,10 @@ import (
 const noWorkspace = "no Linear workspace: set linear.workspace in the config file, --linear-workspace or $" + deck.EnvLinearWorkspace
 
 // overview is the Overview tab: the localhost links as chips on top (or,
-// for a thread without them, one dim line saying why), then titled sections in a fixed order, Next, PR, Note, Links and Thread, the
-// empty ones left out. A blank line goes between them only when they all
-// fit in h lines.
+// for a thread without them, one dim line saying why), then titled
+// sections in a fixed order, Next, PR, Note, Links and Thread, the empty
+// ones left out. A blank line goes between them only when they all fit in
+// h lines.
 func (m Model) overview(d *drawer, r row, links []deck.Link, h int) {
 	t, hasThread := r.thread()
 	narrow := d.width < wideMin
@@ -158,15 +159,16 @@ func (m Model) overview(d *drawer, r row, links []deck.Link, h int) {
 }
 
 // devReason says in a few words why a thread has no localhost links: a
-// missing worktree or a broken manifest first, then the dev command a tool
-// started, then the source's note. "" when there is nothing to say.
+// missing worktree or a problem `!` explains first, then the dev command
+// a tool started, then the source's note. "" when there is nothing to say.
 func devReason(t deck.Thread) string {
+	running := slices.ContainsFunc(t.DevServers, func(s deck.DevServer) bool { return s.Running })
 	switch note := t.DevNote; {
-	case note == deck.DevNoWorktree || strings.HasPrefix(note, "invalid "):
+	case note == deck.DevNoWorktree || strings.HasSuffix(note, deck.DevSeeSources):
 		return note
 	case t.DevUp != nil && t.DevUp.Alive:
 		return "starting…"
-	case t.DevUp != nil:
+	case t.DevUp != nil && !running:
 		return "dev exited · see the log"
 	case note == deck.DevNotStarted:
 		return note + " · u starts it"

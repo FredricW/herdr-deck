@@ -430,11 +430,13 @@ type DevServer struct {
 	Fallback bool
 }
 
-// DevNotes the drawer treats on their own: a missing worktree outranks a
-// dev command's state, and "not started" gets the key that starts it.
+// DevNotes the drawer treats on their own: a missing worktree, and a
+// problem the Sources view (`!`) explains, ending in DevSeeSources, outrank
+// a dev command's state; "not started" gets the key that starts it.
 const (
 	DevNoWorktree = "worktree not found"
 	DevNotStarted = "not started"
+	DevSeeSources = " · ! shows why"
 )
 
 // DevUp is the dev manifest's dev command a tool started for a thread's

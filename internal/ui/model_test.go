@@ -1416,6 +1416,7 @@ func TestDevReason(t *testing.T) {
 		{"invalid .config/dev.json · ! shows why", alive, "invalid .config/dev.json · ! shows why"},
 		{deck.DevNotStarted, alive, "starting…"},
 		{"ports not known yet", gone, "dev exited · see the log"},
+		{"ports not known yet · ! shows why", alive, "ports not known yet · ! shows why"},
 		{deck.DevNotStarted, nil, "not started · u starts it"},
 		{"no .config/dev.json", nil, "no .config/dev.json"},
 		{"", nil, ""},
@@ -1423,5 +1424,10 @@ func TestDevReason(t *testing.T) {
 		if got := devReason(deck.Thread{DevNote: c.note, DevUp: c.up}); got != c.want {
 			t.Errorf("devReason(%q, %+v) = %q, want %q", c.note, c.up, got, c.want)
 		}
+	}
+	// A dev command that exits once its services run is not a failure.
+	daemon := deck.Thread{DevUp: gone, DevServers: []deck.DevServer{{Name: "db", Running: true}}}
+	if got := devReason(daemon); got != "" {
+		t.Errorf("devReason with a running server = %q, want none", got)
 	}
 }

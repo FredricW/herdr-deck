@@ -510,8 +510,7 @@ Keys:
   still knows the command runs. Not started again while a manifest port
   answers or that pid is alive; the drawer's *Thread* section shows the
   log, Overview `starting…` while there are no links yet, and the DEV
-  column a yellow `◐` until
-  the ports answer.
+  column a yellow `◐` until the ports answer.
 - `p`: the project picker (see Other projects above).
 - Open URLs with `open` (macOS) / `xdg-open`.
 

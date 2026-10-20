@@ -380,3 +380,16 @@ func TestProberCacheExpires(t *testing.T) {
 		t.Errorf("%d dials, want 4 (twice on IPv4 and IPv6)", n)
 	}
 }
+
+// Without a dev command or a service with a run, `u` has nothing to
+// start, so the note does not say "not started".
+func TestApplyNothingToStart(t *testing.T) {
+	main, wt := repo(t)
+	write(t, filepath.Join(main, manifest.Path), strings.Replace(shop, `"commands": { "dev": ["scripts/dev", "up"], "stop": ["scripts/dev", "down"] },`, "", 1))
+	r := &Reader{Prober: Prober{Dial: fakeDial(new(atomic.Int32))}}
+	snap := deck.Snapshot{Threads: []deck.Thread{{ID: "t-0003", Worktree: wt, Repo: main}}}
+	r.Apply(context.Background(), &snap)
+	if n := snap.Threads[0].DevNote; n != "no dev command" {
+		t.Errorf("note %q, want %q", n, "no dev command")
+	}
+}
