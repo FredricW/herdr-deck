@@ -8,6 +8,8 @@ and versions follow [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.1.9] - 2026-10-20
+
 ### Added
 
 - Task text shows its inline Markdown: *italic*, **bold**, `code`,
@@ -15,7 +17,7 @@ and versions follow [Semantic Versioning](https://semver.org/).
   rows, the card, the project switcher), Next lines and one-line notes,
   without the markers. A link shows its text and opens with a click
   where the terminal supports OSC 8 links. Markers inside words, like
-  snake_case_names or 2*3*4, stay as written.
+  `snake_case_names` or `2*3*4`, stay as written.
 
 ### Changed
 
@@ -25,8 +27,8 @@ and versions follow [Semantic Versioning](https://semver.org/).
   with its state and log) is gone; the list's DEV column still shows each
   service's state. A thread without dev links gets one dim line in their
   place saying why: `not started · u starts it`, `starting…`, `dev exited
-  · see the log`, `no .config/dev.json`, `worktree not found` or `ports
-  not known yet`.
+  · see the log`, `no .config/dev.json`, `invalid .config/dev.json · !
+  shows why`, `worktree not found` or `ports not known yet`.
 - A row whose threads have no PR, or that has no thread, uses the first
   GitHub pull link in its task, for example a task list a script writes
   from review requests: the PR column shows its number, and the PR tab,
